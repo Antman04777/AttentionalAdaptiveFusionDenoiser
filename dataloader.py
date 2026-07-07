@@ -73,9 +73,9 @@ class BMFRFinalDataset(Dataset):
 
     def __getitem__(self, index):
         if self.use_test:
-            return tf.to_tensor(self.raw_data.test_inputs[index]), self.raw_data.test_references[index]
+            return tf.to_tensor(self.raw_data.test_inputs[index]), tf.to_tensor(self.raw_data.test_references[index]) 
         else:
-            return self.raw_data.train_inputs[index], self.raw_data.train_references[index]
+            return tf.to_tensor(self.raw_data.train_inputs[index]), tf.to_tensor(self.raw_data.train_references[index]) #wskpn used float 32
         
     def __len__(self):
         if self.use_train:
