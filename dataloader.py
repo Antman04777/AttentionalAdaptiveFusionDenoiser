@@ -25,6 +25,8 @@ class RawDataReader:
 
         normal_file_names = [os.path.join(folder_name, scene, "inputs", "shading_normal"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
 
+        depth_file_names = [os.path.join(folder_name, scene, "inputs", "depth"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
+
         reference_file_names = [os.path.join(folder_name, scene, "inputs", "reference"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
 
         self.train_inputs=[] 
@@ -40,11 +42,15 @@ class RawDataReader:
             albedo_image = pyexr.read(albedo_file_names[i])
             reference_image=pyexr.read(reference_file_names[i])
             normal_image=pyexr.read(normal_file_names[i])
+            normal_image = normal_image*0.5 + 0.5
+            depth_image = pyexr.read(depth_file_names[i])[:,:, 0:1]
+            depth_image = (depth_image - np.min(depth_image))/ (np.max(depth_image) - np.min(depth_image))
 
             inputs = np.concatenate(irradiance_NonTA_image,
                                     irradiance_TA_image,
                                     albedo_image,
-                                    normal_image, 
+                                    normal_image,
+                                    depth_image, 
                                     axis = 2)
             
             if i < (num_frames_per_scene*len(scene_names-1)):
