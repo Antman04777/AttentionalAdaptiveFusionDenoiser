@@ -49,7 +49,8 @@ class RawDataReader:
             inputs = np.concatenate(irradiance_NonTA_image,
                                     irradiance_TA_image,
                                     albedo_image,
-                                    normal_image, 
+                                    normal_image,
+                                    depth_image, 
                                     axis = 2)
             
             if i < (num_frames_per_scene*len(scene_names-1)):
