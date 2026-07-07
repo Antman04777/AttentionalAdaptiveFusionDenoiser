@@ -12,7 +12,7 @@ class RawDataReader:
     def __init__(self):
 
         folder_name = os.path.join("dataset")
-        scene_names = ["classroom-example"]
+        scene_names = ["classroom"]
 
 
         num_frames_per_scene = 5
