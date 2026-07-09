@@ -137,3 +137,23 @@ if __name__ == "__main__":
     model = net.repGuidePredictionNet(device).to(device)
     optimizer = torch.optim.Adam(model.parameters(), learning_rate)
     writer = SummaryWriter(tensorboard_saving_path)
+
+
+    for epoch in range(epochs):
+        # Train
+        train(model, device, dataloader_train, optimizer, epoch, writer)
+        # Evaluation
+        if (epoch+1) % epoch_test == 0:
+            _SSIM_val, _PSNR_val = inference(model, device, dataloader_val, dataset_val)
+            writer.add_scalar("SSIM-val", _SSIM_val, epoch)
+            writer.add_scalar("PSNR-val", _PSNR_val, epoch)
+
+            if epoch > epochs * 0.8:
+                _SSIM_test, _PSNR_test = inference(model, device, dataloader_test, dataset_test, test_saving_root)
+                writer.add_scalar("SSIM-test", _SSIM_test, epoch)
+                writer.add_scalar("PSNR-test", _PSNR_test, epoch)                
+            
+            torch.save({'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, os.path.join(model_saving_path, "model.pt"))
+
+    writer.flush()
+    writer.close()
