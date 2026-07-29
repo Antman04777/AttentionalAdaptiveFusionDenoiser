@@ -48,7 +48,8 @@ static torch::Tensor create_grid_wrapper(torch::Tensor& input_image, torch::Tens
     device,
     scalar_type);
 
-    return output_color;
+    // return output_color;
+    return output_color_tensor;
 
 //    torch::Tensor image_grad_tensor = torch::empty((batch_size, image_height, image_width, channel_size), dtype=torch::kFloat)
 //    torch::Tensor guide_grad_tensor = torch::empty({batch_size, image_height, image_width}, dtype = torch::kFloat)
@@ -110,7 +111,8 @@ static std::tuple<torch::Tensor,torch::Tensor> create_grid_grad_wrapper(torch::T
       scalar_type
     );
 
-    return std::forward_as_tuple(image_grad,guide_grad);
+    // return std::forward_as_tuple(image_grad,guide_grad);
+    return std::forward_as_tuple(image_grad_tensor,guide_grad_tensor);
 }
 
 TORCH_LIBRARY (my_ops, m){

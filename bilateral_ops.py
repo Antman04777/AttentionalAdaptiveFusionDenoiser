@@ -40,7 +40,7 @@ def creation_back(ctx, grad):
     input_image,input_guide, input_attrs = ctx.saved_tensors
 
     #calls wrapper for grad launcher
-    image_grad,guide_grad=torch.ops.my_ops.create_grid_grad_wrapper(input_image, input_guide, input_attrs,grad)     #grad acts as backprop
+    image_grad,guide_grad=torch.ops.my_ops.create_grid_grad_wrapper(input_image, input_guide, input_attrs, grad)     #grad acts as backprop
 
     return image_grad,guide_grad 
 
