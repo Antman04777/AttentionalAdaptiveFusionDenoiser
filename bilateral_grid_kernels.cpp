@@ -26,5 +26,32 @@ static torch::Tensor create_grid_wrapper(torch::Tensor input_image, torch::Tenso
     const int grid_width = image_width / ss;
     const int grid_depth = 256 / sr;
 
+    torch::Tensor output_color_tensor = torch::empty({batch_size, grid_height, grid_width, grid_depth, channel_size}, dtype = torch::kFloat);
+    auto output_color = output_color_tensor.flatten<float>();
+
+    torch::Device device = input_image.device();
+    create_grid_kernel_launcher
+  (
+    input_flat_image,
+    input_guide_flat, 
+    batch_size,
+    image_height 
+    image_width,
+    channel_size,
+    grid_height,
+    grid_width,
+    grid_depth,
+    sr,
+    output_color
+    device);
+
+    return output_color
+
+//    torch::Tensor image_grad_tensor = torch::empty((batch_size, image_height, image_width, channel_size), dtype=torch::kFloat)
+//    torch::Tensor guide_grad_tensor = torch::empty({batch_size, image_height, image_width}, dtype = torch::kFloat)
+//
+//    auto image_grad = image_grad_tensor.flatten<float>()
+//    auto guide_grad = guide_grad_tensor.flatten<float>()
+
 
 }
