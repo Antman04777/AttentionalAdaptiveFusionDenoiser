@@ -1,9 +1,9 @@
 #pragma once
 
-#ifndef TORCH_ROCM
-#include <ATen/cuda/CUDAContext.h>
-#else
+#if defined(USE_ROCM) || defined(TORCH_USE_HIP_DSA)
 #include <ATen/hip/HIPContext.h>
+#else
+#include <ATen/cuda/CUDAContext.h>
 #endif
 
 #include <torch/script.h>

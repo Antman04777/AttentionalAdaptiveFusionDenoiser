@@ -110,10 +110,10 @@ void create_grid_kernel_launcher(const float *input_image,
   if (current_device == device && num_grid_points > 0) {
     int64_t num_blocks = at::cuda::detail::GET_BLOCKS(num_grid_points);
 
-#ifndef TORCH_ROCM
-    const cudaStream_t stream = at::cuda::getCurrentCUDAStream();
-#else
+#if defined(USE_ROCM) || defined(TORCH_USE_HIP_DSA)
     const hipStream_t stream = at::cuda::getCurrentHIPStream();
+#else
+    const cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 #endif
 
     AT_DISPATCH_FLOATING_TYPES_AND_HALF(
