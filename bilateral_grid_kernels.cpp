@@ -58,7 +58,7 @@ static torch::Tensor create_grid_wrapper(torch::Tensor& input_image, torch::Tens
 
 }
 
-static std::tuple<torch::Tensor,torch::Tensor> create_grid_grad_wrapper(torch::Tensor& input_image, torch::Tensor& input_guide, torch::Tensor& input_attr, torch::Tensor& grad){
+static std::tuple<torch::Tensor,torch::Tensor> create_grid_grad_wrapper(torch::Tensor& input_image, torch::Tensor& input_guide, torch::Tensor& input_attrs, torch::Tensor& grad){
     if (input_image.dim() != 4)
       throw std::invalid_argument("Error: Input image dimension should be 4: {batch, height, width, channel}.");
     auto input_flat_image = input_image.flatten();
@@ -92,7 +92,7 @@ static std::tuple<torch::Tensor,torch::Tensor> create_grid_grad_wrapper(torch::T
     torch::Device device = input_image.device();
     const auto& scalar_type = input_flat_image.scalar_type();
 
-    create_bi_grid_grad_kernel_launcher(
+    create_grid_grad_kernel_launcher(
       input_flat_image.const_data_ptr<float>(), 
       input_guide_flat.const_data_ptr<float>(), 
       backprop.const_data_ptr<float>(),
@@ -110,10 +110,10 @@ static std::tuple<torch::Tensor,torch::Tensor> create_grid_grad_wrapper(torch::T
       scalar_type
     );
 
-    return std::forward_as_tuple(image_grad,guide_grad)
+    return std::forward_as_tuple(image_grad,guide_grad);
 }
 
 TORCH_LIBRARY (my_ops, m){
     m.def("create_grid_wrapper", &create_grid_wrapper);
-    m.def("create_grid_grad_wrapper", &create_grid_grad);
+    m.def("create_grid_grad_wrapper", &create_grid_grad_wrapper);
 }
