@@ -1,5 +1,5 @@
 import torch
-torch.ops.load_library("build/libbilateral_grid_kernals.so")
+torch.ops.load_library("build/libbilateral_grid_kernels.so")
 
 
 #def handle_creation(input_image, input_guide, attrs):

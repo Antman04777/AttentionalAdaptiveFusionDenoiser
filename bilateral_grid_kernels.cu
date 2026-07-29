@@ -334,6 +334,22 @@ __global__ void CreateBiGridGuideGradKernel(
 
 
 
+// void create_grid_kernel_launcher
+// (
+//     const float* input_image,
+//     const float* input_guide, 
+//     const int batch_size,
+//     const int image_height,
+//     const int image_width,
+//     const int channel_size,
+//     const int grid_height,
+//     const int grid_width,
+//     const int grid_depth,
+//     const int sr,
+//     float* const out_color,
+//     torch::Device& device,
+//     const torch::Dtype& type
+// );
 void create_grid_kernel_launcher(const float *input_image,
                                  const float *input_guide, const int batch_size,
                                  const int image_height, const int image_width,
@@ -341,7 +357,7 @@ void create_grid_kernel_launcher(const float *input_image,
                                  const int grid_width, const int grid_depth,
                                  const int sr, float *const out_color,
                                  torch::Device &device,
-                                 torch::Dtype &type)
+                                 const torch::Dtype &type)
                                  {
   int64_t num_grid_points =
       batch_size * grid_height * grid_width * channel_size;
