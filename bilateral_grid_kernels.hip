@@ -351,6 +351,7 @@ __global__ void CreateBiGridGuideGradKernel(
 //     torch::Device& device,
 //     const torch::Dtype& type
 // );
+
 void create_grid_kernel_launcher(const float *input_image,
                                  const float *input_guide, const int batch_size,
                                  const int image_height, const int image_width,
