@@ -110,7 +110,7 @@ __global__ void CreateBiGridImageGradKernel(
 	const int sr,
 	float* image_grad
 ) {
-	CUDA_1D_KERNEL_LOOP(i, num_image_pixels)
+	CUDA_KERNEL_LOOP(i, num_image_pixels)
 	{
 		int ss = image_width / grid_width;
 
@@ -218,7 +218,7 @@ __global__ void CreateBiGridGuideGradKernel(
 	const int sr,
 	float* guide_grad
 ) {
-	CUDA_1D_KERNEL_LOOP(i, guide_count)
+	CUDA_KERNEL_LOOP(i, num_guide_pixels)
 	{
 		int ss = image_width / grid_width;
 
@@ -386,12 +386,12 @@ void create_grid_grad_kernel_launcher
 )
 {
 
-  int64_t num_image_pixels = batch_size*image_height*image_width*channel_size
-  int64_t num_guide_pixels = batch_size*image_height*image_width
+  int64_t num_image_pixels = batch_size*image_height*image_width*channel_size;
+  int64_t num_guide_pixels = batch_size*image_height*image_width;
 
   torch::Device current_device(torch::kCUDA, 0);
 
-  if (current_device == device && num_image_pixels > 0 && num_guide_pixels >0) {
+  if (current_device == device && num_image_pixels > 0 && num_guide_pixels > 0) {
     int64_t num_blocks = at::cuda::detail::GET_BLOCKS(num_image_pixels);
 
 #if defined(USE_ROCM) || defined(TORCH_USE_HIP_DSA)
@@ -403,7 +403,7 @@ void create_grid_grad_kernel_launcher
     AT_DISPATCH_FLOATING_TYPES_AND_HALF(
         type, "CreateBiGridImageGradKernel", ([&] {
         CreateBiGridImageGradKernel<<<num_blocks, at::cuda::detail::CUDA_NUM_THREADS, 0, stream>>>(
-          num_image_pixels, input_image, input_guide, batch_size,backprop
+          num_image_pixels, input_image, input_guide, backprop, batch_size,
           image_height, image_width, channel_size, grid_height,
           grid_width, grid_depth, sr, image_grad);
     }));
@@ -412,7 +412,7 @@ void create_grid_grad_kernel_launcher
     AT_DISPATCH_FLOATING_TYPES_AND_HALF(
         type, "CreateBiGridGuideGradKernel", ([&] {
         CreateBiGridGuideGradKernel<<<num_blocks, at::cuda::detail::CUDA_NUM_THREADS, 0, stream>>>(
-          num_guide_pixels, input_image, input_guide, batch_size,backprop
+          num_guide_pixels, input_image, input_guide, backprop, batch_size,
           image_height, image_width, channel_size, grid_height,
           grid_width, grid_depth, sr, guide_grad);
     }));
