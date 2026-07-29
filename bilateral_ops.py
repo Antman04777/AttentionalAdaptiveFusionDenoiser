@@ -5,9 +5,7 @@ torch.ops.load_library("build/libbilateral_grid_kernals.so")
 def handle_creation(input_image, input_guide, attrs):
     #flatten inputs, check dimensions
     #call  creation wrapper op which callls launchers wrapper
-    if (input_image.ndims() != 4):
-      raise ValueError("Error: Input image dimension should be 4: {batch, height, width, channel}.")
-    input_image = input_image.flat<float>()
+
 
 
 
@@ -32,7 +30,7 @@ def handle_slicing(input_grid, input_guide, attrs):
 def creation_wrapper(input_image: torch.Tensor, input_guide: torch.Tensor, input_attrs: torch.Tensor) -> torch.Tensor:
 
     
-    return torch.ops.my_ops.create_grid(input_image, input_guide,input_attrs)
+    return torch.ops.my_ops.create_grid_wrapper(input_image, input_guide,input_attrs)
 
 
 def creation_back(ctx, grad):
@@ -42,10 +40,12 @@ def creation_back(ctx, grad):
     input_image,input_guide, input_attrs = ctx.saved_tensors
 
     #calls wrapper for grad launcher
-    grad_tensors=torch.ops.my_ops.creation_grad(input_image, input_guide, input_attrs,grad)     #grad acts as backprop
+    image_grad,guide_grad=torch.ops.my_ops.create_grid_grad_wrapper(input_image, input_guide, input_attrs,grad)     #grad acts as backprop
 
-    return grad_tensors[0], grad_tensors[1]
+    return image_grad,guide_grad 
 
 def setUp(ctx, inputs, output):
     input_image,input_guide, input_attrs = inputs
     ctx.save_for_backward(input_image,input_guide, input_attrs)
+
+creation_wrapper.register_autograd(creation_back, setup_context=setUp)
