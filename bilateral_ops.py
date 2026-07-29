@@ -2,7 +2,7 @@ import torch
 torch.ops.load_library("build/libbilateral_grid_kernals.so")
 
 
-def handle_creation(input_image, input_guide, attrs):
+#def handle_creation(input_image, input_guide, attrs):
     #flatten inputs, check dimensions
     #call  creation wrapper op which callls launchers wrapper
 
@@ -14,7 +14,7 @@ def handle_creation(input_image, input_guide, attrs):
 #    #call  creation grad wrapper op which calls the launchers wrapper
 
 
-def handle_slicing(input_grid, input_guide, attrs):
+#def handle_slicing(input_grid, input_guide, attrs):
     #flatten inputs, check dimensions
     #call  creation wrapper op which callls launchers wrapper
 
