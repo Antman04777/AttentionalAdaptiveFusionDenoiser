@@ -42,10 +42,10 @@ def creation_back(ctx, grad):
     #calls wrapper for grad launcher
     image_grad,guide_grad=torch.ops.my_ops.create_grid_grad_wrapper(input_image, input_guide, input_attrs, grad)     #grad acts as backprop
 
-    return image_grad,guide_grad 
+    return image_grad, guide_grad, None
 
 def setUp(ctx, inputs, output):
-    input_image,input_guide, input_attrs = inputs
+    input_image, input_guide, input_attrs = inputs
     ctx.save_for_backward(input_image,input_guide, input_attrs)
 
 creation_wrapper.register_autograd(creation_back, setup_context=setUp)

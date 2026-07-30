@@ -3,7 +3,7 @@
 #include "bilateral_grid_kernels.h"
 #include <tuple>
 
-static torch::Tensor create_grid_wrapper(torch::Tensor& input_image, torch::Tensor& input_guide, torch::Tensor& input_attrs)
+static torch::Tensor create_grid_wrapper(torch::Tensor input_image, torch::Tensor input_guide, torch::Tensor input_attrs)
 {
     if (input_image.dim() != 4)
       throw std::invalid_argument("Error: Input image dimension should be 4: {batch, height, width, channel}.");
@@ -27,10 +27,12 @@ static torch::Tensor create_grid_wrapper(torch::Tensor& input_image, torch::Tens
     const int grid_width = image_width / ss;
     const int grid_depth = 256 / sr;
 
+    torch::Device device = input_image.device();
+
     torch::Tensor output_color_tensor = torch::empty({batch_size, grid_height, grid_width, grid_depth, channel_size}, torch::kFloat);
+    output_color_tensor = output_color_tensor.to(device);
     auto output_color = output_color_tensor.flatten();
 
-    torch::Device device = input_image.device();
     const auto& scalar_type = input_flat_image.scalar_type();
 
     create_grid_kernel_launcher(
@@ -59,7 +61,7 @@ static torch::Tensor create_grid_wrapper(torch::Tensor& input_image, torch::Tens
 
 }
 
-static std::tuple<torch::Tensor,torch::Tensor> create_grid_grad_wrapper(torch::Tensor& input_image, torch::Tensor& input_guide, torch::Tensor& input_attrs, torch::Tensor& grad){
+static std::tuple<torch::Tensor, torch::Tensor> create_grid_grad_wrapper(torch::Tensor input_image, torch::Tensor input_guide, torch::Tensor input_attrs, torch::Tensor grad){
     if (input_image.dim() != 4)
       throw std::invalid_argument("Error: Input image dimension should be 4: {batch, height, width, channel}.");
     auto input_flat_image = input_image.flatten();
@@ -82,15 +84,20 @@ static std::tuple<torch::Tensor,torch::Tensor> create_grid_grad_wrapper(torch::T
     const int grid_width = image_width / ss;
     const int grid_depth = 256 / sr;
 
-    torch::Tensor image_grad_tensor = torch::empty({batch_size, image_height, image_width,channel_size}, torch::kFloat);
-    auto image_grad = image_grad_tensor.flatten();   
+    torch::Device device = input_image.device();
+
+    torch::Tensor image_grad_tensor = torch::empty({batch_size, image_height, image_width, channel_size}, torch::kFloat);
+    // torch::Tensor image_grad_tensor = torch::zeros_like(input_image);
+    image_grad_tensor = image_grad_tensor.to(device);
+    auto image_grad = image_grad_tensor.flatten();
     
     torch::Tensor guide_grad_tensor = torch::empty({batch_size, image_height, image_width}, torch::kFloat);
+    // torch::Tensor guide_grad_tensor = torch::zeros_like(input_guide);
+    guide_grad_tensor = guide_grad_tensor.to(device);
     auto guide_grad = guide_grad_tensor.flatten();
 
     auto backprop = grad.flatten();
 
-    torch::Device device = input_image.device();
     const auto& scalar_type = input_flat_image.scalar_type();
 
     create_grid_grad_kernel_launcher(
@@ -112,7 +119,7 @@ static std::tuple<torch::Tensor,torch::Tensor> create_grid_grad_wrapper(torch::T
     );
 
     // return std::forward_as_tuple(image_grad,guide_grad);
-    return std::forward_as_tuple(image_grad_tensor,guide_grad_tensor);
+    return std::make_tuple(image_grad_tensor,guide_grad_tensor);
 }
 
 TORCH_LIBRARY (my_ops, m){
