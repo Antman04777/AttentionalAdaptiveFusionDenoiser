@@ -17,13 +17,15 @@ class RawDataReader:
 
         num_frames_per_scene = 5
 
-        # irradiance_TA_file_names = [os.path.join(folder_name, scene, "acc_colors", "color"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
+        irradiance_TA_file_names = [os.path.join(folder_name, scene, "acc_colors", "color"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
 
-        irradiance_NonTA_file_names = [os.path.join(folder_name, scene, "inputs", "color"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
+        irradiance_non_TA_file_names = [os.path.join(folder_name, scene, "inputs", "color"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
 
         albedo_file_names = [os.path.join(folder_name, scene, "inputs", "albedo"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
 
         normal_file_names = [os.path.join(folder_name, scene, "inputs", "shading_normal"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
+
+        world_position_file_names = [os.path.join(folder_name, scene, "inputs", "world_position"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
 
         depth_file_names = [os.path.join(folder_name, scene, "inputs", "depth"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
 
@@ -37,26 +39,30 @@ class RawDataReader:
 
         for i in tqdm(range(len(reference_file_names))):
             
-            # irradiance_TA_image = pyexr.read(irradiance_TA_file_names[i])[:,:,3]
-            irradiance_NonTA_image = pyexr.read(irradiance_NonTA_file_names[i])[:,:,:3] # stopped here
+            irradiance_TA_image = pyexr.read(irradiance_TA_file_names[i])[:,:,3]
+            irradiance_non_TA_image = pyexr.read(irradiance_non_TA_file_names[i])[:,:,:3]
             albedo_image = pyexr.read(albedo_file_names[i])
             reference_image=pyexr.read(reference_file_names[i])
             normal_image=pyexr.read(normal_file_names[i])
             normal_image = normal_image*0.5 + 0.5
+            world_position_image = pyexr.read(world_position_file_names[i])
+            # world pos post processing?
             depth_image = pyexr.read(depth_file_names[i])[:,:, 0:1]
-            depth_image = (depth_image - np.min(depth_image))/ (np.max(depth_image) - np.min(depth_image))
+            depth_image = (depth_image - np.min(depth_image)) / (np.max(depth_image) - np.min(depth_image))
 
             #if i == 0:
             #    print(f"irradiance non-ta image shape = {irradiance_NonTA_image.shape}")
             #    print(f"albedo image shape = {albedo_image.shape}")
             #    print(f"reference image shape = {reference_image.shape}")
             #    print(f"normal image shape = {normal_image.shape}")
+            #    print(f"world position image shape = {world_position_image.shape}")
             #    print(f"depth image shape = {depth_image.shape}")
 
-            inputs = np.concatenate([irradiance_NonTA_image,
-                                    # irradiance_TA_image,
+            inputs = np.concatenate([irradiance_non_TA_image,
+                                    irradiance_TA_image,
                                     albedo_image,
                                     normal_image,
+                                    world_position_image,
                                     depth_image], 
                                     axis=2)
             
