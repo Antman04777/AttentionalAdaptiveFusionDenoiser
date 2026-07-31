@@ -1,6 +1,7 @@
 import torch
-torch.ops.load_library("build/libbilateral_grid_kernels.so")
 
+torch.ops.load_library("build/libbilateral_grid_kernels.so")
+print("libbilateral_grid_kernels.so loaded")
 
 #def handle_creation(input_image, input_guide, attrs):
     #flatten inputs, check dimensions

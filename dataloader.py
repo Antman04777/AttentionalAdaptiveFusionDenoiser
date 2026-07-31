@@ -39,7 +39,7 @@ class RawDataReader:
 
         for i in tqdm(range(len(reference_file_names))):
             
-            irradiance_TA_image = pyexr.read(irradiance_TA_file_names[i])[:,:,3]
+            irradiance_TA_image = pyexr.read(irradiance_TA_file_names[i])[:,:,:3]
             irradiance_non_TA_image = pyexr.read(irradiance_non_TA_file_names[i])[:,:,:3]
             albedo_image = pyexr.read(albedo_file_names[i])
             reference_image=pyexr.read(reference_file_names[i])

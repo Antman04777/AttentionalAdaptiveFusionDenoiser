@@ -29,6 +29,7 @@ def tone_map(input_image):
 
 class RepVGG(torch.nn.Module):
     def __init__(self, device, deployed=False, pretrained_model=None):
+        super().__init__()
         # define convolutional layers
         # 4 output channels (weight map 1 (1 channel), weight map 2 (1 channel), guide 1 (1 channel), guide 2 (1 channel))
         # same repvgg structure as WSKP (for now...)
@@ -94,8 +95,12 @@ class RepVGG(torch.nn.Module):
 
     def forward(self, raw_inputs):
         x_irradiance_non_TA = raw_inputs[:, 0:3]
-        x_irradiance_TA = raw_inputs[: 3:6]
+        x_irradiance_TA = raw_inputs[:, 3:6]
         x_albedo = raw_inputs[:, 6:9]
+
+        print("Albedo shape: ", x_albedo.shape)
+        print("x_irradiance_non_TA shape: ", x_irradiance_non_TA.shape)
+        print("x_irradiance_TA shape: ", x_irradiance_TA.shape)
 
         x_tone_mapped_non_TA_frame = tone_map(x_irradiance_non_TA * x_albedo)
         x_tone_mapped_TA_frame = tone_map(x_irradiance_TA * x_albedo)
@@ -133,27 +138,55 @@ class RepVGG(torch.nn.Module):
             xf_5 = self.conv_layerf_5(x5_out)
 
             x_final_out = self.sigmoid(xf_1 + xf_3 + xf_5)
-            x_final_out = x_final_out.transpose((0, 2, 3, 1))
 
-            guide1 = x_final_out[:, 0, :, :] * 255
-            guide2 = x_final_out[:, 1, :, :] * 255
+            #
+            #x_final_out = x_final_out.transpose((0, 2, 3, 1))
+            #
 
-            weight_map1 = x_final_out[:, 2, :, :]
+            x_final_out = x_final_out.transpose(1, 3)
+            x_final_out = x_final_out.transpose(1, 2)
+
+            #guide1 = x_final_out[:, 0, :, :] * 255
+            #guide2 = x_final_out[:, 1, :, :] * 255
+
+            guide1 = x_final_out[:, :, :, 0] * 255
+            guide2 = x_final_out[:, :, :, 1] * 255
+
+            # weight_map1 = x_final_out[:, 2, :, :]
+            weight_map1 = torch.unsqueeze(x_final_out[:, :, :, 2], dim=3)
+            weight_map1 = torch.tile(weight_map1, (1, 1, 1, 3))
             weight_map2 = 1.0 - weight_map1
 
             ss = 4
             sr = 4
 
             attributes = torch.zeros((ss, sr), dtype=torch.int32, device=self.device)
-            x_irradiance_non_TA = x_irradiance_non_TA.transpose((0, 2, 3, 1))
-            x_irradiance_TA = x_irradiance_TA.transpose((0, 2, 3, 1))
-            x_albedo = x_albedo.transpose((0, 2, 3, 1))
+            # x_irradiance_non_TA = x_irradiance_non_TA.transpose((0, 2, 3, 1))
+            x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 3)
+            x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 2)
+
+            # x_irradiance_TA = x_irradiance_TA.transpose((0, 2, 3, 1))
+            x_irradiance_TA = x_irradiance_TA.transpose(1, 3)
+            x_irradiance_TA = x_irradiance_TA.transpose(1, 2)
+
+            # x_albedo = x_albedo.transpose((0, 2, 3, 1))
+            x_albedo = x_albedo.transpose(1, 3)
+            x_albedo = x_albedo.transpose(1, 2)
 
             grid1 = bilateral_ops.creation_wrapper(x_irradiance_non_TA, guide1, attributes)
             grid2 = bilateral_ops.creation_wrapper(x_irradiance_TA, guide2, attributes)
 
             irradiance_non_TA_denoised = bilateral_ops.slicing_wrapper(grid1, guide1, attributes)
             irradiance_TA_denoised = bilateral_ops.slicing_wrapper(grid2, guide2, attributes)
+
+            print("guide1: ", guide1.shape)
+            print("guide2: ", guide2.shape)
+            print("weight_map1: ", weight_map1.shape)
+            print("weight_map2: ", weight_map2.shape)
+            print("grid1: ", grid1.shape)
+            print("grid2: ", grid2.shape)
+            print("irradiance_non_TA_denoised: ", irradiance_non_TA_denoised.shape)
+            print("irradiance_TA_denoised: ", irradiance_TA_denoised.shape)
 
             irradiance_final = weight_map1 * irradiance_non_TA_denoised + weight_map2 * irradiance_TA_denoised
 
