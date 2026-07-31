@@ -12,8 +12,8 @@ class RawDataReader:
     def __init__(self):
 
         folder_name = os.path.join("dataset")
-        scene_names = ["classroom"]
-
+        # scene_names = ["classroom", "living-room", "san-miguel", "sponza-glossy", "sponza-moving-light", "sponza"]
+        scene_names = ["classroom", "living-room"]
 
         num_frames_per_scene = 5
 

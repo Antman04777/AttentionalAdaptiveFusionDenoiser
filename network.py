@@ -98,9 +98,9 @@ class RepVGG(torch.nn.Module):
         x_irradiance_TA = raw_inputs[:, 3:6]
         x_albedo = raw_inputs[:, 6:9]
 
-        print("Albedo shape: ", x_albedo.shape)
-        print("x_irradiance_non_TA shape: ", x_irradiance_non_TA.shape)
-        print("x_irradiance_TA shape: ", x_irradiance_TA.shape)
+        #print("Albedo shape: ", x_albedo.shape)
+        #print("x_irradiance_non_TA shape: ", x_irradiance_non_TA.shape)
+        #print("x_irradiance_TA shape: ", x_irradiance_TA.shape)
 
         x_tone_mapped_non_TA_frame = tone_map(x_irradiance_non_TA * x_albedo)
         x_tone_mapped_TA_frame = tone_map(x_irradiance_TA * x_albedo)
@@ -173,22 +173,23 @@ class RepVGG(torch.nn.Module):
             x_albedo = x_albedo.transpose(1, 3)
             x_albedo = x_albedo.transpose(1, 2)
 
-            grid1 = bilateral_ops.creation_wrapper(x_irradiance_non_TA, guide1, attributes)
-            grid2 = bilateral_ops.creation_wrapper(x_irradiance_TA, guide2, attributes)
+            # grid1 = bilateral_ops.creation_wrapper(x_irradiance_non_TA, guide1, attributes)
+            # grid2 = bilateral_ops.creation_wrapper(x_irradiance_TA, guide2, attributes)
 
-            irradiance_non_TA_denoised = bilateral_ops.slicing_wrapper(grid1, guide1, attributes)
-            irradiance_TA_denoised = bilateral_ops.slicing_wrapper(grid2, guide2, attributes)
+            # irradiance_non_TA_denoised = bilateral_ops.slicing_wrapper(grid1, guide1, attributes)
+            # irradiance_TA_denoised = bilateral_ops.slicing_wrapper(grid2, guide2, attributes)
 
-            print("guide1: ", guide1.shape)
-            print("guide2: ", guide2.shape)
-            print("weight_map1: ", weight_map1.shape)
-            print("weight_map2: ", weight_map2.shape)
-            print("grid1: ", grid1.shape)
-            print("grid2: ", grid2.shape)
-            print("irradiance_non_TA_denoised: ", irradiance_non_TA_denoised.shape)
-            print("irradiance_TA_denoised: ", irradiance_TA_denoised.shape)
+            #print("guide1: ", guide1.shape)
+            #print("guide2: ", guide2.shape)
+            #print("weight_map1: ", weight_map1.shape)
+            #print("weight_map2: ", weight_map2.shape)
+            #print("grid1: ", grid1.shape)
+            #print("grid2: ", grid2.shape)
+            #print("irradiance_non_TA_denoised: ", irradiance_non_TA_denoised.shape)
+            #print("irradiance_TA_denoised: ", irradiance_TA_denoised.shape)
 
-            irradiance_final = weight_map1 * irradiance_non_TA_denoised + weight_map2 * irradiance_TA_denoised
+            #irradiance_final = weight_map1 * irradiance_non_TA_denoised + weight_map2 * irradiance_TA_denoised
+            irradiance_final = weight_map1 * x_irradiance_non_TA + weight_map2 * x_irradiance_TA
 
             final = x_albedo * irradiance_final
 
