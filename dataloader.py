@@ -31,7 +31,7 @@ class RawDataReader:
 
         reference_file_names = [os.path.join(folder_name, scene, "inputs", "reference"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
 
-        self.train_inputs=[] 
+        self.train_inputs=[] #perhaps make these numpy arrays
         self.test_inputs=[]
 
         self.train_references=[]
