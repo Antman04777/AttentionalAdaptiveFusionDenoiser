@@ -5,37 +5,54 @@ import pyexr
 from tqdm import tqdm
 from torch.utils.data import Dataset
 import torchvision.transforms.functional as tf
+import json
 
 
 class RawDataReader:
 
     def __init__(self):
+        self.train_inputs = None
+        self.train_references = None
+        self.test_inputs = None
+        self.test_references = None
+        self.IMG_HEIGHT = 720
+        self.IMG_WIDTH = 1280
 
+        self.NUM_INPUT_CHANNELS = 16
+        self.NUM_REFERENCE_CHANNELS = 3
+        self.NUM_TRAIN_IMAGES = None
+        self.NUM_TEST_IMAGES = None
+        self.scene_names = ["classroom", "living-room", "san-miguel", "sponza-glossy", "sponza-moving-light", "sponza"]
+        # self.scene_names = ["classroom", "living-room"]
+        self.num_frames_per_scene = 60
+
+        self.NUM_TRAIN_IMAGES = self.num_frames_per_scene*(len(self.scene_names) - 1)
+        self.NUM_TEST_IMAGES = self.num_frames_per_scene
+
+        numpy_files_written = len(os.listdir("memmap_dataset")) > 0
+
+        if not numpy_files_written:
+            self.create_memmap()
+            self.load_memmap()
+        else:
+            self.load_memmap()
+
+    def create_memmap(self):
         folder_name = os.path.join("dataset")
-        # scene_names = ["classroom", "living-room", "san-miguel", "sponza-glossy", "sponza-moving-light", "sponza"]
-        scene_names = ["classroom", "living-room"]
 
-        num_frames_per_scene = 5
+        irradiance_TA_file_names = [os.path.join(folder_name, scene, "acc_colors", "color"+str(i)+".exr") for scene in self.scene_names for i in range (self.num_frames_per_scene)]
 
-        irradiance_TA_file_names = [os.path.join(folder_name, scene, "acc_colors", "color"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
+        irradiance_non_TA_file_names = [os.path.join(folder_name, scene, "inputs", "color"+str(i)+".exr") for scene in self.scene_names for i in range (self.num_frames_per_scene)]
 
-        irradiance_non_TA_file_names = [os.path.join(folder_name, scene, "inputs", "color"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
+        albedo_file_names = [os.path.join(folder_name, scene, "inputs", "albedo"+str(i)+".exr") for scene in self.scene_names for i in range (self.num_frames_per_scene)]
 
-        albedo_file_names = [os.path.join(folder_name, scene, "inputs", "albedo"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
+        normal_file_names = [os.path.join(folder_name, scene, "inputs", "shading_normal"+str(i)+".exr") for scene in self.scene_names for i in range (self.num_frames_per_scene)]
 
-        normal_file_names = [os.path.join(folder_name, scene, "inputs", "shading_normal"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
+        world_position_file_names = [os.path.join(folder_name, scene, "inputs", "world_position"+str(i)+".exr") for scene in self.scene_names for i in range (self.num_frames_per_scene)]
 
-        world_position_file_names = [os.path.join(folder_name, scene, "inputs", "world_position"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
+        depth_file_names = [os.path.join(folder_name, scene, "inputs", "depth"+str(i)+".exr") for scene in self.scene_names for i in range (self.num_frames_per_scene)]
 
-        depth_file_names = [os.path.join(folder_name, scene, "inputs", "depth"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
-
-        reference_file_names = [os.path.join(folder_name, scene, "inputs", "reference"+str(i)+".exr") for scene in scene_names for i in range (num_frames_per_scene)]
-
-        self.train_inputs=[] #perhaps make these numpy arrays
-        self.test_inputs=[]
-
-        self.train_references=[]
-        self.test_references=[]
+        reference_file_names = [os.path.join(folder_name, scene, "inputs", "reference"+str(i)+".exr") for scene in self.scene_names for i in range (self.num_frames_per_scene)]
 
         for i in tqdm(range(len(reference_file_names))):
             
@@ -43,20 +60,19 @@ class RawDataReader:
             irradiance_non_TA_image = pyexr.read(irradiance_non_TA_file_names[i])[:,:,:3]
             albedo_image = pyexr.read(albedo_file_names[i])
             reference_image=pyexr.read(reference_file_names[i])
-            normal_image=pyexr.read(normal_file_names[i])
-            normal_image = normal_image*0.5 + 0.5
-            world_position_image = pyexr.read(world_position_file_names[i])
-            # world pos post processing?
-            depth_image = pyexr.read(depth_file_names[i])[:,:, 0:1]
-            depth_image = (depth_image - np.min(depth_image)) / (np.max(depth_image) - np.min(depth_image))
 
-            #if i == 0:
-            #    print(f"irradiance non-ta image shape = {irradiance_NonTA_image.shape}")
-            #    print(f"albedo image shape = {albedo_image.shape}")
-            #    print(f"reference image shape = {reference_image.shape}")
-            #    print(f"normal image shape = {normal_image.shape}")
-            #    print(f"world position image shape = {world_position_image.shape}")
-            #    print(f"depth image shape = {depth_image.shape}")
+            normal_image=pyexr.read(normal_file_names[i])
+            # normal_image = normal_image*0.5 + 0.5
+            np.multiply(normal_image, 0.5, out=normal_image)
+
+            world_position_image = pyexr.read(world_position_file_names[i])
+
+            depth_image = pyexr.read(depth_file_names[i])[:,:, 0:1]
+            min_depth = np.min(depth_image)
+            np.subtract(depth_image, min_depth, out=depth_image)
+            depth_denom = np.max(depth_image) - np.min(depth_image)
+            np.divide(depth_image, depth_denom, out=depth_image)
+            # depth_image = (depth_image - np.min(depth_image)) / (np.max(depth_image) - np.min(depth_image))
 
             inputs = np.concatenate([irradiance_non_TA_image,
                                     irradiance_TA_image,
@@ -65,35 +81,90 @@ class RawDataReader:
                                     world_position_image,
                                     depth_image], 
                                     axis=2)
+
+
             
-            if i < (num_frames_per_scene*(len(scene_names) - 1)):
-                
-                self.train_inputs.append(inputs)
-                self.train_references.append(reference_image)
+            if i < (self.num_frames_per_scene*(len(self.scene_names) - 1)):
+                with open('memmap_dataset/train_inputs.npy', mode='ab') as f:
+                    inputs.tofile(f)
+                with open('memmap_dataset/train_references.npy', mode='ab') as f:
+                    reference_image.tofile(f)
 
             else:
+                with open('memmap_dataset/test_inputs.npy', mode='ab') as f:
+                    inputs.tofile(f)
+                with open('memmap_dataset/test_references.npy', mode='ab') as f:
+                    reference_image.tofile(f)
 
-                self.test_inputs.append(inputs)
-                self.test_references.append(reference_image)
+    def load_memmap(self):
+
+        train_input_shape = (self.NUM_TRAIN_IMAGES, self.IMG_HEIGHT, self.IMG_WIDTH, self.NUM_INPUT_CHANNELS)
+        train_reference_shape = (self.NUM_TRAIN_IMAGES, self.IMG_HEIGHT, self.IMG_WIDTH, self.NUM_REFERENCE_CHANNELS)
+        test_input_shape = (self.NUM_TEST_IMAGES, self.IMG_HEIGHT, self.IMG_WIDTH, self.NUM_INPUT_CHANNELS)
+        test_reference_shape = (self.NUM_TEST_IMAGES, self.IMG_HEIGHT, self.IMG_WIDTH, self.NUM_REFERENCE_CHANNELS)
+
+        self.train_inputs = np.memmap('memmap_dataset/train_inputs.npy', dtype=np.float32, mode='r+', shape=train_input_shape)
+        self.train_references = np.memmap('memmap_dataset/train_references.npy', dtype=np.float32, mode='r+', shape=train_reference_shape)
+        self.test_inputs = np.memmap('memmap_dataset/test_inputs.npy', dtype=np.float32, mode='r+', shape=test_input_shape)
+        self.test_references = np.memmap('memmap_dataset/test_references.npy', dtype=np.float32, mode='r+', shape=test_reference_shape)
+
+        self.train_inputs = self.train_inputs.__array__()
+        self.train_references = self.train_references.__array__()
+        self.test_inputs =  self.test_inputs.__array__()
+        self.test_references =  self.test_references.__array__()  
+
+        # pyexr.write(os.path.join("test", "test_image"+str(0)+".exr"), self.train_inputs[299, :, :, 0:3])
+        # pyexr.write(os.path.join("test", "test_image"+str(1)+".exr"), self.train_inputs[299, :, :, 3:6])
+        # pyexr.write(os.path.join("test", "test_image"+str(2)+".exr"), self.train_inputs[299, :, :, 6:9])
+        # pyexr.write(os.path.join("test", "test_image"+str(3)+".exr"), self.train_inputs[299, :, :, 9:12])
+        # pyexr.write(os.path.join("test", "test_image"+str(4)+".exr"), self.train_inputs[299, :, :, 12:15])
+        # pyexr.write(os.path.join("test", "test_image"+str(5)+".exr"), self.train_inputs[299, :, :, 15:16])
+# 
+        # pyexr.write(os.path.join("test", "test_image"+str(6)+".exr"), self.train_references[299, :, :, 0:3])
 
 
 class BMFRFinalDataset(Dataset):
-    def __init__(self, raw_data, use_train=False, use_val = False, use_test=False):
+    def __init__(self, raw_data=None, use_train=False, use_val = False, use_test=False, crops_per_training_frame=80, crops_per_validation_frame=20, crop_size=128):
         self.raw_data=raw_data
         self.use_train=use_train
         self.use_val=use_val
         self.use_test=use_test
+        self.crops_per_training_frame = crops_per_training_frame
+        self.crops_per_validation_frame = crops_per_validation_frame
+        self.crop_size = crop_size
+
+    def crop(self, input, reference):
+        if self.use_train or self.use_val:
+            rand_x = np.random.randint(self.raw_data.IMG_HEIGHT - self.crop_size)
+            rand_y = np.random.randint(self.raw_data.IMG_WIDTH - self.crop_size)
+            input_cropped = tf.to_tensor(input[rand_x : rand_x + self.crop_size, rand_y : rand_y + self.crop_size].astype(np.float32))
+            reference_cropped = tf.to_tensor(reference[rand_x : rand_x + self.crop_size, rand_y : rand_y + self.crop_size].astype(np.float32))
+
+        elif self.use_test:
+            input_cropped = tf.to_tensor(input.astype(np.float32))
+            reference_cropped = tf.to_tensor(reference.astype(np.float32))
+
+        return input_cropped, reference_cropped
 
     def __getitem__(self, index):
         if self.use_test:
-            return tf.to_tensor(self.raw_data.test_inputs[index]), tf.to_tensor(self.raw_data.test_references[index]) 
-        else:
-            return tf.to_tensor(self.raw_data.train_inputs[index]), tf.to_tensor(self.raw_data.train_references[index]) #wskpn used float 32
+            # return tf.to_tensor(self.raw_data.test_inputs[index]), tf.to_tensor(self.raw_data.test_references[index])
+            frame_index = index
+            return self.crop(self.raw_data.test_inputs[frame_index], self.raw_data.test_references[frame_index])
+        elif self.use_train:
+            frame_index = index // self.crops_per_training_frame
+            return self.crop(self.raw_data.train_inputs[frame_index], self.raw_data.train_references[frame_index])
+            # return tf.to_tensor(self.raw_data.train_inputs[index]), tf.to_tensor(self.raw_data.train_references[index]) #wskpn used float 32
+        elif self.use_val:
+            frame_index = index // self.crops_per_validation_frame
+            return self.crop(self.raw_data.train_inputs[frame_index], self.raw_data.train_references[frame_index])
         
     def __len__(self):
         if self.use_train:
-            return len(self.raw_data.train_references)
-        else:
+            return len(self.raw_data.train_references) * self.crops_per_training_frame
+        elif self.use_val:
+            return len(self.raw_data.train_references) * self.crops_per_validation_frame
+        elif self.use_test:
             return len(self.raw_data.test_references)
         
     
