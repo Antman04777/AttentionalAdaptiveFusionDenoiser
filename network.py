@@ -108,7 +108,7 @@ class RepVGG(torch.nn.Module):
         x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.num_input_channels]), axis=1)
 
         if not self.deployed:
-            print('fuck')
+            # print('fuck')
             x1_1 = self.conv_layer1_1(x_input)
             x1_3 = self.conv_layer1_3(x_input)
             x1_5 = self.conv_layer1_5(x_input)
@@ -211,5 +211,3 @@ class RepVGG(torch.nn.Module):
             # print('fuuuuuck16')
 
             return final
-
-

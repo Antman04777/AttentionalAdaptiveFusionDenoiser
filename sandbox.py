@@ -1,5 +1,5 @@
 from network import RepVGG
-from dataloader import RawDataReader, BMFRFinalDataset
+from dataloader import RawDataReader, BMFRFinalDataset, DatasetPreloader
 import numpy as np
 import sys
 
@@ -26,13 +26,14 @@ if __name__ == "__main__":
     print('GPU: ', torch.cuda.get_device_name(0))
 
     learning_rate = 1e-3
-    batch_size = 64
+    batch_size = 128
     # batch_size = 10
     epochs = 10
 
     data = RawDataReader()
     train_dataset = BMFRFinalDataset(data, use_train=True)
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=6, persistent_workers=True, pin_memory=True, prefetch_factor=2)
+    # train_preloader = DatasetPreloader(loader=train_dataloader, device=device)
 
     #input_tensor = torch.rand((5, 16, 10, 10), dtype=torch.float32, requires_grad=True, device=device)
     #ref_tensor = torch.rand((5, 10, 10, 3), dtype=torch.float32, requires_grad=False, device=device)
@@ -43,21 +44,27 @@ if __name__ == "__main__":
     for epoch in range(epochs):
         print(f'Epoch {epoch}')
 
+        train_preloader = DatasetPreloader(loader=train_dataloader, device=device)
+
         model.train()
         criterion = SMAPELoss().to(device)
 
         losses = []
         count = 1
         with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True) as prof:
-            for (inputs, targets) in train_dataloader:
-                print("sub epoch: ", count)
+            # for (inputs, targets) in train_dataloader:
+            for (inputs, targets) in train_preloader:
+                # print("inputs shape: ", inputs.shape)
+                # print("targets shape: ", targets.shape)
+                print("batch number: ", count)
+                print("input shape: ", inputs.shape)
                 count += 1
                 # torch.cuda.memory._record_memory_history()
                 optimizer.zero_grad(set_to_none=True)
                 # print(f"inputs before sending device: {inputs.device}")
-                inputs = inputs.to(device, non_blocking=True)
+                # inputs = inputs.to(device, non_blocking=True)
                 # print(f"inputs after sending device: {inputs.device}")
-                targets = targets.to(device, non_blocking=True)
+                # targets = targets.to(device, non_blocking=True)
                 targets = targets.transpose(1, 3)
                 targets = targets.transpose(1, 2)
                 #print("input shape: ", inputs.shape)
@@ -79,7 +86,7 @@ if __name__ == "__main__":
 
                 # del outputs, loss
 
-                # gc.collect()
+                gc.collect()
                 # torch.cuda.empty_cache()
         
         # print(prof.key_averages().table(row_limit=10))

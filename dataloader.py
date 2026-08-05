@@ -146,6 +146,7 @@ class BMFRFinalDataset(Dataset):
 
         return input_cropped, reference_cropped
 
+    '''
     def __getitem__(self, index):
         if self.use_test:
             # return tf.to_tensor(self.raw_data.test_inputs[index]), tf.to_tensor(self.raw_data.test_references[index])
@@ -158,7 +159,31 @@ class BMFRFinalDataset(Dataset):
         elif self.use_val:
             frame_index = index // self.crops_per_validation_frame
             return self.crop(self.raw_data.train_inputs[frame_index], self.raw_data.train_references[frame_index])
-        
+    '''
+    
+    def __getitems__(self, indices):
+        final_list = []
+        for i in indices:
+            if self.use_test:
+                frame_index = i
+                input, reference = self.crop(self.raw_data.test_inputs[frame_index], self.raw_data.test_references[frame_index])
+            elif self.use_train:
+                frame_index = i // self.crops_per_training_frame
+                train_in = self.raw_data.train_inputs[frame_index]
+                test_in = self.raw_data.train_references[frame_index]
+                input, reference = self.crop(train_in, test_in)
+                del train_in, test_in
+            elif self.use_val:
+                frame_index = i // self.crops_per_validation_frame
+                train_in = self.raw_data.train_inputs[frame_index]
+                test_in = self.raw_data.train_references[frame_index]
+                input, reference = self.crop(train_in, test_in)
+                del train_in, test_in
+
+            final_list.append((input, reference))
+
+        return final_list
+    
     def __len__(self):
         if self.use_train:
             return len(self.raw_data.train_references) * self.crops_per_training_frame
@@ -168,4 +193,47 @@ class BMFRFinalDataset(Dataset):
             return len(self.raw_data.test_references)
         
     
+class DatasetPreloader:
+    def __init__(self, loader, device):
+        self.loader = iter(loader)
+        self.device = device
+        self.stream = torch.cuda.Stream() if torch.cuda.is_available() else None
+        self.next_input = None
+        self.next_reference = None
+
+        self.preload()
+
+    def preload(self):
+        try:
+            self.next_input, self.next_reference = next(self.loader)
+        except StopIteration:
+            self.next_input = None
+            self.next_reference = None
+            return
+        
+        if self.stream is not None:
+            with torch.cuda.stream(self.stream):
+                self.next_input = self.next_input.to(device=self.device, non_blocking=True)
+                self.next_reference = self.next_reference.to(device=self.device, non_blocking=True)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.stream is not None:
+            torch.cuda.current_stream().wait_stream(self.stream)
+
+        input = self.next_input
+        reference = self.next_reference
+
+        if input is None:
+            raise StopIteration
+
+        if self.stream is not None:
+            input.record_stream(torch.cuda.current_stream())
+            reference.record_stream(torch.cuda.current_stream())
+
+        self.preload()
+
+        return input, reference
 

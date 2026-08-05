@@ -5,9 +5,13 @@ import psutil
     
 if __name__ == '__main__':
     process = psutil.Process()
+    print(process.memory_info().rss)
     data = RawDataReader()
 
     print(process.memory_info().rss)
+
+    part = data.test_inputs
+    print(part)
 
     # train_shape = (data.NUM_TRAIN_IMAGES, data.IMG_WIDTH, data.IMG_HEIGHT, data.NUM_INPUT_CHANNELS)
     # test_shape = (data.NUM_TEST_IMAGES, data.IMG_WIDTH, data.IMG_HEIGHT, data.NUM_REFERENCE_CHANNELS)
