@@ -2,6 +2,8 @@ import torch
 import numpy as np
 import bilateral_ops
 
+from memory_profiler import profile
+
 def reparametrize(conv1, conv3, conv5, has_identity_branch=False):
     reparam_kernel = conv5.weight + torch.nn.functional.pad(conv3.weight, [1, 1, 1, 1]) + torch.nn.functional.pad(conv1.weight, [2, 2, 2, 2])
     if has_identity_branch:
@@ -93,6 +95,7 @@ class RepVGG(torch.nn.Module):
             self.rep_conv_layerf = reparametrize(pretrained_model.conv_layerf_1, pretrained_model.conv_layerf_3, pretrained_model.conv_layerf_5)
             self.sigmoid = torch.nn.Sigmoid()
 
+    # @profile
     def forward(self, raw_inputs):
         x_irradiance_non_TA = raw_inputs[:, 0:3]
         x_irradiance_TA = raw_inputs[:, 3:6]
@@ -108,7 +111,6 @@ class RepVGG(torch.nn.Module):
         x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.num_input_channels]), axis=1)
 
         if not self.deployed:
-            # print('fuck')
             x1_1 = self.conv_layer1_1(x_input)
             x1_3 = self.conv_layer1_3(x_input)
             x1_5 = self.conv_layer1_5(x_input)
@@ -139,54 +141,39 @@ class RepVGG(torch.nn.Module):
             xf_5 = self.conv_layerf_5(x5_out)
 
             x_final_out = self.sigmoid(xf_1 + xf_3 + xf_5)
-            # print('fuuuuuck')
             #
             #x_final_out = x_final_out.transpose((0, 2, 3, 1))
             #
 
             x_final_out = x_final_out.transpose(1, 3)
-            # print('fuuuuuck1')
             x_final_out = x_final_out.transpose(1, 2)
-            # print('fuuuuuck2')
 
             #guide1 = x_final_out[:, 0, :, :] * 255
             #guide2 = x_final_out[:, 1, :, :] * 255
 
             guide1 = x_final_out[:, :, :, 0] * 255
-            # print('fuuuuuck3')
             guide2 = x_final_out[:, :, :, 1] * 255
-            # print('fuuuuuck4')
 
             # weight_map1 = x_final_out[:, 2, :, :]
             weight_map1 = torch.unsqueeze(x_final_out[:, :, :, 2], dim=3)
-            # print('fuuuuuck5')
             weight_map1 = torch.tile(weight_map1, (1, 1, 1, 3))
-            # print('fuuuuuck6')
             weight_map2 = 1.0 - weight_map1
-            # print('fuuuuuck7')
 
             ss = 4
             sr = 4
 
             attributes = torch.zeros((ss, sr), dtype=torch.int32, device=self.device)
-            # print('fuuuuuck8')
             # x_irradiance_non_TA = x_irradiance_non_TA.transpose((0, 2, 3, 1))
             x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 3)
-            # print('fuuuuuck9')
             x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 2)
-            # print('fuuuuuck10')
 
             # x_irradiance_TA = x_irradiance_TA.transpose((0, 2, 3, 1))
             x_irradiance_TA = x_irradiance_TA.transpose(1, 3)
-            # print('fuuuuuck11')
             x_irradiance_TA = x_irradiance_TA.transpose(1, 2)
-            # print('fuuuuuck12')
 
             # x_albedo = x_albedo.transpose((0, 2, 3, 1))
             x_albedo = x_albedo.transpose(1, 3)
-            # print('fuuuuuck13')
             x_albedo = x_albedo.transpose(1, 2)
-            # print('fuuuuuck14')
 
             grid1 = bilateral_ops.creation_wrapper(x_irradiance_non_TA, guide1, attributes)
             grid2 = bilateral_ops.creation_wrapper(x_irradiance_TA, guide2, attributes)
@@ -205,9 +192,7 @@ class RepVGG(torch.nn.Module):
 
             irradiance_final = weight_map1 * irradiance_non_TA_denoised + weight_map2 * irradiance_TA_denoised
             # irradiance_final = weight_map1 * x_irradiance_non_TA + weight_map2 * x_irradiance_TA
-            # print('fuuuuuck15')
 
             final = x_albedo * irradiance_final
-            # print('fuuuuuck16')
 
             return final
