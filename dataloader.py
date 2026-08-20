@@ -26,6 +26,7 @@ class RawDataReader:
         self.scene_names = ["classroom", "living-room", "san-miguel", "sponza-glossy", "sponza-moving-light", "sponza"]
         # self.scene_names = ["classroom", "living-room"]
         self.num_frames_per_scene = 60
+        # self.num_frames_per_scene = 10
 
         self.NUM_TRAIN_IMAGES = self.num_frames_per_scene*(len(self.scene_names) - 1)
         self.NUM_VALIDATION_IMAGES = 5 * (len(self.scene_names) - 1)
@@ -197,7 +198,7 @@ class BMFRFinalDataset(Dataset):
             input_cropped = tf.to_tensor(input[rand_x : rand_x + self.crop_size, rand_y : rand_y + self.crop_size].astype(np.float32))
             reference_cropped = tf.to_tensor(reference[rand_x : rand_x + self.crop_size, rand_y : rand_y + self.crop_size].astype(np.float32))
 
-            if np.random() > 0.5:
+            if np.random.rand() > 0.5:
                 operation = np.random.choice(self.augmentation_operations)
                 input_cropped = operation(input_cropped)
                 reference_cropped = operation(reference_cropped)
@@ -268,7 +269,7 @@ class BMFRFinalDataset(Dataset):
 
     def __len__(self):
         if self.use_train:
-            return self.raw_data.NUM_TRAIN_IMAGES * self.crops_per_training_frame
+            return (self.raw_data.NUM_TRAIN_IMAGES - self.raw_data.NUM_VALIDATION_IMAGES) * self.crops_per_training_frame
         elif self.use_val:
             return self.raw_data.NUM_VALIDATION_IMAGES * self.crops_per_validation_frame
         elif self.use_test:
@@ -295,7 +296,7 @@ class DatasetPreloader:
         
         if self.stream is not None:
             with torch.cuda.stream(self.stream):
-                print(torch.cuda.current_stream())
+                # print(torch.cuda.current_stream())
                 self.next_input = self.next_input.to(device=self.device, non_blocking=True)
                 self.next_reference = self.next_reference.to(device=self.device, non_blocking=True)
 

@@ -1,4 +1,4 @@
-import dataloader
+from dataloader import RawDataReader, BMFRFinalDataset, DatasetPreloader
 from network import RepVGG
 # import pyexr
 import os
@@ -22,7 +22,15 @@ def compute_metrics(reference_image, test_output_image):
     reference_image = tone_mapping(reference_image)
     test_output_image = tone_mapping(test_output_image)
 
-    SSIM = structural_similarity(reference_image, test_output_image, channel_axis = 2)
+    max_1 = np.max(reference_image)
+    max_2 = np.max(test_output_image)
+    upper = max(max_1, max_2)
+
+    min_1 = np.min(reference_image)
+    min_2 = np.min(test_output_image)
+    lower = min(min_1, min_2)
+
+    SSIM = structural_similarity(reference_image, test_output_image, channel_axis = 2, data_range=(upper - lower))
     PSNR = peak_signal_noise_ratio(reference_image, test_output_image)
 
     return SSIM, PSNR
@@ -40,9 +48,9 @@ class SMAPEloss(torch.nn.Module):
 def train(model, device, dataloader, optimizer, epoch, writer):
     model.train()
     losses=[]
-    criterion = SMAPEloss.to(device)
+    criterion = SMAPEloss().to(device)
 
-    preloader = dataloader.DatasetPreloader(loader=dataloader, device=device)
+    preloader = DatasetPreloader(loader=dataloader, device=device)
 
     #Each iteration acts on a different batch
     # for (inputs, references) in dataloader:
@@ -52,7 +60,7 @@ def train(model, device, dataloader, optimizer, epoch, writer):
 
         references = references.transpose(1, 3)
         references = references.transpose(1, 2)
-        inputs = inputs.to(device, non_blockking=True)
+        inputs = inputs.to(device, non_blocking=True)
         references = references.to(device, non_blocking = True)
 
         outputs = model(inputs)
@@ -74,8 +82,8 @@ def validate(model, device, dataloader):
     SSIMs = []
     PSNRs = []
 
-    with torch.no_grad:
-        for (inputs, references) in enumerate(dataloader):
+    with torch.no_grad():
+        for (inputs, references) in dataloader:
             inputs = inputs.to(device, non_blocking=True)
             references = references.to(device, non_blocking = True)
             outputs = model(inputs).detach()
@@ -100,7 +108,7 @@ def validate(model, device, dataloader):
 
 if __name__ == "__main__":
 
-    torch.cuda.set_device(1)
+    torch.cuda.set_device(0)
     torch.backends.cudnn.deterministic = True 
     torch.backends.cudnn.benchmark = False 
     device = torch.device("cuda")
@@ -110,12 +118,13 @@ if __name__ == "__main__":
     epoch_validate = 25
     batch_size = 40
 
-    raw_data = dataloader.RawDataReader()
+    raw_data = RawDataReader()
 
-    dataset_train = dataloader.BMFRFinalDataset(raw_data, use_train=True)
+    dataset_train = BMFRFinalDataset(raw_data, use_train=True)
     dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=6, pin_memory=True, persistent_workers=True)
+    # dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
-    dataset_val = dataloader.BMFRFinalDataset(raw_data, use_val=True)
+    dataset_val = BMFRFinalDataset(raw_data, use_val=True)
     dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
     experiment = "test-init"
@@ -138,7 +147,7 @@ if __name__ == "__main__":
         train(model, device, dataloader_train, optimizer, epoch, writer)
         
         if (epoch + 1) % epoch_validate == 0:
-            ssim_val, psnr_val = validate(model, device, dataloader_val, dataset_val)
+            ssim_val, psnr_val = validate(model, device, dataloader_val)
             writer.add_scalar("SSIM-val", ssim_val, epoch)
             writer.add_scalar("PSNR-val", psnr_val, epoch)
             

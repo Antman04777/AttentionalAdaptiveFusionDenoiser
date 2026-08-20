@@ -222,3 +222,6 @@ dataset/
 memmap_dataset/
 testing_data/
 build/
+results/
+runs/
+checkpoints/
