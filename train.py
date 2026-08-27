@@ -61,7 +61,7 @@ def train(model, device, dataloader, optimizer, epoch, writer):
         references = references.transpose(1, 3)
         references = references.transpose(1, 2)
         inputs = inputs.to(device, non_blocking=True)
-        references = references.to(device, non_blocking = True)
+        references = references.to(device, non_blocking=True)
 
         outputs = model(inputs)
 
@@ -121,7 +121,8 @@ if __name__ == "__main__":
     raw_data = RawDataReader()
 
     dataset_train = BMFRFinalDataset(raw_data, use_train=True)
-    dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=6, pin_memory=True, persistent_workers=True)
+    # dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=6, pin_memory=True, persistent_workers=True) // exceeded 120gb quota
+    dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
     # dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
     dataset_val = BMFRFinalDataset(raw_data, use_val=True)
