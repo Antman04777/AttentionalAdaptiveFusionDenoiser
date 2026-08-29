@@ -45,6 +45,18 @@ class RepVGG(torch.nn.Module):
         self.num_input_channels = 16
         self.num_output_channels = 3
 
+        #debug
+        self.x_final_out = None
+        self.guide1 = None
+        self.guide2 = None
+        self.weight_map1 = None
+        self.grid1 = None
+        self.grid2 = None
+        self.irradiance_non_TA_denoised = None
+        self.irradiance_TA_denoised = None
+        self.irradiance_final = None
+        self.final = None
+
         if not deployed:
             self.conv_layer1_1 = torch.nn.Conv2d(in_channels=self.num_input_channels, out_channels=self.base_depth, kernel_size=1, stride=1, padding=0, bias=False) # bias false?
             self.conv_layer1_3 = torch.nn.Conv2d(in_channels=self.num_input_channels, out_channels=self.base_depth, kernel_size=3, stride=1, padding=1, bias=False)
@@ -140,24 +152,30 @@ class RepVGG(torch.nn.Module):
             xf_3 = self.conv_layerf_3(x5_out)
             xf_5 = self.conv_layerf_5(x5_out)
 
-            x_final_out = self.sigmoid(xf_1 + xf_3 + xf_5)
+            self.x_final_out = self.sigmoid(xf_1 + xf_3 + xf_5)
+            
             #
             #x_final_out = x_final_out.transpose((0, 2, 3, 1))
             #
 
-            x_final_out = x_final_out.transpose(1, 3)
-            x_final_out = x_final_out.transpose(1, 2)
+            self.x_final_out = self.x_final_out.transpose(1, 3)
+            self.x_final_out = self.x_final_out.transpose(1, 2)
+
+            self.x_final_out.retain_grad()
 
             #guide1 = x_final_out[:, 0, :, :] * 255
             #guide2 = x_final_out[:, 1, :, :] * 255
 
-            guide1 = x_final_out[:, :, :, 0] * 255
-            guide2 = x_final_out[:, :, :, 1] * 255
+            self.guide1 = self.x_final_out[:, :, :, 0] * 255
+            self.guide1.retain_grad()
+            self.guide2 = self.x_final_out[:, :, :, 1] * 255
+            # print(self.guide1)
 
             # weight_map1 = x_final_out[:, 2, :, :]
-            weight_map1 = torch.unsqueeze(x_final_out[:, :, :, 2], dim=3)
-            weight_map1 = torch.tile(weight_map1, (1, 1, 1, 3))
-            weight_map2 = 1.0 - weight_map1
+            self.weight_map1 = torch.unsqueeze(self.x_final_out[:, :, :, 2], dim=3)
+            # print(self.weight_map1)
+            self.weight_map1 = torch.tile(self.weight_map1, (1, 1, 1, 3))
+            weight_map2 = 1.0 - self.weight_map1
 
             ss = 4
             sr = 4
@@ -175,11 +193,17 @@ class RepVGG(torch.nn.Module):
             x_albedo = x_albedo.transpose(1, 3)
             x_albedo = x_albedo.transpose(1, 2)
 
-            grid1 = bilateral_ops.creation_wrapper(x_irradiance_non_TA, guide1, attributes)
-            grid2 = bilateral_ops.creation_wrapper(x_irradiance_TA, guide2, attributes)
+            self.grid1 = bilateral_ops.creation_wrapper(x_irradiance_non_TA, self.guide1, attributes)
+            self.grid1.retain_grad()
+            self.grid2 = bilateral_ops.creation_wrapper(x_irradiance_TA, self.guide2, attributes)
+            self.grid2.retain_grad()
+            # print(self.grid2)
 
-            irradiance_non_TA_denoised = bilateral_ops.slicing_wrapper(grid1, guide1, attributes)
-            irradiance_TA_denoised = bilateral_ops.slicing_wrapper(grid2, guide2, attributes)
+            self.irradiance_non_TA_denoised = bilateral_ops.slicing_wrapper(self.grid1, self.guide1, attributes)
+            self.irradiance_non_TA_denoised.retain_grad()
+            self.irradiance_TA_denoised = bilateral_ops.slicing_wrapper(self.grid2, self.guide2, attributes)
+            self.irradiance_TA_denoised.retain_grad()
+            # print(self.irradiance_TA_denoised) # mostly zeros
 
             #print("guide1: ", guide1.shape)
             #print("guide2: ", guide2.shape)
@@ -190,9 +214,11 @@ class RepVGG(torch.nn.Module):
             #print("irradiance_non_TA_denoised: ", irradiance_non_TA_denoised.shape)
             #print("irradiance_TA_denoised: ", irradiance_TA_denoised.shape)
 
-            irradiance_final = weight_map1 * irradiance_non_TA_denoised + weight_map2 * irradiance_TA_denoised
+            self.irradiance_final = self.weight_map1 * self.irradiance_non_TA_denoised + weight_map2 * self.irradiance_TA_denoised
+            self.irradiance_final.retain_grad()
             # irradiance_final = weight_map1 * x_irradiance_non_TA + weight_map2 * x_irradiance_TA
 
-            final = x_albedo * irradiance_final
+            self.final = x_albedo * self.irradiance_final
+            self.final.retain_grad()
 
-            return final
+            return self.final

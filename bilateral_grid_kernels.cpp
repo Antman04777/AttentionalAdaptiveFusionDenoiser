@@ -27,11 +27,23 @@ static torch::Tensor create_grid_wrapper(torch::Tensor input_image, torch::Tenso
     const int grid_width = image_width / ss;
     const int grid_depth = 256 / sr;
 
+    // std::cout << "ss: " << ss << '\n';
+    // std::cout << "sr: " << sr << '\n';
+    // std::cout << "batch_size: " << batch_size << '\n';
+    // std::cout << "image_height: " << image_height << '\n';
+    // std::cout << "image_width: " << image_width << '\n';
+    // std::cout << "channel_size: " << channel_size << '\n';
+    // std::cout << "grid_height: " << grid_height << '\n';
+    // std::cout << "grid_width: " << grid_width << '\n';
+    // std::cout << "grid_depth: " << grid_depth << '\n';
+
     torch::Device device = input_image.device();
 
     torch::Tensor output_color_tensor = torch::empty({batch_size, grid_height, grid_width, grid_depth, channel_size}, torch::kFloat);
     output_color_tensor = output_color_tensor.to(device);
     auto output_color = output_color_tensor.flatten();
+
+    // std::cout << output_color_tensor << '\n';
 
     const auto& scalar_type = input_flat_image.scalar_type();
 
@@ -49,6 +61,10 @@ static torch::Tensor create_grid_wrapper(torch::Tensor input_image, torch::Tenso
     output_color.data_ptr<float>(),
     device,
     scalar_type);
+
+    // std::cout << "output color: " << output_color[0] << '\n';
+
+    // std::cout << output_color_tensor << '\n';
 
     // return output_color;
     return output_color_tensor;

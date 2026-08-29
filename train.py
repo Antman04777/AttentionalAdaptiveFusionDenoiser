@@ -68,6 +68,15 @@ def train(model, device, dataloader, optimizer, epoch, writer):
         loss = criterion(outputs,references)
         loss.backward()
 
+        # print(model.final.grad) # gradients are of order 10^-5 - 10^-6
+        # print(model.irradiance_final.grad) # gradients are of order 10^-6 - 10^-7
+        # print(model.irradiance_TA_denoised.grad) # gradients are of order 10^-6 - 10^-7
+        # print(model.irradiance_non_TA_denoised.grad) # gradients are of order 10^-6 - 10^-8
+        # print(model.grid2.grad) # gradients are 0
+        # print(model.grid1.grad) # gradients are 0
+        # print(model.guide1.grad)
+        print(model.x_final_out.grad)
+
         optimizer.step()
 
         losses.append(loss.item())

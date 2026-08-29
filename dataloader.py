@@ -23,10 +23,10 @@ class RawDataReader:
 
         self.NUM_INPUT_CHANNELS = 16
         self.NUM_REFERENCE_CHANNELS = 3
-        self.scene_names = ["classroom", "living-room", "san-miguel", "sponza-glossy", "sponza-moving-light", "sponza"]
-        # self.scene_names = ["classroom", "living-room"]
-        self.num_frames_per_scene = 60
-        # self.num_frames_per_scene = 10
+        # self.scene_names = ["classroom", "living-room", "san-miguel", "sponza-glossy", "sponza-moving-light", "sponza"]
+        self.scene_names = ["classroom", "living-room"]
+        # self.num_frames_per_scene = 60
+        self.num_frames_per_scene = 10
 
         self.NUM_TRAIN_IMAGES = self.num_frames_per_scene*(len(self.scene_names) - 1)
         self.NUM_VALIDATION_IMAGES = 5 * (len(self.scene_names) - 1)

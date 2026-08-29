@@ -20,7 +20,7 @@ void create_grid_kernel_launcher
     const int grid_width,
     const int grid_depth,
     const int sr,
-    float* const out_color,
+    float* out_color,
     torch::Device& device,
     const torch::Dtype& type
 );

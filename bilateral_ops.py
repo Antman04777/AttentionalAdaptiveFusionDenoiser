@@ -31,7 +31,7 @@ print("libbilateral_grid_kernels.so loaded")
 def creation_wrapper(input_image: torch.Tensor, input_guide: torch.Tensor, input_attrs: torch.Tensor) -> torch.Tensor:
 
     
-    return torch.ops.my_ops.create_grid_wrapper(input_image, input_guide,input_attrs)
+    return torch.ops.my_ops.create_grid_wrapper(input_image, input_guide, input_attrs)
 
 
 def creation_back(ctx, grad):
