@@ -68,6 +68,11 @@ def train(model, device, dataloader, optimizer, epoch, writer):
         loss = criterion(outputs,references)
         loss.backward()
 
+        #loss used by NBG
+        #l1_loss = torch.mean(torch.abs(outputs-references))
+        #l1_loss.backward()
+        #losses.append(l1_loss.item())
+
         # print(model.final.grad) # gradients are of order 10^-5 - 10^-6
         # print(model.irradiance_final.grad) # gradients are of order 10^-6 - 10^-7
         # print(model.irradiance_TA_denoised.grad) # gradients are of order 10^-6 - 10^-7
@@ -90,12 +95,24 @@ def validate(model, device, dataloader):
     model.eval()
     SSIMs = []
     PSNRs = []
+    val_losses = []
+    criterion = SMAPEloss().to(device)
 
     with torch.no_grad():
         for (inputs, references) in dataloader:
             inputs = inputs.to(device, non_blocking=True)
             references = references.to(device, non_blocking = True)
             outputs = model(inputs).detach()
+            references = references.transpose(1, 3)
+            references = references.transpose(1, 2)
+
+            loss = criterion(outputs,references)
+            val_losses.append(loss.item())
+
+            #loss used by NBG
+            #l1_loss = torch.mean(torch.abs(outputs-references))
+            #l1_loss.backward()
+            #val_losses.append(l1_loss.item())
 
             output = outputs.cpu().numpy()
             reference = references.cpu().numpy()
@@ -103,15 +120,20 @@ def validate(model, device, dataloader):
             for i in range(output.shape[0]):
                 if np.sum(reference[i]) == 0.0:
                     continue
-                SSIM, PSNR = compute_metrics(reference[i].transpose((1,2,0)), output[i])
+                SSIM, PSNR = compute_metrics(reference[i], output[i])
+#                SSIM, PSNR = compute_metrics(reference[i].transpose((1,2,0)), output[i])
                 SSIMs.append(SSIM)
                 PSNRs.append(PSNR)
+
 
     print("Validation: ")
     SSIM_mean = np.mean(SSIMs)
     PSNR_mean = np.mean(PSNRs)
     print("mean SSIM: ", SSIM_mean)
     print("mean PSNR: ", PSNR_mean)
+
+    mean_val_loss = np.mean(val_losses)
+    writer.add_scalar("Loss/total_valiadtion", mean_val_loss, epoch)
 
     return SSIM_mean, PSNR_mean
 
