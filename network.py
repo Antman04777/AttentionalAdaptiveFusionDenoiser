@@ -111,6 +111,7 @@ class RepVGG(torch.nn.Module):
     def forward(self, raw_inputs):
         x_irradiance_non_TA = raw_inputs[:, 0:3]
         x_irradiance_TA = raw_inputs[:, 3:6]
+        # print(x_irradiance_non_TA)
         x_albedo = raw_inputs[:, 6:9]
 
         #print("Albedo shape: ", x_albedo.shape)
@@ -153,7 +154,7 @@ class RepVGG(torch.nn.Module):
             xf_5 = self.conv_layerf_5(x5_out)
 
             self.x_final_out = self.sigmoid(xf_1 + xf_3 + xf_5)
-            
+
             #
             #x_final_out = x_final_out.transpose((0, 2, 3, 1))
             #

@@ -73,9 +73,9 @@ def train(model, device, dataloader, optimizer, epoch, writer):
         # print(model.irradiance_TA_denoised.grad) # gradients are of order 10^-6 - 10^-7
         # print(model.irradiance_non_TA_denoised.grad) # gradients are of order 10^-6 - 10^-8
         # print(model.grid2.grad) # gradients are 0
-        # print(model.grid1.grad) # gradients are 0
+        print(model.grid1.grad) # gradients are 0
         # print(model.guide1.grad)
-        print(model.x_final_out.grad)
+        # print(model.x_final_out.grad)
 
         optimizer.step()
 
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     learning_rate = 1e-3
     epochs = 300
     epoch_validate = 25
-    batch_size = 40
+    batch_size = 20
 
     raw_data = RawDataReader()
 
@@ -140,10 +140,9 @@ if __name__ == "__main__":
     experiment = "test-init"
     current_testing_scene_name = "sponza"
     tensorboard_saving_dir = os.path.join("runs", experiment, current_testing_scene_name)
-    test_saving_dir = os.path.join("results", experiment, current_testing_scene_name)
     model_saving_dir = os.path.join("checkpoints", experiment, current_testing_scene_name)
 
-    for dir in [tensorboard_saving_dir, model_saving_dir, test_saving_dir]:
+    for dir in [tensorboard_saving_dir, model_saving_dir]:
         if not os.path.exists(dir):
             os.makedirs(dir)
 

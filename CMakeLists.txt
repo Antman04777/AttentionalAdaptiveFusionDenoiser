@@ -31,3 +31,11 @@ else()
 endif()
 
 target_link_libraries(bilateral_grid_kernels PRIVATE ${TORCH_LIBRARIES})
+
+if(ARCH_IS_CUDA)
+    if(NDEBUG)
+        target_compile_options(bilateral_grid_kernels PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-03 -lineinfo>)
+    else()
+        target_compile_options(bilateral_grid_kernels PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-g -G>)
+    endif()
+endif()

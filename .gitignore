@@ -225,3 +225,5 @@ build/
 results/
 runs/
 checkpoints/
+test/
+cuda-debugging/

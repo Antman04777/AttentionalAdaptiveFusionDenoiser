@@ -27,23 +27,11 @@ static torch::Tensor create_grid_wrapper(torch::Tensor input_image, torch::Tenso
     const int grid_width = image_width / ss;
     const int grid_depth = 256 / sr;
 
-    // std::cout << "ss: " << ss << '\n';
-    // std::cout << "sr: " << sr << '\n';
-    // std::cout << "batch_size: " << batch_size << '\n';
-    // std::cout << "image_height: " << image_height << '\n';
-    // std::cout << "image_width: " << image_width << '\n';
-    // std::cout << "channel_size: " << channel_size << '\n';
-    // std::cout << "grid_height: " << grid_height << '\n';
-    // std::cout << "grid_width: " << grid_width << '\n';
-    // std::cout << "grid_depth: " << grid_depth << '\n';
-
     torch::Device device = input_image.device();
 
     torch::Tensor output_color_tensor = torch::empty({batch_size, grid_height, grid_width, grid_depth, channel_size}, torch::kFloat);
     output_color_tensor = output_color_tensor.to(device);
     auto output_color = output_color_tensor.flatten();
-
-    // std::cout << output_color_tensor << '\n';
 
     const auto& scalar_type = input_flat_image.scalar_type();
 
@@ -170,7 +158,7 @@ static torch::Tensor slice_grid_wrapper(torch::Tensor input_grid, torch::Tensor 
     slice_grid_kernel_launcher
     (
         input_flat_grid.const_data_ptr<float>(),
-        input_flat_grid.const_data_ptr<float>(),
+        input_flat_guide.const_data_ptr<float>(),
         batch_size,
         image_height,
         image_width,
@@ -224,9 +212,9 @@ static std::tuple<torch::Tensor, torch::Tensor> slice_grid_grad_wrapper(torch::T
 
     slice_grid_grad_kernel_launcher
     (
-	    input_flat_grid.const_data_ptr<float>(),
-        input_flat_grid.const_data_ptr<float>(),
-	    backprop.const_data_ptr<float>(),
+	      input_flat_grid.const_data_ptr<float>(),
+        input_flat_guide.const_data_ptr<float>(),
+	      backprop.const_data_ptr<float>(),
         batch_size,
         image_height,
         image_width,
@@ -236,7 +224,7 @@ static std::tuple<torch::Tensor, torch::Tensor> slice_grid_grad_wrapper(torch::T
         grid_depth,
         sr,
         grid_grad.data_ptr<float>(),
-	    guide_grad.data_ptr<float>(),
+	      guide_grad.data_ptr<float>(),
         device,
         scalar_type
     );

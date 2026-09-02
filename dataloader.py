@@ -6,7 +6,6 @@ from tqdm import tqdm
 from torch.utils.data import Dataset
 import torchvision.transforms.functional as tf
 # import json
-
 # from memory_profiler import profile
 
 import psutil
@@ -221,6 +220,7 @@ class BMFRFinalDataset(Dataset):
             train_ref = self.raw_data.train_references[frame_index]
             #ret = self.crop(train_in, train_ref)
             ret = self.transform(train_in, train_ref)
+
             # del train_in, train_ref
             return ret
             # return tf.to_tensor(self.raw_data.train_inputs[frame_index]), tf.to_tensor(self.raw_data.train_references[frame_index]) #wskpn used float 32
