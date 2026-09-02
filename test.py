@@ -1,34 +1,71 @@
-import bilateral_ops
+import network
+import utils
 import torch
+import numpy as np
+import pyexr
+import os
+import dataloader
 
-torch.cuda.set_device(0)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
-device = torch.device("cuda")
-print('GPU: ', torch.cuda.get_device_name(0))
 
-input_tensor = torch.rand((20,40,10,3), dtype=torch.float32, requires_grad=True, device=device)
-guide_tensor = torch.rand((20,40,10), dtype=torch.float32, requires_grad=True, device=device)
-attrs = torch.zeros((4,4))
+def test(model, device, dataloader, save_dir=''):
+    model.eval()
+    SSIMs = []
+    PSNRs = []
 
-# input_grid_tensor = torch.rand((20,40,10,8,3), dtype=torch.float32, requires_grad=True, device=device)
+    with torch.no_grad():
+        for test_img_idx,(inputs, references) in enumerate(dataloader):
+            inputs = inputs.to(device, non_blocking=True)
+            references = references.to(device, non_blocking = True)
+            outputs = model(inputs).detach()
+            references = references.transpose(1, 3)
+            references = references.transpose(1, 2)
 
-# input_grad_tensor = torch.zeros_like(input_tensor)
-# guide_grad_tensor = torch.zeros_like(guide_tensor)
+            output = outputs.cpu().numpy()
+            reference = references.cpu().numpy()
 
-outputs = bilateral_ops.creation_wrapper(input_tensor,guide_tensor,attrs)
-final_outputs = bilateral_ops.slicing_wrapper(outputs,guide_tensor,attrs)
+            for i in range(output.shape[0]):
+                if np.sum(reference[i]) == 0.0:
+                    continue
+                SSIM, PSNR = utils.compute_metrics(reference[i], output[i])
+#                SSIM, PSNR = compute_metrics(reference[i].transpose((1,2,0)), output[i])
+                SSIMs.append(SSIM)
+                PSNRs.append(PSNR)   
 
-print(outputs.shape)
-print(final_outputs.shape)
+            pyexr.write(os.path.join(save_dir, str(test_img_idx)+".exr"), output)
 
-initial_grad = torch.ones(final_outputs.shape)
-initial_grad = initial_grad.to(device)
+    print("Test: ")
+    SSIM_mean = np.mean(SSIMs)
+    PSNR_mean = np.mean(PSNRs)
+    print("mean SSIM: ", SSIM_mean)
+    print("mean PSNR: ", PSNR_mean)
+    SSIMs.append(SSIM_mean)
+    PSNRs.append(PSNR_mean)
+    np.savetxt(save_dir, 'ssim.txt',SSIMs,fmt="%s")
+    np.savetxt(save_dir, 'psnr.txt',PSNRs,fmt="%s")       
 
-final_outputs.backward(initial_grad)
+if __name__ == '__main__':
 
-print("Input: ", input_tensor.grad)
-print("Output: ", outputs.grad)
-# print("Input Grid: ", input_grid_tensor.grad)
-print("Guide: ", guide_tensor.grad)
-print("Attrs: ", attrs.grad)
+    torch.cuda.set_device(0)
+    torch.backends.cudnn.deterministic = True 
+    torch.backends.cudnn.benchmark = False 
+    device = torch.device("cuda")
+
+    rawData = dataloader.RawDataReader()
+    dataset = dataloader.BMFRFinalDataset(rawData,use_test=True)
+    test_dataloader = torch.utils.data.DataLoader(dataset, batch_size=1,num_workers=0,pin_memeory=False)
+
+    experiment = 'test-init' 
+    test_scene = "sponza"
+    test_saving_dir = os.path.join("results",experiment, test_scene)
+    for dir in test_saving_dir:
+        if(not os.path.exists(dir)):
+            os.makedirs(dir)
+    
+    pretrained_model = network.RepVGG(device).to(device)
+    checkpoint = torch.load("checkpoints/test-init/sponza/model.pt", device)
+    pretrained_model.load_state_dict(checkpoint["model_state_dict"])
+
+    deployed_model = network.RepVGG(device,deployed=True,pretrained_model=pretrained_model)
+    test(deployed_model,device,test_dataloader,test_saving_dir)
+
+

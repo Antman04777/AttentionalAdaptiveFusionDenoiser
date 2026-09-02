@@ -1,8 +1,9 @@
 import torch
 import numpy as np
 import bilateral_ops
+import utils
 
-from memory_profiler import profile
+#from memory_profiler import profile
 
 def reparametrize(conv1, conv3, conv5, has_identity_branch=False):
     reparam_kernel = conv5.weight + torch.nn.functional.pad(conv3.weight, [1, 1, 1, 1]) + torch.nn.functional.pad(conv1.weight, [2, 2, 2, 2])
@@ -20,14 +21,6 @@ def reparametrize(conv1, conv3, conv5, has_identity_branch=False):
             # tone_mapped_color = tf.clip_by_value(
                 # tf.math.pow(tf.math.maximum(0., input_image), 0.454545), 0., 1.)
             # return tone_mapped_color
-
-def tone_map(input_image):
-    if isinstance(input_image, np.ndarray):
-        tone_mapped_image = np.clip(np.pow(np.maximum(input_image, 0.0), 0.454545), 0.0, 1.0)
-        return tone_mapped_image
-    elif isinstance(input_image, torch.Tensor):
-        tone_mapped_image = torch.pow(torch.clamp(input_image, min=0.0, max=1.0), 0.454545)
-        return tone_mapped_image
 
 class RepVGG(torch.nn.Module):
     def __init__(self, device, deployed=False, pretrained_model=None):
@@ -117,8 +110,8 @@ class RepVGG(torch.nn.Module):
         #print("x_irradiance_non_TA shape: ", x_irradiance_non_TA.shape)
         #print("x_irradiance_TA shape: ", x_irradiance_TA.shape)
 
-        x_tone_mapped_non_TA_frame = tone_map(x_irradiance_non_TA * x_albedo)
-        x_tone_mapped_TA_frame = tone_map(x_irradiance_TA * x_albedo)
+        x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA * x_albedo)
+        x_tone_mapped_TA_frame = utils.tone_mapping(x_irradiance_TA * x_albedo)
 
         x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.num_input_channels]), axis=1)
 
@@ -161,13 +154,13 @@ class RepVGG(torch.nn.Module):
             self.x_final_out = self.x_final_out.transpose(1, 3)
             self.x_final_out = self.x_final_out.transpose(1, 2)
 
-            self.x_final_out.retain_grad()
+            #self.x_final_out.retain_grad()
 
             #guide1 = x_final_out[:, 0, :, :] * 255
             #guide2 = x_final_out[:, 1, :, :] * 255
 
             self.guide1 = self.x_final_out[:, :, :, 0] * 255
-            self.guide1.retain_grad()
+            #self.guide1.retain_grad()
             self.guide2 = self.x_final_out[:, :, :, 1] * 255
             # print(self.guide1)
 
@@ -177,10 +170,15 @@ class RepVGG(torch.nn.Module):
             self.weight_map1 = torch.tile(self.weight_map1, (1, 1, 1, 3))
             weight_map2 = 1.0 - self.weight_map1
 
+            ss = 8
+            sr = 8
+
+            attributes_grid_1 = torch.zeros((ss, sr), dtype=torch.int32, device=self.device)
+
             ss = 4
             sr = 4
 
-            attributes = torch.zeros((ss, sr), dtype=torch.int32, device=self.device)
+            attributes_grid_2 = torch.zeros((ss, sr), dtype=torch.int32, device=self.device)
             # x_irradiance_non_TA = x_irradiance_non_TA.transpose((0, 2, 3, 1))
             x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 3)
             x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 2)
@@ -193,16 +191,16 @@ class RepVGG(torch.nn.Module):
             x_albedo = x_albedo.transpose(1, 3)
             x_albedo = x_albedo.transpose(1, 2)
 
-            self.grid1 = bilateral_ops.creation_wrapper(x_irradiance_non_TA, self.guide1, attributes)
-            self.grid1.retain_grad()
-            self.grid2 = bilateral_ops.creation_wrapper(x_irradiance_TA, self.guide2, attributes)
-            self.grid2.retain_grad()
+            self.grid1 = bilateral_ops.creation_wrapper(x_irradiance_non_TA, self.guide1, attributes_grid_1)
+            #self.grid1.retain_grad()
+            self.grid2 = bilateral_ops.creation_wrapper(x_irradiance_TA, self.guide2, attributes_grid_2)
+            #self.grid2.retain_grad()
             # print(self.grid2)
 
-            self.irradiance_non_TA_denoised = bilateral_ops.slicing_wrapper(self.grid1, self.guide1, attributes)
-            self.irradiance_non_TA_denoised.retain_grad()
-            self.irradiance_TA_denoised = bilateral_ops.slicing_wrapper(self.grid2, self.guide2, attributes)
-            self.irradiance_TA_denoised.retain_grad()
+            self.irradiance_non_TA_denoised = bilateral_ops.slicing_wrapper(self.grid1, self.guide1, attributes_grid_1)
+            #self.irradiance_non_TA_denoised.retain_grad()
+            self.irradiance_TA_denoised = bilateral_ops.slicing_wrapper(self.grid2, self.guide2, attributes_grid_2)
+            #self.irradiance_TA_denoised.retain_grad()
             # print(self.irradiance_TA_denoised) # mostly zeros
 
             #print("guide1: ", guide1.shape)
@@ -215,10 +213,10 @@ class RepVGG(torch.nn.Module):
             #print("irradiance_TA_denoised: ", irradiance_TA_denoised.shape)
 
             self.irradiance_final = self.weight_map1 * self.irradiance_non_TA_denoised + weight_map2 * self.irradiance_TA_denoised
-            self.irradiance_final.retain_grad()
+            #self.irradiance_final.retain_grad()
             # irradiance_final = weight_map1 * x_irradiance_non_TA + weight_map2 * x_irradiance_TA
 
             self.final = x_albedo * self.irradiance_final
-            self.final.retain_grad()
+            #self.final.retain_grad()
 
             return self.final

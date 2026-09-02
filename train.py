@@ -7,48 +7,15 @@ import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
+import utils
 from skimage.metrics import structural_similarity
 from skimage.metrics import peak_signal_noise_ratio
 
-
-def tone_mapping(image):
-    if isinstance(image, np.ndarray):
-        return np.clip(np.power(np.maximum(image, 0.0), 0.454545), 0.0, 1.0)
-    elif isinstance(image, torch.Tensor):
-        return torch.pow(torch.clamp(image, min=0.0, max=1.0), 0.454545)
-
-
-def compute_metrics(reference_image, test_output_image):
-    reference_image = tone_mapping(reference_image)
-    test_output_image = tone_mapping(test_output_image)
-
-    max_1 = np.max(reference_image)
-    max_2 = np.max(test_output_image)
-    upper = max(max_1, max_2)
-
-    min_1 = np.min(reference_image)
-    min_2 = np.min(test_output_image)
-    lower = min(min_1, min_2)
-
-    SSIM = structural_similarity(reference_image, test_output_image, channel_axis = 2, data_range=(upper - lower))
-    PSNR = peak_signal_noise_ratio(reference_image, test_output_image)
-
-    return SSIM, PSNR
-
-class SMAPEloss(torch.nn.Module):
-    def __init__(self, eps=0.01):
-        super().__init__()
-        self.eps=eps
-
-    def forward(self, outputs, references):
-        denominator = outputs
-        loss = torch.mean(torch.abs(outputs - references) / (denominator.abs() + references.abs() + self.eps))
-        return loss
     
 def train(model, device, dataloader, optimizer, epoch, writer):
     model.train()
     losses=[]
-    criterion = SMAPEloss().to(device)
+    criterion = utils.SMAPEloss().to(device)
 
     preloader = DatasetPreloader(loader=dataloader, device=device)
 
@@ -80,7 +47,7 @@ def train(model, device, dataloader, optimizer, epoch, writer):
         # print(model.grid2.grad) # gradients are 0
         # print(model.grid1.grad) # gradients are 0
         # print(model.guide1.grad)
-        print(model.x_final_out.grad)
+        #print(model.x_final_out.grad)
 
         optimizer.step()
 
@@ -96,7 +63,7 @@ def validate(model, device, dataloader):
     SSIMs = []
     PSNRs = []
     val_losses = []
-    criterion = SMAPEloss().to(device)
+    criterion = utils.SMAPEloss().to(device)
 
     with torch.no_grad():
         for (inputs, references) in dataloader:
@@ -120,7 +87,7 @@ def validate(model, device, dataloader):
             for i in range(output.shape[0]):
                 if np.sum(reference[i]) == 0.0:
                     continue
-                SSIM, PSNR = compute_metrics(reference[i], output[i])
+                SSIM, PSNR = utils.compute_metrics(reference[i], output[i])
 #                SSIM, PSNR = compute_metrics(reference[i].transpose((1,2,0)), output[i])
                 SSIMs.append(SSIM)
                 PSNRs.append(PSNR)
@@ -144,10 +111,10 @@ if __name__ == "__main__":
     torch.backends.cudnn.benchmark = False 
     device = torch.device("cuda")
 
-    learning_rate = 1e-3
+    learning_rate = 1e-4  #og 1e-3
     epochs = 300
     epoch_validate = 25
-    batch_size = 40
+    batch_size = 20     #og 40
 
     raw_data = RawDataReader()
 
@@ -162,10 +129,9 @@ if __name__ == "__main__":
     experiment = "test-init"
     current_testing_scene_name = "sponza"
     tensorboard_saving_dir = os.path.join("runs", experiment, current_testing_scene_name)
-    test_saving_dir = os.path.join("results", experiment, current_testing_scene_name)
     model_saving_dir = os.path.join("checkpoints", experiment, current_testing_scene_name)
 
-    for dir in [tensorboard_saving_dir, model_saving_dir, test_saving_dir]:
+    for dir in [tensorboard_saving_dir, model_saving_dir]:
         if not os.path.exists(dir):
             os.makedirs(dir)
 

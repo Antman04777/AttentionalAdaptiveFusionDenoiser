@@ -23,7 +23,7 @@ class RawDataReader:
 
         self.NUM_INPUT_CHANNELS = 16
         self.NUM_REFERENCE_CHANNELS = 3
-        # self.scene_names = ["classroom", "living-room", "san-miguel", "sponza-glossy", "sponza-moving-light", "sponza"]
+        #self.scene_names = ["classroom", "living-room", "san-miguel", "sponza-glossy", "sponza-moving-light", "sponza"]
         self.scene_names = ["classroom", "living-room"]
         # self.num_frames_per_scene = 60
         self.num_frames_per_scene = 10
@@ -155,7 +155,7 @@ class RawDataReader:
 
 
 class BMFRFinalDataset(Dataset):
-    def __init__(self, raw_data=None, use_train=False, use_val = False, use_test=False, device=None, crops_per_training_frame=80, crops_per_validation_frame=20, crop_size=128):
+    def __init__(self, raw_data=None, use_train=False, use_val = False, use_test=False, crops_per_training_frame=80, crops_per_validation_frame=20, crop_size=128):
         self.raw_data=raw_data
         self.use_train=use_train
         self.use_val=use_val
@@ -163,7 +163,6 @@ class BMFRFinalDataset(Dataset):
         self.crops_per_training_frame = crops_per_training_frame
         self.crops_per_validation_frame = crops_per_validation_frame
         self.crop_size = crop_size
-        self.device = device
 
         def rotate90(input):
             return torch.rot90(input, 1, dims=(1, 2))
