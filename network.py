@@ -8,12 +8,12 @@ import utils
 def reparametrize(conv1, conv3, conv5, has_identity_branch=False):
     reparam_kernel = conv5.weight + torch.nn.functional.pad(conv3.weight, [1, 1, 1, 1]) + torch.nn.functional.pad(conv1.weight, [2, 2, 2, 2])
     if has_identity_branch:
-        identity_conv_weights = torch.eye(reparam_kernel.shape[0], device=conv1.weight.device).reshape((reparam_kernel.shape[0], reparam_kernel.shape[1], 1, 1))
+        identity_conv_weights = torch.eye(reparam_kernel.shape[0], device=conv1.weight.device).reshape((reparam_kernel.shape[0], reparam_kernel.shape[0], 1, 1))
         identity_conv_weights = torch.nn.functional.pad(identity_conv_weights, [2, 2, 2, 2])
         reparam_kernel += identity_conv_weights
 
     conv = torch.nn.Conv2d(in_channels=reparam_kernel.shape[1], out_channels=reparam_kernel.shape[0], kernel_size=5, stride=1, padding=2, bias=False)
-    conv.weight.data = reparam_kernel.detach().cpu().clone()
+    conv.weight.data = reparam_kernel.detach().clone()
     return conv
 
 # def tone_mapping(self, input_image):
@@ -82,7 +82,7 @@ class RepVGG(torch.nn.Module):
             self.sigmoid = torch.nn.Sigmoid()
 
         else:
-            self.rep_conv_layer1 = reparametrize(pretrained_model.conv_layer1_1, pretrained_model.conv_layer1_3, pretrained_model.conv_layer1_5, has_identity_branch=True)
+            self.rep_conv_layer1 = reparametrize(pretrained_model.conv_layer1_1, pretrained_model.conv_layer1_3, pretrained_model.conv_layer1_5)
             self.lrelu1 = torch.nn.LeakyReLU(0.1)
 
             self.rep_conv_layer2 = reparametrize(pretrained_model.conv_layer2_1, pretrained_model.conv_layer2_3, pretrained_model.conv_layer2_5, has_identity_branch=True)
@@ -218,5 +218,63 @@ class RepVGG(torch.nn.Module):
 
             self.final = x_albedo * self.irradiance_final
             #self.final.retain_grad()
+
+            return self.final
+
+        else:
+            x1 = self.rep_conv_layer1(x_input)
+            x1_out = self.lrelu1(x1)
+
+            x2 = self.rep_conv_layer2(x1_out)
+            x2_out = self.lrelu2(x2)
+
+            x3 = self.rep_conv_layer3(x2_out)
+            x3_out = self.lrelu3(x3)
+
+            x4 = self.rep_conv_layer4(x3_out)
+            x4_out = self.lrelu4(x4)
+
+            x5 = self.rep_conv_layer5(x4_out)
+            x5_out = self.lrelu5(x5)
+
+            xf = self.rep_conv_layerf(x5_out)
+
+            self.x_final_out = self.sigmoid(xf)
+            self.x_final_out = self.x_final_out.transpose(1, 3)
+            self.x_final_out = self.x_final_out.transpose(1, 2)
+
+            self.guide1 = self.x_final_out[:, :, :, 0] * 255
+            self.guide2 = self.x_final_out[:, :, :, 1] * 255
+
+            self.weight_map1 = torch.unsqueeze(self.x_final_out[:, :, :, 2], dim=3)
+            self.weight_map1 = torch.tile(self.weight_map1, (1, 1, 1, 3))
+            weight_map2 = 1.0 - self.weight_map1
+
+            ss = 8
+            sr = 8
+            attributes_grid_1 = torch.zeros((ss, sr), dtype=torch.int32, device=self.device)
+
+            ss = 4
+            sr = 4
+            attributes_grid_2 = torch.zeros((ss, sr), dtype=torch.int32, device=self.device)
+
+            x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 3)
+            x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 2)
+
+            x_irradiance_TA = x_irradiance_TA.transpose(1, 3)
+            x_irradiance_TA = x_irradiance_TA.transpose(1, 2)
+
+            x_albedo = x_albedo.transpose(1, 3)
+            x_albedo = x_albedo.transpose(1, 2)
+
+            self.grid1 = bilateral_ops.creation_wrapper(x_irradiance_non_TA, self.guide1, attributes_grid_1)
+            self.grid2 = bilateral_ops.creation_wrapper(x_irradiance_TA, self.guide2, attributes_grid_2)
+
+            self.irradiance_non_TA_denoised = bilateral_ops.slicing_wrapper(self.grid1, self.guide1, attributes_grid_1)
+            self.irradiance_TA_denoised = bilateral_ops.slicing_wrapper(self.grid2, self.guide2, attributes_grid_2)
+
+            self.irradiance_final = self.weight_map1 * self.irradiance_non_TA_denoised + weight_map2 * self.irradiance_TA_denoised
+
+            self.final = x_albedo * self.irradiance_final
 
             return self.final

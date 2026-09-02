@@ -13,7 +13,7 @@ import psutil
 
 class RawDataReader:
 
-    def __init__(self):
+    def __init__(self, is_training=True, hold_out_scene=None):
         self.train_inputs = None
         self.train_references = None
         self.test_inputs = None
@@ -23,13 +23,22 @@ class RawDataReader:
 
         self.NUM_INPUT_CHANNELS = 16
         self.NUM_REFERENCE_CHANNELS = 3
-        #self.scene_names = ["classroom", "living-room", "san-miguel", "sponza-glossy", "sponza-moving-light", "sponza"]
-        self.scene_names = ["classroom", "living-room"]
-        # self.num_frames_per_scene = 60
-        self.num_frames_per_scene = 10
 
-        self.NUM_TRAIN_IMAGES = self.num_frames_per_scene*(len(self.scene_names) - 1)
-        self.NUM_VALIDATION_IMAGES = 5 * (len(self.scene_names) - 1)
+        self.scene_names = ["classroom", "living-room", "san-miguel", "sponza-glossy", "sponza-moving-light", "sponza"]
+        self.scenes_to_be_loaded = None
+        self.num_frames_per_scene = 8
+
+        self.is_training = is_training
+        self.hold_out_scene = hold_out_scene
+        
+        if self.is_training:
+            self.scenes_to_be_loaded = [scene for scene in self.scene_names if scene != self.hold_out_scene]
+            print("scenes to be loaded: ", self.scenes_to_be_loaded)
+        else:
+            self.scenes_to_be_loaded = [self.hold_out_scene]
+
+        self.NUM_TRAIN_IMAGES = self.num_frames_per_scene * (len(self.scenes_to_be_loaded) - 1)
+        self.NUM_VALIDATION_IMAGES = 5 * (len(self.scenes_to_be_loaded) - 1)
         self.NUM_TEST_IMAGES = self.num_frames_per_scene
 
         self.train_input_shape = (self.NUM_TRAIN_IMAGES, self.IMG_HEIGHT, self.IMG_WIDTH, self.NUM_INPUT_CHANNELS)
@@ -37,33 +46,24 @@ class RawDataReader:
         self.test_input_shape = (self.NUM_TEST_IMAGES, self.IMG_HEIGHT, self.IMG_WIDTH, self.NUM_INPUT_CHANNELS)
         self.test_reference_shape = (self.NUM_TEST_IMAGES, self.IMG_HEIGHT, self.IMG_WIDTH, self.NUM_REFERENCE_CHANNELS)
 
-        # numpy_files_written = len(os.listdir("memmap_dataset")) > 0
+        self.load_scenes()
 
-        #if not numpy_files_written:
-        #    self.create_memmap()
-        #    self.load_memmap()
-        #else:
-        #    self.load_memmap()
-        #    print("'loaded'")
-
-        self.create_memmap()
-
-    def create_memmap(self):
+    def load_scenes(self):
         folder_name = os.path.join("dataset")
 
-        irradiance_TA_file_names = [os.path.join(folder_name, scene, "acc_colors", "color"+str(i)+".exr") for scene in self.scene_names for i in range (self.num_frames_per_scene)]
+        irradiance_TA_file_names = [os.path.join(folder_name, scene, "acc_colors", "color"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
 
-        irradiance_non_TA_file_names = [os.path.join(folder_name, scene, "inputs", "color"+str(i)+".exr") for scene in self.scene_names for i in range (self.num_frames_per_scene)]
+        irradiance_non_TA_file_names = [os.path.join(folder_name, scene, "inputs", "color"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
 
-        albedo_file_names = [os.path.join(folder_name, scene, "inputs", "albedo"+str(i)+".exr") for scene in self.scene_names for i in range (self.num_frames_per_scene)]
+        albedo_file_names = [os.path.join(folder_name, scene, "inputs", "albedo"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
 
-        normal_file_names = [os.path.join(folder_name, scene, "inputs", "shading_normal"+str(i)+".exr") for scene in self.scene_names for i in range (self.num_frames_per_scene)]
+        normal_file_names = [os.path.join(folder_name, scene, "inputs", "shading_normal"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
 
-        world_position_file_names = [os.path.join(folder_name, scene, "inputs", "world_position"+str(i)+".exr") for scene in self.scene_names for i in range (self.num_frames_per_scene)]
+        world_position_file_names = [os.path.join(folder_name, scene, "inputs", "world_position"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
 
-        depth_file_names = [os.path.join(folder_name, scene, "inputs", "depth"+str(i)+".exr") for scene in self.scene_names for i in range (self.num_frames_per_scene)]
+        depth_file_names = [os.path.join(folder_name, scene, "inputs", "depth"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
 
-        reference_file_names = [os.path.join(folder_name, scene, "inputs", "reference"+str(i)+".exr") for scene in self.scene_names for i in range (self.num_frames_per_scene)]
+        reference_file_names = [os.path.join(folder_name, scene, "inputs", "reference"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
 
         self.train_inputs = []
         self.train_references = []
@@ -103,7 +103,7 @@ class RawDataReader:
                                     depth_image], 
                                     axis=2)
             
-            if i < (self.num_frames_per_scene*(len(self.scene_names) - 1)):
+            if self.is_training:
                 if i % self.num_frames_per_scene >= (self.num_frames_per_scene - 5):
                     self.validation_inputs.append(inputs)
                     self.validation_references.append(reference_image)
@@ -172,23 +172,6 @@ class BMFRFinalDataset(Dataset):
 
         self.augmentation_operations = [rotate90, rotate270, tf.hflip, tf.vflip]
 
-    # @profile
-    #def crop(self, input, reference):
-    #    if self.use_train or self.use_val:
-    #        rand_x = np.random.randint(self.raw_data.IMG_HEIGHT - self.crop_size)
-    #        rand_y = np.random.randint(self.raw_data.IMG_WIDTH - self.crop_size)
-    #        input_cropped = tf.to_tensor(input[rand_x : rand_x + self.crop_size, rand_y : rand_y + self.crop_size].astype(np.float32))
-    #        reference_cropped = tf.to_tensor(reference[rand_x : rand_x + self.crop_size, rand_y : rand_y + self.crop_size].astype(np.float32))
-    #        
-#
-    #    elif self.use_test:
-    #        input_cropped = tf.to_tensor(input.astype(np.float32))
-    #        reference_cropped = tf.to_tensor(reference.astype(np.float32))
-    #        # input_cropped = torch.tensor(input.astype(np.float32), device=self.device)
-    #        # reference_cropped = torch.tensor(reference.astype(np.float32), device=self.device)
-#
-    #    return input_cropped, reference_cropped
-
     def transform(self, input, reference):
         if self.use_train or self.use_val:
             rand_x = np.random.randint(self.raw_data.IMG_HEIGHT - self.crop_size)
@@ -210,19 +193,17 @@ class BMFRFinalDataset(Dataset):
     
     def __getitem__(self, index):
         if self.use_test:
-            # return tf.to_tensor(self.raw_data.test_inputs[index]), tf.to_tensor(self.raw_data.test_references[index])
             frame_index = index
-            # return self.crop(self.raw_data.test_inputs[frame_index], self.raw_data.test_references[frame_index])
             return self.transform(self.raw_data.test_inputs[frame_index], self.raw_data.test_references[frame_index])
+        
         elif self.use_train:
             frame_index = index // self.crops_per_training_frame
             train_in = self.raw_data.train_inputs[frame_index]
             train_ref = self.raw_data.train_references[frame_index]
-            #ret = self.crop(train_in, train_ref)
             ret = self.transform(train_in, train_ref)
             # del train_in, train_ref
             return ret
-            # return tf.to_tensor(self.raw_data.train_inputs[frame_index]), tf.to_tensor(self.raw_data.train_references[frame_index]) #wskpn used float 32
+            # return tf.to_tensor(self.raw_data.train_inputs[frame_index]), tf.to_tensor(self.raw_data.train_references[frame_index])
         elif self.use_val:
             frame_index = index // self.crops_per_validation_frame
             # return self.crop(self.raw_data.train_inputs[frame_index], self.raw_data.train_references[frame_index])
@@ -295,7 +276,6 @@ class DatasetPreloader:
         
         if self.stream is not None:
             with torch.cuda.stream(self.stream):
-                # print(torch.cuda.current_stream())
                 self.next_input = self.next_input.to(device=self.device, non_blocking=True)
                 self.next_reference = self.next_reference.to(device=self.device, non_blocking=True)
 

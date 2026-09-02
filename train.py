@@ -116,8 +116,9 @@ if __name__ == "__main__":
     epoch_validate = 25
     batch_size = 20     #og 40
 
-    raw_data = RawDataReader()
+    current_testing_scene_name = "sponza"
 
+    raw_data = RawDataReader(is_training=True, hold_out_scene=current_testing_scene_name)
     dataset_train = BMFRFinalDataset(raw_data, use_train=True)
     # dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=6, pin_memory=True, persistent_workers=True) // exceeded 120gb quota
     dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
@@ -127,7 +128,6 @@ if __name__ == "__main__":
     dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
     experiment = "test-init"
-    current_testing_scene_name = "sponza"
     tensorboard_saving_dir = os.path.join("runs", experiment, current_testing_scene_name)
     model_saving_dir = os.path.join("checkpoints", experiment, current_testing_scene_name)
 

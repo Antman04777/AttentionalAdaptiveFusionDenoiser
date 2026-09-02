@@ -17,19 +17,15 @@ def test(model, device, dataloader, save_dir=''):
             inputs = inputs.to(device, non_blocking=True)
             references = references.to(device, non_blocking = True)
             outputs = model(inputs).detach()
-            references = references.transpose(1, 3)
-            references = references.transpose(1, 2)
+            # references = references.transpose(1, 3)
+            # references = references.transpose(1, 2)
 
-            output = outputs.cpu().numpy()
-            reference = references.cpu().numpy()
+            output = outputs.cpu().numpy()[0]
+            reference = references.cpu().numpy()[0].transpose((1, 2, 0))
 
-            for i in range(output.shape[0]):
-                if np.sum(reference[i]) == 0.0:
-                    continue
-                SSIM, PSNR = utils.compute_metrics(reference[i], output[i])
-#                SSIM, PSNR = compute_metrics(reference[i].transpose((1,2,0)), output[i])
-                SSIMs.append(SSIM)
-                PSNRs.append(PSNR)   
+            SSIM, PSNR = utils.compute_metrics(reference, output)
+            SSIMs.append(SSIM)
+            PSNRs.append(PSNR)   
 
             pyexr.write(os.path.join(save_dir, str(test_img_idx)+".exr"), output)
 
@@ -40,8 +36,8 @@ def test(model, device, dataloader, save_dir=''):
     print("mean PSNR: ", PSNR_mean)
     SSIMs.append(SSIM_mean)
     PSNRs.append(PSNR_mean)
-    np.savetxt(save_dir, 'ssim.txt',SSIMs,fmt="%s")
-    np.savetxt(save_dir, 'psnr.txt',PSNRs,fmt="%s")       
+    np.savetxt(os.path.join(save_dir, 'ssim.txt'), SSIMs, fmt="%s")
+    np.savetxt(os.path.join(save_dir, 'psnr.txt'), PSNRs, fmt="%s")       
 
 if __name__ == '__main__':
 
@@ -50,15 +46,16 @@ if __name__ == '__main__':
     torch.backends.cudnn.benchmark = False 
     device = torch.device("cuda")
 
-    rawData = dataloader.RawDataReader()
-    dataset = dataloader.BMFRFinalDataset(rawData,use_test=True)
-    test_dataloader = torch.utils.data.DataLoader(dataset, batch_size=1,num_workers=0,pin_memeory=False)
-
-    experiment = 'test-init' 
     test_scene = "sponza"
+
+    rawData = dataloader.RawDataReader(is_training=False, hold_out_scene=test_scene)
+    dataset = dataloader.BMFRFinalDataset(rawData,use_test=True)
+    test_dataloader = torch.utils.data.DataLoader(dataset, batch_size=1,num_workers=0,pin_memory=False)
+
+    experiment = 'test-init'
     test_saving_dir = os.path.join("results",experiment, test_scene)
-    for dir in test_saving_dir:
-        if(not os.path.exists(dir)):
+    for dir in [test_saving_dir]:
+        if not os.path.exists(dir):
             os.makedirs(dir)
     
     pretrained_model = network.RepVGG(device).to(device)
