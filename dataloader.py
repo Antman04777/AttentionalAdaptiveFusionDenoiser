@@ -26,14 +26,13 @@ class RawDataReader:
 
         self.scene_names = ["classroom", "living-room", "san-miguel", "sponza-glossy", "sponza-moving-light", "sponza"]
         self.scenes_to_be_loaded = None
-        self.num_frames_per_scene = 8
+        self.num_frames_per_scene = 60
 
         self.is_training = is_training
         self.hold_out_scene = hold_out_scene
         
         if self.is_training:
             self.scenes_to_be_loaded = [scene for scene in self.scene_names if scene != self.hold_out_scene]
-            print("scenes to be loaded: ", self.scenes_to_be_loaded)
         else:
             self.scenes_to_be_loaded = [self.hold_out_scene]
 
