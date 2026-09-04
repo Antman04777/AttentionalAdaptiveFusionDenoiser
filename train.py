@@ -110,6 +110,7 @@ if __name__ == "__main__":
     torch.backends.cudnn.deterministic = True 
     torch.backends.cudnn.benchmark = False 
     device = torch.device("cuda")
+    device_name = torch.get_device_name(0)
 
     learning_rate = 1e-4  #og 1e-3
     epochs = 300
@@ -138,6 +139,8 @@ if __name__ == "__main__":
     model = RepVGG(device).to(device)
     optimizer = torch.optim.Adam(model.parameters(), learning_rate)
     writer = SummaryWriter(tensorboard_saving_dir)
+
+    utils.record_training_parameters(learning_rate, epochs, epoch_validate, batch_size, current_testing_scene_name, experiment, device_name, model.ss_ta, model.sr_ta, model.ss_non_ta, model.sr_non_ta, model_saving_dir)
 
     for epoch in range(epochs):
         print(f'Epoch: {epoch}')

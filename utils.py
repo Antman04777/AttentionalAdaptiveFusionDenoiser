@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from skimage.metrics import structural_similarity
 from skimage.metrics import peak_signal_noise_ratio
-
+import os
 
 def tone_mapping(image):
     if isinstance(image, np.ndarray):
@@ -37,3 +37,23 @@ class SMAPEloss(torch.nn.Module):
         denominator = outputs
         loss = torch.mean(torch.abs(outputs - references) / (denominator.abs() + references.abs() + self.eps))
         return loss
+
+def record_train_parameters(lr, epochs, val_epoch_interval, batch_size, hold_off_scene, experiment_name, device_name, ss_ta, sr_ta, ss_non_ta, sr_non_ta, save_dir):
+    parameters = f'''Learning Rate: {lr}
+        Total Epochs: {epochs}
+        Validation Frequency (Epochs): {val_epoch_interval}
+        Batch Size: {batch_size}
+        Hold Off Scene: {hold_off_scene}
+        Experiment Name: {experiment_name}
+        GPU Device Name: {device_name}
+        SS TA: {ss_ta}
+        SR TA: {sr_ta}
+        SS Non-TA: {ss_non_ta}
+        SR Non-TA: {sr_non_ta}'''
+
+    parameters = parameters.replace('\t', '').replace('    ', '')
+
+    file_save_path = os.path.join(save_dir, 'training_parameters.txt')
+
+    with open(file_save_path, 'w') as f:
+        f.write(parameters)

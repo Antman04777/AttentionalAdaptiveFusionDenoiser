@@ -30,4 +30,10 @@ else()
     )
 endif()
 
+if(ARCH_IS_CUDA)
+    target_compile_options(bilateral_grid_kernels PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-03>)
+    target_compile_options(bilateral_grid_kernels PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-03>)
+else()
+endif()
+
 target_link_libraries(bilateral_grid_kernels PRIVATE ${TORCH_LIBRARIES})

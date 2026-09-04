@@ -38,6 +38,11 @@ class RepVGG(torch.nn.Module):
         self.num_input_channels = 16
         self.num_output_channels = 3
 
+        self.ss_non_ta = 8
+        self.sr_non_ta = 8
+        self.ss_ta = 4
+        self.sr_ta = 4
+
         #debug
         self.x_final_out = None
         self.guide1 = None
@@ -170,15 +175,9 @@ class RepVGG(torch.nn.Module):
             self.weight_map1 = torch.tile(self.weight_map1, (1, 1, 1, 3))
             weight_map2 = 1.0 - self.weight_map1
 
-            ss = 8
-            sr = 8
-
-            attributes_grid_1 = torch.zeros((ss, sr), dtype=torch.int32, device=self.device)
-
-            ss = 4
-            sr = 4
-
-            attributes_grid_2 = torch.zeros((ss, sr), dtype=torch.int32, device=self.device)
+            attributes_grid_1 = torch.zeros((self.ss_non_ta, self.sr_non_ta), dtype=torch.int32, device=self.device)
+            attributes_grid_2 = torch.zeros((self.ss_ta, self.sr_non_ta), dtype=torch.int32, device=self.device)
+            
             # x_irradiance_non_TA = x_irradiance_non_TA.transpose((0, 2, 3, 1))
             x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 3)
             x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 2)
