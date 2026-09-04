@@ -219,4 +219,11 @@ __marimo__/
 
 # Our custom ignores
 dataset/
+memmap_dataset/
 testing_data/
+build/
+results/
+runs/
+checkpoints/
+test/
+cuda-debugging/

@@ -1,159 +1,158 @@
-import dataloader
-import pyexr
+from dataloader import RawDataReader, BMFRFinalDataset, DatasetPreloader
+from network import RepVGG
+# import pyexr
 import os
 import numpy as np
 
 import torch
-import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
+import utils
 from skimage.metrics import structural_similarity
 from skimage.metrics import peak_signal_noise_ratio
 
-
-def tone_mapping(image):
-    if isinstance(image, np.ndarray):
-        return np.clip(np.power(np.maximum(image, 0.0), 0.454545), 0.0, 1.0)
-    elif isinstance(image, torch.Tensor):
-        return torch.pow(torch.clamp(image, min=0.0, max=1.0), 0.454545)
-
-
-def compute_metrics(reference_image, test_output_image):
-    reference_image = tone_mapping(reference_image)
-    test_output_image = tone_mapping(test_output_image)
-
-    SSIM = structural_similarity(reference_image, test_output_image, channel_axis = 2)
-    PSNR = peak_signal_noise_ratio(reference_image, test_output_image)
-
-    return SSIM, PSNR
-
-class SMAPEloss(nn.module):
-    def __init__(self, eps=0.01):
-        super().__init__()
-        self.eps=eps
-
-    def forward(self, outputs, references):
-        denominator = outputs
-        loss = torch.mean(torch.abs(outputs - references) / (denominator.abs() + references.abs() + self.eps))
-        return loss
     
 def train(model, device, dataloader, optimizer, epoch, writer):
     model.train()
     losses=[]
-    criterion = SMAPEloss.to(device)
+    criterion = utils.SMAPEloss().to(device)
+
+    preloader = DatasetPreloader(loader=dataloader, device=device)
 
     #Each iteration acts on a different batch
-    for (inputs, references) in dataloader:
+    # for (inputs, references) in dataloader:
+    for (inputs, references) in preloader:
         optimizer.zero_grad()
-        inputs = inputs.to(device, non_blockking=True)
-        references = references.to(device, non_blocking = True)
+        # optimizer.zero_grad(set_to_none=True)
+
+        references = references.transpose(1, 3)
+        references = references.transpose(1, 2)
+        inputs = inputs.to(device, non_blocking=True)
+        references = references.to(device, non_blocking=True)
+
         outputs = model(inputs)
+
         loss = criterion(outputs,references)
         loss.backward()
+
+        #loss used by NBG
+        #l1_loss = torch.mean(torch.abs(outputs-references))
+        #l1_loss.backward()
+        #losses.append(l1_loss.item())
+
+        # print(model.final.grad) # gradients are of order 10^-5 - 10^-6
+        # print(model.irradiance_final.grad) # gradients are of order 10^-6 - 10^-7
+        # print(model.irradiance_TA_denoised.grad) # gradients are of order 10^-6 - 10^-7
+        # print(model.irradiance_non_TA_denoised.grad) # gradients are of order 10^-6 - 10^-8
+        # print(model.grid2.grad) # gradients are 0
+        # print(model.grid1.grad) # gradients are 0
+        # print(model.guide1.grad)
+        #print(model.x_final_out.grad)
+
         optimizer.step()
+
         losses.append(loss.item())
 
-    writer.add_scalar("Loss/total_train", np.mean(losses), epoch)
-    print(np.mean(losses))
+    mean_loss = np.mean(losses)
+    writer.add_scalar("Loss/total_train", mean_loss, epoch)
+    print(mean_loss)
 
 
-def inference(model, device, dataloader, dataset, save_dir=""):
+def validate(model, device, dataloader):
     model.eval()
     SSIMs = []
     PSNRs = []
+    val_losses = []
+    criterion = utils.SMAPEloss().to(device)
 
-    with torch.no_grad:
-        for image_index, (inputs, references) in enumerate(dataloader):
+    with torch.no_grad():
+        for (inputs, references) in dataloader:
             inputs = inputs.to(device, non_blocking=True)
             references = references.to(device, non_blocking = True)
             outputs = model(inputs).detach()
+            references = references.transpose(1, 3)
+            references = references.transpose(1, 2)
 
-            if dataset.use_val:
-                output = outputs.cpu().numpy()
-                reference = references.cpu().numpy()
+            loss = criterion(outputs,references)
+            val_losses.append(loss.item())
 
-                for i in range(output.shape[0]):
-                    if np.sum(reference[i]) == 0.0:
-                        continue
-                    SSIM, PSNR = compute_metrics(reference[i].transpose((1,2,0)), output[i].transpose((1,2,0)))
-                    SSIMs.append(SSIM)
-                    PSNRs.append(PSNR)
+            #loss used by NBG
+            #l1_loss = torch.mean(torch.abs(outputs-references))
+            #l1_loss.backward()
+            #val_losses.append(l1_loss.item())
 
-            elif dataset.use_test:
-                output = outputs.cpu().numpy()[0].transpose((1,2,0)) #batch size is 1
-                reference = references.cpu().numpy()[0].transpose((1,2,0))
-                SSIM, PSNR = compute_metrics(reference[i].transpose((1,2,0)), output[i].transpose((1,2,0)))
+            output = outputs.cpu().numpy()
+            reference = references.cpu().numpy()
+
+            for i in range(output.shape[0]):
+                if np.sum(reference[i]) == 0.0:
+                    continue
+                SSIM, PSNR = utils.compute_metrics(reference[i], output[i])
+#                SSIM, PSNR = compute_metrics(reference[i].transpose((1,2,0)), output[i])
                 SSIMs.append(SSIM)
                 PSNRs.append(PSNR)
 
-            if dataset.use_test:
-                pyexr.write(os.path.join(save_dir, str(image_index)+".exr"), output)
 
-    if dataset.use_val:
-        print("Validation: ")
-    elif dataset.use_test:
-        print("Test: ")
+    print("Validation: ")
     SSIM_mean = np.mean(SSIMs)
     PSNR_mean = np.mean(PSNRs)
     print("mean SSIM: ", SSIM_mean)
     print("mean PSNR: ", PSNR_mean)
-    SSIMs.append(SSIM_mean)
-    PSNRs.append(PSNR_mean)
-    if dataset.use_test:
-        np.savetxt(os.path.join(save_dir, "SSIM.txt"), SSIMs, fmt = "%s")
-        np.savetxt(os.path.join(save_dir, "SSIM.txt"), SSIMs, fmt = "%s")
+
+    mean_val_loss = np.mean(val_losses)
+    writer.add_scalar("Loss/total_valiadtion", mean_val_loss, epoch)
 
     return SSIM_mean, PSNR_mean
 
 if __name__ == "__main__":
 
-    torch.cuda.set_device(1)
+    torch.cuda.set_device(0)
     torch.backends.cudnn.deterministic = True 
     torch.backends.cudnn.benchmark = False 
     device = torch.device("cuda")
+    device_name = torch.get_device_name(0)
 
-    learning_rate = 1e-3 # BMFR
-    epochs = 500
-    epoch_test = 25
-    batch_size = 64
+    learning_rate = 1e-4  #og 1e-3
+    epochs = 300
+    epoch_validate = 25
+    batch_size = 20     #og 40
 
-    raw_data = dataloader.RawDataReader()
-    dataset_train = dataloader.BMFRFinalDataset(raw_data, use_train=True)
-    dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
-    dataset_val = dataloader.BMFRFinalDataset(raw_data, use_val=True)
-    dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
-    dataset_test = dataloader.BMFRFinalDataset(raw_data, use_test=True)
-    dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
-
- #   timestamp = "open-source-test"
     current_testing_scene_name = "sponza"
-    tensorboard_saving_path = os.path.join("runs",  current_testing_scene_name)    #teimstep was used here
-    test_saving_root = os.path.join("results", current_testing_scene_name) # and here
-    model_saving_path = os.path.join("checkpoints", current_testing_scene_name)   #and here
-    for folder in [tensorboard_saving_path, model_saving_path, test_saving_root]:
-        if not os.path.exists(folder):
-            os.makedirs(folder)
 
-    model = net.repGuidePredictionNet(device).to(device)
+    raw_data = RawDataReader(is_training=True, hold_out_scene=current_testing_scene_name)
+    dataset_train = BMFRFinalDataset(raw_data, use_train=True)
+    # dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=6, pin_memory=True, persistent_workers=True) // exceeded 120gb quota
+    dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
+    # dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
+
+    dataset_val = BMFRFinalDataset(raw_data, use_val=True)
+    dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
+
+    experiment = "test-init"
+    tensorboard_saving_dir = os.path.join("runs", experiment, current_testing_scene_name)
+    model_saving_dir = os.path.join("checkpoints", experiment, current_testing_scene_name)
+
+    for dir in [tensorboard_saving_dir, model_saving_dir]:
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+
+    model = RepVGG(device).to(device)
     optimizer = torch.optim.Adam(model.parameters(), learning_rate)
-    writer = SummaryWriter(tensorboard_saving_path)
+    writer = SummaryWriter(tensorboard_saving_dir)
 
+    utils.record_training_parameters(learning_rate, epochs, epoch_validate, batch_size, current_testing_scene_name, experiment, device_name, model.ss_ta, model.sr_ta, model.ss_non_ta, model.sr_non_ta, model_saving_dir)
 
     for epoch in range(epochs):
-        # Train
+        print(f'Epoch: {epoch}')
+        
         train(model, device, dataloader_train, optimizer, epoch, writer)
-        # Evaluation
-        if (epoch+1) % epoch_test == 0:
-            _SSIM_val, _PSNR_val = inference(model, device, dataloader_val, dataset_val)
-            writer.add_scalar("SSIM-val", _SSIM_val, epoch)
-            writer.add_scalar("PSNR-val", _PSNR_val, epoch)
-
-            if epoch > epochs * 0.8:
-                _SSIM_test, _PSNR_test = inference(model, device, dataloader_test, dataset_test, test_saving_root)
-                writer.add_scalar("SSIM-test", _SSIM_test, epoch)
-                writer.add_scalar("PSNR-test", _PSNR_test, epoch)                
+        
+        if (epoch + 1) % epoch_validate == 0:
+            ssim_val, psnr_val = validate(model, device, dataloader_val)
+            writer.add_scalar("SSIM-val", ssim_val, epoch)
+            writer.add_scalar("PSNR-val", psnr_val, epoch)
             
-            torch.save({'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, os.path.join(model_saving_path, "model.pt"))
+            torch.save({'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, os.path.join(model_saving_dir, "model.pt"))
 
     writer.flush()
     writer.close()
