@@ -673,12 +673,22 @@ void create_grid_kernel_launcher
 
     AT_DISPATCH_FLOATING_TYPES_AND_HALF(
         type, "CreateBiGridKernel", ([&] {
-        //   CreateBiGridKernel<<<num_blocks, at::cuda::detail::CUDA_NUM_THREADS, 0, stream>>>
-		  CreateBiGridKernel<<<num_blocks, static_cast<uint64_t>(512), 0, stream>>>
-		  (
-                  num_grid_points, input_image, input_guide, batch_size,
-                  image_height, image_width, channel_size, grid_height,
-                  grid_width, grid_depth, sr, out_color);
+        // CreateBiGridKernel<<<num_blocks, at::cuda::detail::CUDA_NUM_THREADS, 0, stream>>>
+		CreateBiGridKernel<<<num_blocks, static_cast<uint64_t>(512), 0, stream>>>
+		(
+        	num_grid_points,
+			input_image,
+			input_guide,
+			batch_size,
+        	image_height,
+			image_width,
+			channel_size,
+			grid_height,
+        	grid_width,
+			grid_depth,
+			sr,
+			out_color
+		);
         }));
   }
 }
@@ -736,7 +746,8 @@ void create_grid_grad_kernel_launcher
 		    	grid_width,
 				grid_depth,
 				sr,
-				image_grad);
+				image_grad
+			);
 		}));
   
 
