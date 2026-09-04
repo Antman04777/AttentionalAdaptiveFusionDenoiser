@@ -5,6 +5,7 @@ import numpy as np
 import pyexr
 import os
 import dataloader
+import statistics
 
 
 def test(model, device, dataloader, save_dir=''):
@@ -12,20 +13,24 @@ def test(model, device, dataloader, save_dir=''):
     SSIMs = []
     PSNRs = []
 
+    start_events = [torch.cuda.Event(enable_timing=True) for _ in range(60)]
+    end_events = [torch.cuda.Event(enable_timing=True) for _ in range(60)]
+
     with torch.no_grad():
-        for test_img_idx,(inputs, references) in enumerate(dataloader):
+        for test_img_idx, (inputs, references) in enumerate(dataloader):
             inputs = inputs.to(device, non_blocking=True)
             references = references.to(device, non_blocking = True)
+
+            #
             outputs = model(inputs).detach()
-            # references = references.transpose(1, 3)
-            # references = references.transpose(1, 2)
+            #
 
             output = outputs.cpu().numpy()[0]
             reference = references.cpu().numpy()[0].transpose((1, 2, 0))
 
             SSIM, PSNR = utils.compute_metrics(reference, output)
             SSIMs.append(SSIM)
-            PSNRs.append(PSNR)   
+            PSNRs.append(PSNR)
 
             pyexr.write(os.path.join(save_dir, str(test_img_idx)+".exr"), output)
 
@@ -39,6 +44,29 @@ def test(model, device, dataloader, save_dir=''):
     np.savetxt(os.path.join(save_dir, 'ssim.txt'), SSIMs, fmt="%s")
     np.savetxt(os.path.join(save_dir, 'psnr.txt'), PSNRs, fmt="%s")       
 
+def time_inference(model, device, dataloader, steps=60):
+    start_events = [torch.cuda.Event(enable_timing=True) for _ in range(steps)]
+    end_events = [torch.cuda.Event(enable_timing=True) for _ in range(steps)]
+
+    cache_tensor = torch.empty(int(6 * (1024 ** 2)), dtype=torch.int8, device=device)
+
+    with torch.no_grad():
+        for test_img_idx, (inputs, references) in enumerate(dataloader):
+            cache_tensor.zero_() # perform cache flush for more accurate measurement
+
+            inputs = inputs.to(device, non_blocking=True)
+            references = references.to(device, non_blocking = True)
+
+            start_events[test_img_idx].record()
+            outputs = model(inputs).detach()
+            end_events[test_img_idx].record()
+
+        torch.cuda.synchronize()
+        times = [s.elapsed_time(e) for s, e in zip(start_events, end_events)]
+        average_inference_time = statistics.mean(times)
+        print(f'Average inference time = {average_inference_time}')
+
+
 if __name__ == '__main__':
 
     torch.cuda.set_device(0)
@@ -48,12 +76,12 @@ if __name__ == '__main__':
 
     test_scene = "sponza"
 
-    rawData = dataloader.RawDataReader(is_training=False, hold_out_scene=test_scene)
-    dataset = dataloader.BMFRFinalDataset(rawData,use_test=True)
-    test_dataloader = torch.utils.data.DataLoader(dataset, batch_size=1,num_workers=0,pin_memory=False)
+    rawdata = dataloader.RawDataReader(is_training=False, hold_out_scene=test_scene)
+    dataset = dataloader.BMFRFinalDataset(rawdata, use_test=True)
+    test_dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=0, pin_memory=False)
 
     experiment = 'test-init'
-    test_saving_dir = os.path.join("results",experiment, test_scene)
+    test_saving_dir = os.path.join("results", experiment, test_scene)
     for dir in [test_saving_dir]:
         if not os.path.exists(dir):
             os.makedirs(dir)
@@ -62,7 +90,8 @@ if __name__ == '__main__':
     checkpoint = torch.load("checkpoints/test-init/sponza/model.pt", device)
     pretrained_model.load_state_dict(checkpoint["model_state_dict"])
 
-    deployed_model = network.RepVGG(device,deployed=True,pretrained_model=pretrained_model)
-    test(deployed_model,device,test_dataloader,test_saving_dir)
+    deployed_model = network.RepVGG(device, deployed=True, pretrained_model=pretrained_model)
+    test(deployed_model, device, test_dataloader, test_saving_dir)
 
-
+    timing_dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=0, pin_memory=False)
+    time_inference(deployed_model, device, timing_dataloader, steps=rawdata.num_frames_per_scene)
