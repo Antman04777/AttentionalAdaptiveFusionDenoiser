@@ -170,7 +170,7 @@ static torch::Tensor slice_grid_wrapper(torch::Tensor input_grid, torch::Tensor 
     slice_grid_kernel_launcher
     (
         input_flat_grid.const_data_ptr<float>(),
-        input_flat_grid.const_data_ptr<float>(),
+        input_flat_guide.const_data_ptr<float>(),
         batch_size,
         image_height,
         image_width,
@@ -225,7 +225,7 @@ static std::tuple<torch::Tensor, torch::Tensor> slice_grid_grad_wrapper(torch::T
     slice_grid_grad_kernel_launcher
     (
 	    input_flat_grid.const_data_ptr<float>(),
-        input_flat_grid.const_data_ptr<float>(),
+        input_flat_guide.const_data_ptr<float>(),
 	    backprop.const_data_ptr<float>(),
         batch_size,
         image_height,
