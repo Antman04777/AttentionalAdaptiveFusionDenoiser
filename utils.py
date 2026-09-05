@@ -38,7 +38,7 @@ class SMAPEloss(torch.nn.Module):
         loss = torch.mean(torch.abs(outputs - references) / (denominator.abs() + references.abs() + self.eps))
         return loss
 
-def record_train_parameters(lr, epochs, val_epoch_interval, batch_size, hold_off_scene, experiment_name, device_name, ss_ta, sr_ta, ss_non_ta, sr_non_ta, save_dir):
+def record_training_parameters(lr, epochs, val_epoch_interval, batch_size, hold_off_scene, experiment_name, device_name, ss_ta, sr_ta, ss_non_ta, sr_non_ta, save_dir):
     parameters = f'''Learning Rate: {lr}
         Total Epochs: {epochs}
         Validation Frequency (Epochs): {val_epoch_interval}
