@@ -110,7 +110,7 @@ if __name__ == "__main__":
     torch.backends.cudnn.deterministic = True 
     torch.backends.cudnn.benchmark = False 
     device = torch.device("cuda")
-    device_name = torch.get_device_name(0)
+    device_name = torch.cuda.get_device_name(0)
 
     learning_rate = 1e-4  #og 1e-3
     epochs = 300
