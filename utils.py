@@ -57,3 +57,12 @@ def record_training_parameters(lr, epochs, val_epoch_interval, batch_size, hold_
 
     with open(file_save_path, 'w') as f:
         f.write(parameters)
+
+
+class l1_loss(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self,outputs,references):
+        loss=torch.mean(torch.abs(outputs-references))
+        return loss
