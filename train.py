@@ -15,7 +15,10 @@ from skimage.metrics import peak_signal_noise_ratio
 def train(model, device, dataloader, optimizer, epoch, writer):
     model.train()
     losses=[]
-    criterion = utils.SMAPEloss().to(device)
+    #SMAPE
+    #criterion = utils.SMAPEloss().to(device)
+    #l1_loss
+    criterion = utils.l1_loss().to(device)
 
     preloader = DatasetPreloader(loader=dataloader, device=device)
 
@@ -63,7 +66,10 @@ def validate(model, device, dataloader):
     SSIMs = []
     PSNRs = []
     val_losses = []
-    criterion = utils.SMAPEloss().to(device)
+    #SMAPE
+    #criterion = utils.SMAPEloss().to(device)
+    #l1_loss
+    criterion = utils.l1_loss().to(device)
 
     with torch.no_grad():
         for (inputs, references) in dataloader:
@@ -113,7 +119,7 @@ if __name__ == "__main__":
     device_name = torch.cuda.get_device_name(0)
 
     learning_rate = 1e-4  #og 1e-3
-    epochs = 300
+    epochs = 400
     epoch_validate = 25
     batch_size = 20     #og 40
 
@@ -128,7 +134,7 @@ if __name__ == "__main__":
     dataset_val = BMFRFinalDataset(raw_data, use_val=True)
     dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
-    experiment = "test-init"
+    experiment = "official-lr4-epoch-400-batchsize-20-ssta-4-srta-4-ssnta-16-srnta-16-l1_loss"
     tensorboard_saving_dir = os.path.join("runs", experiment, current_testing_scene_name)
     model_saving_dir = os.path.join("checkpoints", experiment, current_testing_scene_name)
 

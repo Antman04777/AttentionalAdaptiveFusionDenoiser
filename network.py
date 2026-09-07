@@ -38,8 +38,8 @@ class RepVGG(torch.nn.Module):
         self.num_input_channels = 16
         self.num_output_channels = 3
 
-        self.ss_non_ta = 8
-        self.sr_non_ta = 8
+        self.ss_non_ta = 16
+        self.sr_non_ta = 16
         self.ss_ta = 4
         self.sr_ta = 4
 
