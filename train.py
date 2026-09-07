@@ -119,7 +119,7 @@ if __name__ == "__main__":
     device_name = torch.cuda.get_device_name(0)
 
     learning_rate = 1e-4  #og 1e-3
-    epochs = 300
+    epochs = 400
     epoch_validate = 25
     batch_size = 20     #og 40
 
@@ -134,7 +134,7 @@ if __name__ == "__main__":
     dataset_val = BMFRFinalDataset(raw_data, use_val=True)
     dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
-    experiment = "official-lr4-batch-20-ssta-4-srta-4-ssnonta-16-srnonta-16"
+    experiment = "official-lr4-epoch-400-batchsize-20-ssta-4-srta-4-ssnta-16-srnta-16-l1_loss"
     tensorboard_saving_dir = os.path.join("runs", experiment, current_testing_scene_name)
     model_saving_dir = os.path.join("checkpoints", experiment, current_testing_scene_name)
 
