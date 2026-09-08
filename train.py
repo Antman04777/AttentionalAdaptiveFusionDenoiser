@@ -11,6 +11,9 @@ import utils
 from skimage.metrics import structural_similarity
 from skimage.metrics import peak_signal_noise_ratio
 
+import argparse
+import sys
+import json
     
 def train(model, device, dataloader, optimizer, epoch, writer):
     model.train()
@@ -118,12 +121,36 @@ if __name__ == "__main__":
     device = torch.device("cuda")
     device_name = torch.cuda.get_device_name(0)
 
-    learning_rate = 1e-4  #og 1e-3
-    epochs = 400
-    epoch_validate = 25
-    batch_size = 20     #og 40
+    parser = argparse.ArgumentParser(prog='train')
+    parser.add_argument('--resume', type=str, help='<path_to_model.pt>')
+    parser.add_argument('--parameters', type=str, help='<path_to_parameters.json>')
 
-    current_testing_scene_name = "sponza"
+    args = parser.parse_args()
+    resuming_training = True if args.resume is not None else False
+    if resuming_training:
+        saved_model_path = args.resume
+
+    if args.parameters is None:
+        parser.print_help()
+        sys.exit(1)
+
+    if not os.path.exists(args.parameters):
+        parser.print_help()
+        sys.exit(1)
+
+    parameters_path = args.parameters
+
+    #experiment = "official-lr4-epoch-400-batchsize-20-ssta-4-srta-4-ssnta-16-srnta-16-l1_loss"
+    #current_testing_scene_name = "sponza"
+    #learning_rate = 1e-4  #og 1e-3
+    #epochs = 400
+    #epoch_validate = 25
+    #batch_size = 20     #og 40
+
+    
+
+    experiment, current_testing_scene_name, learning_rate, \
+    epochs, epochs_validate, batch_size, previously_elapsed_epochs = utils.load_parameters_from_json(parameters_path)
 
     raw_data = RawDataReader(is_training=True, hold_out_scene=current_testing_scene_name)
     dataset_train = BMFRFinalDataset(raw_data, use_train=True)
@@ -134,7 +161,6 @@ if __name__ == "__main__":
     dataset_val = BMFRFinalDataset(raw_data, use_val=True)
     dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
-    experiment = "official-lr4-epoch-400-batchsize-20-ssta-4-srta-4-ssnta-16-srnta-16-l1_loss"
     tensorboard_saving_dir = os.path.join("runs", experiment, current_testing_scene_name)
     model_saving_dir = os.path.join("checkpoints", experiment, current_testing_scene_name)
 
@@ -144,21 +170,39 @@ if __name__ == "__main__":
 
     model = RepVGG(device).to(device)
     optimizer = torch.optim.Adam(model.parameters(), learning_rate)
-    writer = SummaryWriter(tensorboard_saving_dir)
 
-    utils.record_training_parameters(learning_rate, epochs, epoch_validate, batch_size, current_testing_scene_name, experiment, device_name, model.ss_ta, model.sr_ta, model.ss_non_ta, model.sr_non_ta, model_saving_dir)
+    lower_bound = 0
+    upper_bound = epochs
 
-    for epoch in range(epochs):
+    if resuming_training:
+        checkpoint = torch.load(args.resume, device)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        writer = SummaryWriter(log_dir=tensorboard_saving_dir, purge_step=previously_elapsed_epochs+1)
+        lower_bound = previously_elapsed_epochs + 1
+    else:
+        writer = SummaryWriter(tensorboard_saving_dir)
+
+    utils.record_training_parameters(learning_rate, epochs, epochs_validate, batch_size, current_testing_scene_name, experiment, device_name, model.ss_ta, model.sr_ta, model.ss_non_ta, model.sr_non_ta, model_saving_dir)
+
+    with open(parameters_path, 'rw') as f:
+        parameters_json = json.load(f)
+
+    for epoch in range(lower_bound, upper_bound):
         print(f'Epoch: {epoch}')
         
         train(model, device, dataloader_train, optimizer, epoch, writer)
         
-        if (epoch + 1) % epoch_validate == 0:
+        if (epoch + 1) % epochs_validate == 0:
             ssim_val, psnr_val = validate(model, device, dataloader_val)
             writer.add_scalar("SSIM-val", ssim_val, epoch)
             writer.add_scalar("PSNR-val", psnr_val, epoch)
             
             torch.save({'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, os.path.join(model_saving_dir, "model.pt"))
 
+        parameters_json['previously_elapsed_epochs'] += 1
+        f.write(parameters_json)
+        
+    f.close()
     writer.flush()
     writer.close()

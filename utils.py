@@ -3,6 +3,7 @@ import torch
 from skimage.metrics import structural_similarity
 from skimage.metrics import peak_signal_noise_ratio
 import os
+import json
 
 def tone_mapping(image):
     if isinstance(image, np.ndarray):
@@ -66,3 +67,19 @@ class l1_loss(torch.nn.Module):
     def forward(self,outputs,references):
         loss=torch.mean(torch.abs(outputs-references))
         return loss
+
+def load_parameters_from_json(path_to_parameters_json):
+    with open(path_to_parameters_json, 'r') as f:
+        parameters = json.load(f)
+
+    experiment = parameters['experiment']
+    current_testing_scene_name = parameters['current_testing_scene_name']
+    lr = parameters['learning_rate']
+    epochs = parameters['epochs']
+    epochs_val = parameters['epochs_validate']
+    batch_size = parameters['batch_size']
+    previously_elapsed_epochs = parameters['previously_elapsed_epochs']
+
+    f.close()
+
+    return experiment, current_testing_scene_name, lr, epochs, epochs_val, batch_size, previously_elapsed_epochs

@@ -1,0 +1,9 @@
+{
+    "experiment": "official-lr4-epoch-400-batchsize-20-ssta-4-srta-4-ssnta-16-srnta-16-l1_loss",
+    "current_testing_scene_name": "sponza",
+    "learning_rate" : 1e-4,
+    "epochs": 400,
+    "epochs_validate": 25,
+    "batch_size": 20,
+    "previously_elapsed_epochs": 0
+}
