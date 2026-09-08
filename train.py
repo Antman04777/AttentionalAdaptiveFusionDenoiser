@@ -19,9 +19,9 @@ def train(model, device, dataloader, optimizer, epoch, writer):
     model.train()
     losses=[]
     #SMAPE
-    #criterion = utils.SMAPEloss().to(device)
+    criterion = utils.SMAPEloss().to(device)
     #l1_loss
-    criterion = utils.l1_loss().to(device)
+    # criterion = utils.l1_loss().to(device)
 
     preloader = DatasetPreloader(loader=dataloader, device=device)
 
@@ -70,9 +70,9 @@ def validate(model, device, dataloader):
     PSNRs = []
     val_losses = []
     #SMAPE
-    #criterion = utils.SMAPEloss().to(device)
+    criterion = utils.SMAPEloss().to(device)
     #l1_loss
-    criterion = utils.l1_loss().to(device)
+    # criterion = utils.l1_loss().to(device)
 
     with torch.no_grad():
         for (inputs, references) in dataloader:
@@ -185,9 +185,6 @@ if __name__ == "__main__":
 
     utils.record_training_parameters(learning_rate, epochs, epochs_validate, batch_size, current_testing_scene_name, experiment, device_name, model.ss_ta, model.sr_ta, model.ss_non_ta, model.sr_non_ta, model_saving_dir)
 
-    with open(parameters_path, 'rw') as f:
-        parameters_json = json.load(f)
-
     for epoch in range(lower_bound, upper_bound):
         print(f'Epoch: {epoch}')
         
@@ -200,9 +197,16 @@ if __name__ == "__main__":
             
             torch.save({'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, os.path.join(model_saving_dir, "model.pt"))
 
-        parameters_json['previously_elapsed_epochs'] += 1
-        f.write(parameters_json)
+        # parameters_json['previously_elapsed_epochs'] += 1
+        # f.write(parameters_json)
+        # json.dump(parameters_json, f)
+
+        with open(parameters_path, 'r+') as f:
+            parameters_json = json.load(f)
+            parameters_json['previously_elapsed_epochs'] += 1
+            f.seek(0)
+            json.dump(parameters_json, f, indent=4)
+            f.truncate()
         
-    f.close()
     writer.flush()
     writer.close()
