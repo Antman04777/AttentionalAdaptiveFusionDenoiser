@@ -15,13 +15,19 @@ import argparse
 import sys
 import json
     
-def train(model, device, dataloader, optimizer, epoch, writer):
+def train(model, device, dataloader, optimizer, epoch, writer, loss_func='smape'):
     model.train()
     losses=[]
-    #SMAPE
-    criterion = utils.SMAPEloss().to(device)
-    #l1_loss
-    # criterion = utils.l1_loss().to(device)
+
+    criterion = None
+    match loss_func:
+        case 'smape':
+            criterion = utils.SMAPEloss().to(device)
+        case 'l1':
+            criterion = utils.l1_loss().to(device) #loss used by NBG
+        case _:
+            print('Invalid loss function, defaulting to SMAPE loss')
+            criterion = utils.SMAPEloss().to(device)
 
     preloader = DatasetPreloader(loader=dataloader, device=device)
 
@@ -41,20 +47,6 @@ def train(model, device, dataloader, optimizer, epoch, writer):
         loss = criterion(outputs,references)
         loss.backward()
 
-        #loss used by NBG
-        #l1_loss = torch.mean(torch.abs(outputs-references))
-        #l1_loss.backward()
-        #losses.append(l1_loss.item())
-
-        # print(model.final.grad) # gradients are of order 10^-5 - 10^-6
-        # print(model.irradiance_final.grad) # gradients are of order 10^-6 - 10^-7
-        # print(model.irradiance_TA_denoised.grad) # gradients are of order 10^-6 - 10^-7
-        # print(model.irradiance_non_TA_denoised.grad) # gradients are of order 10^-6 - 10^-8
-        # print(model.grid2.grad) # gradients are 0
-        # print(model.grid1.grad) # gradients are 0
-        # print(model.guide1.grad)
-        #print(model.x_final_out.grad)
-
         optimizer.step()
 
         losses.append(loss.item())
@@ -64,15 +56,21 @@ def train(model, device, dataloader, optimizer, epoch, writer):
     print(mean_loss)
 
 
-def validate(model, device, dataloader):
+def validate(model, device, dataloader, loss_func='smape'):
     model.eval()
     SSIMs = []
     PSNRs = []
     val_losses = []
-    #SMAPE
-    criterion = utils.SMAPEloss().to(device)
-    #l1_loss
-    # criterion = utils.l1_loss().to(device)
+
+    criterion = None
+    match loss_func:
+        case 'smape':
+            criterion = utils.SMAPEloss().to(device)
+        case 'l1':
+            criterion = utils.l1_loss().to(device) # loss used by NBG
+        case _:
+            print('Invalid loss function, defaulting to SMAPE loss')
+            criterion = utils.SMAPEloss().to(device)
 
     with torch.no_grad():
         for (inputs, references) in dataloader:
@@ -85,11 +83,6 @@ def validate(model, device, dataloader):
             loss = criterion(outputs,references)
             val_losses.append(loss.item())
 
-            #loss used by NBG
-            #l1_loss = torch.mean(torch.abs(outputs-references))
-            #l1_loss.backward()
-            #val_losses.append(l1_loss.item())
-
             output = outputs.cpu().numpy()
             reference = references.cpu().numpy()
 
@@ -97,7 +90,6 @@ def validate(model, device, dataloader):
                 if np.sum(reference[i]) == 0.0:
                     continue
                 SSIM, PSNR = utils.compute_metrics(reference[i], output[i])
-#                SSIM, PSNR = compute_metrics(reference[i].transpose((1,2,0)), output[i])
                 SSIMs.append(SSIM)
                 PSNRs.append(PSNR)
 
@@ -122,13 +114,16 @@ if __name__ == "__main__":
     device_name = torch.cuda.get_device_name(0)
 
     parser = argparse.ArgumentParser(prog='train')
-    parser.add_argument('--resume', type=str, help='<path_to_model.pt>')
+    # parser.add_argument('--resume', type=str, help='<path_to_model.pt>')
+    # parser.add_argument('--resume', action=argparse.BooleanOptionalAction, help='<path_to_model.pt>')
+    parser.add_argument('--resume', action='store_true', help='<path_to_model.pt>')
     parser.add_argument('--parameters', type=str, help='<path_to_parameters.json>')
 
     args = parser.parse_args()
-    resuming_training = True if args.resume is not None else False
-    if resuming_training:
-        saved_model_path = args.resume
+    # resuming_training = True if args.resume is not None else False
+    resuming_training = args.resume
+    # if resuming_training:
+        # saved_model_path = args.resume
 
     if args.parameters is None:
         parser.print_help()
@@ -147,16 +142,12 @@ if __name__ == "__main__":
     #epoch_validate = 25
     #batch_size = 20     #og 40
 
-    
-
-    experiment, current_testing_scene_name, learning_rate, \
+    experiment, current_testing_scene_name, learning_rate, loss_function, \
     epochs, epochs_validate, batch_size, previously_elapsed_epochs = utils.load_parameters_from_json(parameters_path)
 
     raw_data = RawDataReader(is_training=True, hold_out_scene=current_testing_scene_name)
     dataset_train = BMFRFinalDataset(raw_data, use_train=True)
-    # dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=6, pin_memory=True, persistent_workers=True) // exceeded 120gb quota
     dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
-    # dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
     dataset_val = BMFRFinalDataset(raw_data, use_val=True)
     dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
@@ -175,7 +166,8 @@ if __name__ == "__main__":
     upper_bound = epochs
 
     if resuming_training:
-        checkpoint = torch.load(args.resume, device)
+        # checkpoint = torch.load(args.resume, device)
+        checkpoint = torch.load(os.path.join(model_saving_dir, 'model.pt'))
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         writer = SummaryWriter(log_dir=tensorboard_saving_dir, purge_step=previously_elapsed_epochs+1)
@@ -188,18 +180,14 @@ if __name__ == "__main__":
     for epoch in range(lower_bound, upper_bound):
         print(f'Epoch: {epoch}')
         
-        train(model, device, dataloader_train, optimizer, epoch, writer)
+        train(model, device, dataloader_train, optimizer, epoch, writer, loss_func=loss_function)
         
         if (epoch + 1) % epochs_validate == 0:
-            ssim_val, psnr_val = validate(model, device, dataloader_val)
+            ssim_val, psnr_val = validate(model, device, dataloader_val, loss_func=loss_function)
             writer.add_scalar("SSIM-val", ssim_val, epoch)
             writer.add_scalar("PSNR-val", psnr_val, epoch)
             
             torch.save({'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, os.path.join(model_saving_dir, "model.pt"))
-
-        # parameters_json['previously_elapsed_epochs'] += 1
-        # f.write(parameters_json)
-        # json.dump(parameters_json, f)
 
         with open(parameters_path, 'r+') as f:
             parameters_json = json.load(f)
