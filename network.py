@@ -23,7 +23,7 @@ def reparametrize(conv1, conv3, conv5, has_identity_branch=False):
             # return tone_mapped_color
 
 class RepVGG(torch.nn.Module):
-    def __init__(self, device, deployed=False, pretrained_model=None):
+    def __init__(self, device, deployed=False, pretrained_model=None, ss_non_ta=16, sr_non_ta=16, ss_ta=4, sr_ta=4):
         super().__init__()
         # define convolutional layers
         # 4 output channels (weight map 1 (1 channel), weight map 2 (1 channel), guide 1 (1 channel), guide 2 (1 channel))
@@ -38,10 +38,10 @@ class RepVGG(torch.nn.Module):
         self.num_input_channels = 16
         self.num_output_channels = 3
 
-        self.ss_non_ta = 16
-        self.sr_non_ta = 16
-        self.ss_ta = 4
-        self.sr_ta = 4
+        self.ss_non_ta = ss_non_ta
+        self.sr_non_ta = sr_non_ta
+        self.ss_ta = ss_ta
+        self.sr_ta = sr_ta
 
         #debug
         self.x_final_out = None
