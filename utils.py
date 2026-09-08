@@ -80,7 +80,11 @@ def load_parameters_from_json(path_to_parameters_json):
     epochs_val = parameters['epochs_validate']
     batch_size = parameters['batch_size']
     previously_elapsed_epochs = parameters['previously_elapsed_epochs']
+    ss_non_ta = parameters['ss_non_ta']
+    sr_non_ta = parameters['sr_non_ta']
+    ss_ta = parameters['ss_ta']
+    sr_ta = parameters['sr_ta']
 
     f.close()
 
-    return experiment, current_testing_scene_name, lr, loss_func, epochs, epochs_val, batch_size, previously_elapsed_epochs
+    return experiment, current_testing_scene_name, lr, loss_func, epochs, epochs_val, batch_size, previously_elapsed_epochs, ss_non_ta, sr_non_ta, ss_ta, sr_ta

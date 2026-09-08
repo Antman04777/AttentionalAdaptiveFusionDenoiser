@@ -6,5 +6,9 @@
     "epochs": 400,
     "epochs_validate": 25,
     "batch_size": 20,
-    "previously_elapsed_epochs": 258
+    "previously_elapsed_epochs": 258,
+    "ss_non_ta": 16,
+    "sr_non_ta": 16,
+    "ss_ta": 4,
+    "sr_ta": 4
 }
