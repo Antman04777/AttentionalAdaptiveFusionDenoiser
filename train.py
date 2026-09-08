@@ -114,13 +114,16 @@ if __name__ == "__main__":
     device_name = torch.cuda.get_device_name(0)
 
     parser = argparse.ArgumentParser(prog='train')
-    parser.add_argument('--resume', type=str, help='<path_to_model.pt>')
+    # parser.add_argument('--resume', type=str, help='<path_to_model.pt>')
+    # parser.add_argument('--resume', action=argparse.BooleanOptionalAction, help='<path_to_model.pt>')
+    parser.add_argument('--resume', action='store_true', help='<path_to_model.pt>')
     parser.add_argument('--parameters', type=str, help='<path_to_parameters.json>')
 
     args = parser.parse_args()
-    resuming_training = True if args.resume is not None else False
-    if resuming_training:
-        saved_model_path = args.resume
+    # resuming_training = True if args.resume is not None else False
+    resuming_training = args.resume
+    # if resuming_training:
+        # saved_model_path = args.resume
 
     if args.parameters is None:
         parser.print_help()
@@ -163,7 +166,8 @@ if __name__ == "__main__":
     upper_bound = epochs
 
     if resuming_training:
-        checkpoint = torch.load(args.resume, device)
+        # checkpoint = torch.load(args.resume, device)
+        checkpoint = torch.load(os.path.join(model_saving_dir, 'model.pt'))
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         writer = SummaryWriter(log_dir=tensorboard_saving_dir, purge_step=previously_elapsed_epochs+1)
