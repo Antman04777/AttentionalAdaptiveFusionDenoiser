@@ -15,13 +15,19 @@ import argparse
 import sys
 import json
     
-def train(model, device, dataloader, optimizer, epoch, writer):
+def train(model, device, dataloader, optimizer, epoch, writer, loss_func='smape'):
     model.train()
     losses=[]
-    #SMAPE
-    criterion = utils.SMAPEloss().to(device)
-    #l1_loss
-    # criterion = utils.l1_loss().to(device)
+
+    criterion = None
+    match loss_func:
+        case 'smape':
+            criterion = utils.SMAPEloss().to(device)
+        case 'l1':
+            criterion = utils.l1_loss().to(device)
+        case _:
+            print('Invalid loss function, defaulting to SMAPE loss')
+            criterion = utils.SMAPEloss().to(device)
 
     preloader = DatasetPreloader(loader=dataloader, device=device)
 
@@ -64,15 +70,21 @@ def train(model, device, dataloader, optimizer, epoch, writer):
     print(mean_loss)
 
 
-def validate(model, device, dataloader):
+def validate(model, device, dataloader, loss_func='smape'):
     model.eval()
     SSIMs = []
     PSNRs = []
     val_losses = []
-    #SMAPE
-    criterion = utils.SMAPEloss().to(device)
-    #l1_loss
-    # criterion = utils.l1_loss().to(device)
+
+    criterion = None
+    match loss_func:
+        case 'smape':
+            criterion = utils.SMAPEloss().to(device)
+        case 'l1':
+            criterion = utils.l1_loss().to(device)
+        case _:
+            print('Invalid loss function, defaulting to SMAPE loss')
+            criterion = utils.SMAPEloss().to(device)
 
     with torch.no_grad():
         for (inputs, references) in dataloader:
@@ -147,16 +159,12 @@ if __name__ == "__main__":
     #epoch_validate = 25
     #batch_size = 20     #og 40
 
-    
-
-    experiment, current_testing_scene_name, learning_rate, \
+    experiment, current_testing_scene_name, learning_rate, loss_function, \
     epochs, epochs_validate, batch_size, previously_elapsed_epochs = utils.load_parameters_from_json(parameters_path)
 
     raw_data = RawDataReader(is_training=True, hold_out_scene=current_testing_scene_name)
     dataset_train = BMFRFinalDataset(raw_data, use_train=True)
-    # dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=6, pin_memory=True, persistent_workers=True) // exceeded 120gb quota
     dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
-    # dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
     dataset_val = BMFRFinalDataset(raw_data, use_val=True)
     dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
@@ -188,10 +196,10 @@ if __name__ == "__main__":
     for epoch in range(lower_bound, upper_bound):
         print(f'Epoch: {epoch}')
         
-        train(model, device, dataloader_train, optimizer, epoch, writer)
+        train(model, device, dataloader_train, optimizer, epoch, writer, loss_func=loss_function)
         
         if (epoch + 1) % epochs_validate == 0:
-            ssim_val, psnr_val = validate(model, device, dataloader_val)
+            ssim_val, psnr_val = validate(model, device, dataloader_val, loss_func=loss_function)
             writer.add_scalar("SSIM-val", ssim_val, epoch)
             writer.add_scalar("PSNR-val", psnr_val, epoch)
             

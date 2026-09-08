@@ -75,6 +75,7 @@ def load_parameters_from_json(path_to_parameters_json):
     experiment = parameters['experiment']
     current_testing_scene_name = parameters['current_testing_scene_name']
     lr = parameters['learning_rate']
+    loss_func = parameters['loss_function']
     epochs = parameters['epochs']
     epochs_val = parameters['epochs_validate']
     batch_size = parameters['batch_size']
@@ -82,4 +83,4 @@ def load_parameters_from_json(path_to_parameters_json):
 
     f.close()
 
-    return experiment, current_testing_scene_name, lr, epochs, epochs_val, batch_size, previously_elapsed_epochs
+    return experiment, current_testing_scene_name, lr, loss_func, epochs, epochs_val, batch_size, previously_elapsed_epochs
