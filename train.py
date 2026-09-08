@@ -24,7 +24,7 @@ def train(model, device, dataloader, optimizer, epoch, writer, loss_func='smape'
         case 'smape':
             criterion = utils.SMAPEloss().to(device)
         case 'l1':
-            criterion = utils.l1_loss().to(device)
+            criterion = utils.l1_loss().to(device) #loss used by NBG
         case _:
             print('Invalid loss function, defaulting to SMAPE loss')
             criterion = utils.SMAPEloss().to(device)
@@ -47,20 +47,6 @@ def train(model, device, dataloader, optimizer, epoch, writer, loss_func='smape'
         loss = criterion(outputs,references)
         loss.backward()
 
-        #loss used by NBG
-        #l1_loss = torch.mean(torch.abs(outputs-references))
-        #l1_loss.backward()
-        #losses.append(l1_loss.item())
-
-        # print(model.final.grad) # gradients are of order 10^-5 - 10^-6
-        # print(model.irradiance_final.grad) # gradients are of order 10^-6 - 10^-7
-        # print(model.irradiance_TA_denoised.grad) # gradients are of order 10^-6 - 10^-7
-        # print(model.irradiance_non_TA_denoised.grad) # gradients are of order 10^-6 - 10^-8
-        # print(model.grid2.grad) # gradients are 0
-        # print(model.grid1.grad) # gradients are 0
-        # print(model.guide1.grad)
-        #print(model.x_final_out.grad)
-
         optimizer.step()
 
         losses.append(loss.item())
@@ -81,7 +67,7 @@ def validate(model, device, dataloader, loss_func='smape'):
         case 'smape':
             criterion = utils.SMAPEloss().to(device)
         case 'l1':
-            criterion = utils.l1_loss().to(device)
+            criterion = utils.l1_loss().to(device) # loss used by NBG
         case _:
             print('Invalid loss function, defaulting to SMAPE loss')
             criterion = utils.SMAPEloss().to(device)
@@ -97,11 +83,6 @@ def validate(model, device, dataloader, loss_func='smape'):
             loss = criterion(outputs,references)
             val_losses.append(loss.item())
 
-            #loss used by NBG
-            #l1_loss = torch.mean(torch.abs(outputs-references))
-            #l1_loss.backward()
-            #val_losses.append(l1_loss.item())
-
             output = outputs.cpu().numpy()
             reference = references.cpu().numpy()
 
@@ -109,7 +90,6 @@ def validate(model, device, dataloader, loss_func='smape'):
                 if np.sum(reference[i]) == 0.0:
                     continue
                 SSIM, PSNR = utils.compute_metrics(reference[i], output[i])
-#                SSIM, PSNR = compute_metrics(reference[i].transpose((1,2,0)), output[i])
                 SSIMs.append(SSIM)
                 PSNRs.append(PSNR)
 
@@ -204,10 +184,6 @@ if __name__ == "__main__":
             writer.add_scalar("PSNR-val", psnr_val, epoch)
             
             torch.save({'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, os.path.join(model_saving_dir, "model.pt"))
-
-        # parameters_json['previously_elapsed_epochs'] += 1
-        # f.write(parameters_json)
-        # json.dump(parameters_json, f)
 
         with open(parameters_path, 'r+') as f:
             parameters_json = json.load(f)
