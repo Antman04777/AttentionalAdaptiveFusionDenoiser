@@ -1,0 +1,9 @@
+{
+    "experiment": "parameter-arg-test",
+    "current_testing_scene_name": "sponza",
+    "learning_rate": 0.0001,
+    "epochs": 400,
+    "epochs_validate": 25,
+    "batch_size": 20,
+    "previously_elapsed_epochs": 258
+}
