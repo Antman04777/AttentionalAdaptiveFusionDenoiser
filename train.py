@@ -144,7 +144,7 @@ if __name__ == "__main__":
 
     experiment, current_testing_scene_name, learning_rate, loss_function, \
     epochs, epochs_validate, batch_size, previously_elapsed_epochs, \
-    ss_non_ta, sr_non_ta, ss_ta, sr_ta = utils.load_parameters_from_json(parameters_path)
+    ss_non_ta, sr_non_ta, ss_ta, sr_ta = utils.load_train_parameters_from_json(parameters_path)
 
     raw_data = RawDataReader(is_training=True, hold_out_scene=current_testing_scene_name)
     dataset_train = BMFRFinalDataset(raw_data, use_train=True)
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     else:
         writer = SummaryWriter(tensorboard_saving_dir)
         
-    utils.record_training_parameters(learning_rate, epochs, epochs_validate, batch_size, current_testing_scene_name, experiment, device_name, model.ss_ta, model.sr_ta, model.ss_non_ta, model.sr_non_ta, model_saving_dir)
+    utils.record_training_parameters(learning_rate, epochs, epochs_validate, batch_size, current_testing_scene_name, experiment, device_name, model.ss_ta, model.sr_ta, model.ss_non_ta, model.sr_non_ta, loss_function, model_saving_dir)
 
     for epoch in range(lower_bound, upper_bound):
         print(f'Epoch: {epoch}')
