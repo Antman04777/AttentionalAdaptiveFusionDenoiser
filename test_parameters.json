@@ -1,6 +1,6 @@
 {
     "experiment": "official-lr4-epoch-400-batchsize-20-ssta-8-srta-8-ssnta-16-srnta-16-l1",
-    "test_scene": "sponza",
+    "test_scene": "living-room",
     "ss_non_ta": 16,
     "sr_non_ta": 16,
     "ss_ta": 8,

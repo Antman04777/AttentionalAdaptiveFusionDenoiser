@@ -45,22 +45,6 @@ __global__ void CreateBiGridKernel(
 	const int sr,
 	float *out_color
 )
-#else
-__global__ void CreateBiGridKernel(
-    int num_grid_points,
-	const at::Half *input_image,
-	const at::Half *input_guide,
-    const int batch_size,
-	const int image_height,
-	const int image_width,
-    const int channel_size,
-	const int grid_height,
-	const int grid_width,
-    const int grid_depth,
-	const int sr,
-	at::Half *out_color
-) 
-#endif
 {
   CUDA_KERNEL_LOOP(i, num_grid_points) {
     int ss = image_width / grid_width;
@@ -123,7 +107,85 @@ __global__ void CreateBiGridKernel(
     }
   }
 }
+#else
+__global__ void CreateBiGridKernel(
+    int num_grid_points,
+	const at::Half *input_image,
+	const at::Half *input_guide,
+    const int batch_size,
+	const int image_height,
+	const int image_width,
+    const int channel_size,
+	const int grid_height,
+	const int grid_width,
+    const int grid_depth,
+	const int sr,
+	at::Half *out_color
+) 
 
+{
+  CUDA_KERNEL_LOOP(i, num_grid_points) {
+    int ss = image_width / grid_width;
+
+    int c = i % channel_size;
+    int w = (i / channel_size) % grid_width;
+    int h = (i / (channel_size * grid_width)) % grid_height;
+    int b = (i / (channel_size * grid_width * grid_height)) % batch_size;
+
+    at::Half f_w = w + 0.5f;
+    at::Half f_h = h + 0.5f;
+
+    int left = static_cast<int>(ceil((w - 0.5f) * ss));
+    int right = left + 2 * ss;
+    int up = static_cast<int>(ceil((h - 0.5f) * ss));
+    int down = up + 2 * ss;
+
+    int sx = channel_size;
+    int sy = channel_size * image_width;
+    int sb = channel_size * image_width * image_height;
+
+    at::Half sum_color[64];
+    at::Half sum_count[64];
+    for (int dd = 0; dd < grid_depth; dd++) {
+      sum_color[dd] = 0.0f;
+      sum_count[dd] = 0.0f;
+    }
+
+    for (int yy = up; yy < down; yy++) {
+      if (yy < 0 || yy > image_height - 1)
+        continue;
+      at::Half wy = weight_z((yy + 0.5f) / ss - f_h);
+      for (int xx = left; xx < right; xx++) {
+        if (xx < 0 || xx > image_width - 1)
+          continue;
+        at::Half wx = weight_z((xx + 0.5f) / ss - f_w);
+
+        int idx_guide = xx + yy * image_width + b * image_width * image_height;
+        int idx_image = c + xx * sx + yy * sy + b * sb;
+
+        at::Half guide_val = (input_guide[idx_guide] + 0.5f) / sr;
+        int d_lower = static_cast<int>(max(ceil(guide_val - 1.5f), 0.0f));
+        int d_upper =
+            static_cast<int>(min(floor(guide_val + 0.5f), grid_depth - 1.0f));
+        for (int zz = d_lower; zz <= d_upper; zz++) {
+          at::Half wz = weight_z(guide_val - zz - 0.5f);
+          at::Half wt = wy * wx * wz;
+          sum_color[zz] += input_image[idx_image] * wt;
+          sum_count[zz] += wt;
+        }
+      }
+    }
+    int idx_base = w * channel_size * grid_depth +
+                   h * channel_size * grid_depth * grid_width +
+                   b * channel_size * grid_depth * grid_width * grid_height;
+    for (int dd = 0; dd < grid_depth; dd++) {
+      int idx_grid = c + dd * sx + idx_base;
+      out_color[idx_grid] =
+          abs(sum_count[dd]) > 0 ? sum_color[dd] / sum_count[dd] : 0.0f; // sum count is 0 for some reason
+    }
+  }
+}
+#endif
 
 __global__ void CreateBiGridImageGradKernel(
 	int num_image_pixels,
@@ -375,22 +437,6 @@ __global__ void SliceBiGridKernel(
 	const int sr,
 	float* output_image
 )
-#else
-__global__ void SliceBiGridKernel(
-	int subpixel_count,
-	const at::Half* input_grid,
-	const at::Half* input_guide,
-	const int batch_size,
-	const int image_height,
-	const int image_width,
-	const int channel_size,
-	const int grid_height, 
-	const int grid_width, 
-	const int grid_depth,
-	const int sr,
-	at::Half* output_image
-)
-#endif
 {
 	CUDA_KERNEL_LOOP(i, subpixel_count)
 	{	
@@ -451,6 +497,83 @@ __global__ void SliceBiGridKernel(
 		output_image[i] = abs(sum_count) > 0.0f ? sum_color / sum_count: 0.0f;
 	}
 }
+#else
+__global__ void SliceBiGridKernel(
+	int subpixel_count,
+	const at::Half* input_grid,
+	const at::Half* input_guide,
+	const int batch_size,
+	const int image_height,
+	const int image_width,
+	const int channel_size,
+	const int grid_height, 
+	const int grid_width, 
+	const int grid_depth,
+	const int sr,
+	at::Half* output_image
+)
+
+{
+	CUDA_KERNEL_LOOP(i, subpixel_count)
+	{	
+		int ss = image_width / grid_width;
+
+		int c = i % channel_size;
+		int im_w = (i / channel_size) % image_width;
+		int im_h = (i / (channel_size * image_width)) % image_height;
+		int b = (i / (channel_size * image_width * image_height)) % batch_size;
+		
+		int idx_guide =  im_w + im_h * image_width + b * image_width * image_height;
+		
+		at::Half f_gr_d = (input_guide[idx_guide] + 0.5f) / sr;
+		at::Half f_gr_w = (im_w + 0.5f) / ss;
+		at::Half f_gr_h = (im_h + 0.5f) / ss;
+
+		int front = static_cast<int>(floor(input_guide[idx_guide] / sr - 0.5f));
+		int back = front + 1;
+
+		int left = static_cast<int>(floor(im_w * 1.0f / ss - 0.5f));
+		int right = left + 1;
+
+		int up = static_cast<int>(floor(im_h * 1.0f / ss - 0.5f));
+		int down = up + 1;
+
+		int sw = channel_size;
+		int su = channel_size * grid_depth;
+		int sv = channel_size * grid_depth * grid_width;
+		int sb = channel_size * grid_depth * grid_width * grid_height;
+
+		at::Half sum_color = 0.0f;
+		at::Half sum_count = 0.0f;
+		for (int vv = up; vv <= down; vv++)
+		{
+			if (vv < 0 || vv > grid_height - 1)
+				continue;
+			at::Half wy = weight_z((vv + 0.5f) - f_gr_h);
+			for (int uu = left; uu <= right; uu++)
+			{
+				if (uu < 0 || uu > grid_width - 1)
+					continue;
+				at::Half wx = weight_z((uu + 0.5f) - f_gr_w);
+				for (int ww = front - 2; ww < back + 2; ww++)
+				{
+					if (ww < 0 || ww > grid_depth - 1)
+						continue;
+					at::Half wz = weight_z((ww + 0.5f) - f_gr_d);
+					int idx_grid = c + ww * sw + uu * su + vv * sv + b * sb;
+					if (input_grid[idx_grid] > 0.0f)
+					{
+						at::Half wt =  wy * wx * wz;
+						sum_color += input_grid[idx_grid] * wt;
+						sum_count += wt;
+					}
+				}
+			}
+		}
+		output_image[i] = abs(sum_count) > 0.0f ? sum_color / sum_count: 0.0f;
+	}
+}
+#endif
 
 __global__ void SliceBiGridGridGradKernel(
 	int num_grid_points,
