@@ -26,16 +26,18 @@ static torch::Tensor create_grid_wrapper(torch::Tensor input_image, torch::Tenso
 
     torch::Device device = input_image.device();
 
-    torch::Tensor output_color_tensor = torch::empty({batch_size, grid_height, grid_width, grid_depth, channel_size}, torch::kFloat);
+    // torch::Tensor output_color_tensor = torch::empty({batch_size, grid_height, grid_width, grid_depth, channel_size}, torch::kFloat); // DO NOT FORGET THAT WE CHANGED THIS
+    torch::Tensor output_color_tensor = torch::empty({batch_size, grid_height, grid_width, grid_depth, channel_size}, torch::kHalf);
     output_color_tensor = output_color_tensor.to(device);
     auto output_color = output_color_tensor.flatten();
-
+    
     const auto& scalar_type = input_flat_image.scalar_type();
 
+#ifdef TRAINING
     create_grid_kernel_launcher
     (
         input_flat_image.const_data_ptr<float>(),
-        input_guide_flat.const_data_ptr<float>(), 
+        input_guide_flat.const_data_ptr<float>(),
         batch_size,
         image_height,
         image_width,
@@ -48,7 +50,25 @@ static torch::Tensor create_grid_wrapper(torch::Tensor input_image, torch::Tenso
         device,
         scalar_type
     );
-    
+#else
+    create_grid_kernel_launcher
+    (
+        input_flat_image.const_data_ptr<at::Half>(),
+        input_guide_flat.const_data_ptr<at::Half>(),
+        batch_size,
+        image_height,
+        image_width,
+        channel_size,
+        grid_height,
+        grid_width,
+        grid_depth,
+        sr,
+        output_color.data_ptr<at::Half>(),
+        device,
+        scalar_type
+    );
+#endif
+
     return output_color_tensor;
 }
 
@@ -133,12 +153,14 @@ static torch::Tensor slice_grid_wrapper(torch::Tensor input_grid, torch::Tensor 
 
     torch::Device device = input_grid.device();
 
-    torch::Tensor output_image_tensor = torch::empty({batch_size, image_height, image_width, channel_size}, torch::kFloat);
+    // torch::Tensor output_image_tensor = torch::empty({batch_size, image_height, image_width, channel_size}, torch::kFloat);
+    torch::Tensor output_image_tensor = torch::empty({batch_size, image_height, image_width, channel_size}, torch::kHalf);
     output_image_tensor = output_image_tensor.to(device);
     auto output_image = output_image_tensor.flatten();
 
     const auto& scalar_type = input_flat_grid.scalar_type();
 
+#ifdef TRAINING
     slice_grid_kernel_launcher
     (
         input_flat_grid.const_data_ptr<float>(),
@@ -155,6 +177,24 @@ static torch::Tensor slice_grid_wrapper(torch::Tensor input_grid, torch::Tensor 
         device,
         scalar_type
     );
+#else
+    slice_grid_kernel_launcher
+    (
+        input_flat_grid.const_data_ptr<at::Half>(),
+        input_flat_guide.const_data_ptr<at::Half>(),
+        batch_size,
+        image_height,
+        image_width,
+        channel_size,
+        grid_height,
+        grid_width,
+        grid_depth,
+        sr,
+        output_image.data_ptr<at::Half>(),
+        device,
+        scalar_type
+    );
+#endif
 
     return output_image_tensor;
 }

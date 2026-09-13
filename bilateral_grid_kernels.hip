@@ -31,6 +31,7 @@ __device__ float d_weight_z(float x)
 	}
 }
 
+#ifdef TRAINING
 __global__ void CreateBiGridKernel(
     int num_grid_points,
 	const float *input_image,
@@ -44,7 +45,24 @@ __global__ void CreateBiGridKernel(
     const int grid_depth,
 	const int sr,
 	float *out_color
-) {
+)
+#else
+__global__ void CreateBiGridKernel(
+    int num_grid_points,
+	const at::Half *input_image,
+	const at::Half *input_guide,
+    const int batch_size,
+	const int image_height,
+	const int image_width,
+    const int channel_size,
+	const int grid_height,
+	const int grid_width,
+    const int grid_depth,
+	const int sr,
+	at::Half *out_color
+) 
+#endif
+{
   CUDA_KERNEL_LOOP(i, num_grid_points) {
     int ss = image_width / grid_width;
 
@@ -343,7 +361,7 @@ __global__ void CreateBiGridGuideGradKernel(
 	}
 }
 
-
+#ifdef TRAINING
 __global__ void SliceBiGridKernel(
 	int subpixel_count,
 	const float* input_grid,
@@ -357,8 +375,24 @@ __global__ void SliceBiGridKernel(
 	const int grid_depth,
 	const int sr,
 	float* output_image
-) {
-	
+)
+#else
+__global__ void SliceBiGridKernel(
+	int subpixel_count,
+	const at::Half* input_grid,
+	const at::Half* input_guide,
+	const int batch_size,
+	const int image_height,
+	const int image_width,
+	const int channel_size,
+	const int grid_height, 
+	const int grid_width, 
+	const int grid_depth,
+	const int sr,
+	at::Half* output_image
+)
+#endif
+{
 	CUDA_KERNEL_LOOP(i, subpixel_count)
 	{	
 		int ss = image_width / grid_width;
@@ -646,24 +680,48 @@ __global__ void SliceBiGridGuideGradKernel(
 	}
 }
 
+#ifdef TRAINING
 void create_grid_kernel_launcher
 (
 	const float *input_image,
-	const float *input_guide, const int batch_size,
-	const int image_height, const int image_width,
-	const int channel_size, const int grid_height,
-	const int grid_width, const int grid_depth,
-	const int sr, float * out_color, // changed to non const
+	const float *input_guide,
+	const int batch_size,
+	const int image_height,
+	const int image_width,
+	const int channel_size,
+	const int grid_height,
+	const int grid_width,
+	const int grid_depth,
+	const int sr,
+	float *out_color, // changed to non const
 	torch::Device &device,
 	const torch::Dtype &type
 )
+#else
+void create_grid_kernel_launcher
+(
+	const at::Half *input_image,
+	const at::Half *input_guide,
+	const int batch_size,
+	const int image_height,
+	const int image_width,
+	const int channel_size,
+	const int grid_height,
+	const int grid_width,
+	const int grid_depth,
+	const int sr,
+	at::Half *out_color, // changed to non const
+	torch::Device &device,
+	const torch::Dtype &type
+)
+#endif
 {
-	int64_t num_grid_points =
-	    batch_size * grid_height * grid_width * channel_size;
+	int64_t num_grid_points = batch_size * grid_height * grid_width * channel_size;
 
 	torch::Device current_device(torch::kCUDA, 0);
 
-	if (current_device == device && num_grid_points > 0) {		// int64_t num_blocks = at::cuda::detail::GET_BLOCKS(num_grid_points);
+	if (current_device == device && num_grid_points > 0)
+	{		// int64_t num_blocks = at::cuda::detail::GET_BLOCKS(num_grid_points);
 		int64_t num_blocks = at::cuda::detail::GET_BLOCKS(num_grid_points, static_cast<uint64_t>(512));
 
 #if defined(USE_ROCM) || defined(TORCH_USE_HIP_DSA)
@@ -674,14 +732,24 @@ void create_grid_kernel_launcher
 
     AT_DISPATCH_FLOATING_TYPES_AND_HALF(
         type, "CreateBiGridKernel", ([&] {
-        //   CreateBiGridKernel<<<num_blocks, at::cuda::detail::CUDA_NUM_THREADS, 0, stream>>>
-		  CreateBiGridKernel<<<num_blocks, static_cast<uint64_t>(512), 0, stream>>>
-		  (
-                  num_grid_points, input_image, input_guide, batch_size,
-                  image_height, image_width, channel_size, grid_height,
-                  grid_width, grid_depth, sr, out_color);
+        // CreateBiGridKernel<<<num_blocks, at::cuda::detail::CUDA_NUM_THREADS, 0, stream>>>
+		CreateBiGridKernel<<<num_blocks, static_cast<uint64_t>(512), 0, stream>>>
+		(
+        	num_grid_points,
+			input_image,
+			input_guide,
+			batch_size,
+        	image_height,
+			image_width,
+			channel_size,
+			grid_height,
+        	grid_width,
+			grid_depth,
+			sr,
+			out_color
+		);
         }));
-  }
+	}
 }
 
 void create_grid_grad_kernel_launcher
@@ -737,7 +805,8 @@ void create_grid_grad_kernel_launcher
 		    	grid_width,
 				grid_depth,
 				sr,
-				image_grad);
+				image_grad
+			);
 		}));
   
 
@@ -764,6 +833,7 @@ void create_grid_grad_kernel_launcher
   }
 }
 
+#ifdef TRAINING
 void slice_grid_kernel_launcher
 (
     const float* input_grid,
@@ -780,6 +850,24 @@ void slice_grid_kernel_launcher
     torch::Device& device,
     const torch::Dtype& type
 )
+#else
+void slice_grid_kernel_launcher
+(
+    const at::Half* input_grid,
+    const at::Half* input_guide,
+    const int batch_size,
+    const int image_height,
+    const int image_width,
+    const int channel_size,
+    const int grid_height,
+    const int grid_width,
+    const int grid_depth,
+    const int sr,
+    at::Half* const output_image,
+    torch::Device& device,
+    const torch::Dtype& type
+)
+#endif
 {
 	int64_t subpixel_count = batch_size * image_height * image_width * channel_size;
 
