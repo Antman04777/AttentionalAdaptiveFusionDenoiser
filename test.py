@@ -73,9 +73,9 @@ def time_inference(model, device, dataloader, steps=60):
             references = references.to(device, non_blocking = True).half()
 
             start_events[test_img_idx].record()
-            with torch.autocast(device_type='cuda', dtype=torch.float16):
-                outputs = model(inputs).detach()
-            # outputs = model(inputs).detach()
+            outputs = model(inputs).detach()
+            # with torch.autocast(device_type='cuda', dtype=torch.float16):
+                # outputs = model(inputs).detach()
             end_events[test_img_idx].record()
 
         torch.cuda.synchronize()
@@ -126,7 +126,7 @@ if __name__ == '__main__':
 
     deployed_model = network.RepVGG(device, deployed=True, pretrained_model=pretrained_model, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta)
     deployed_model = deployed_model.half()
-    deployed_model = torch.compile(deployed_model)
+    # deployed_model = torch.compile(deployed_model)
     SSIM_mean, PSNR_mean = test(deployed_model, device, test_dataloader, test_saving_dir)
 
     timing_dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=0, pin_memory=False)
