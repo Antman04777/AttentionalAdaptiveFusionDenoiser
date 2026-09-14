@@ -26,8 +26,11 @@ static torch::Tensor create_grid_wrapper(torch::Tensor input_image, torch::Tenso
 
     torch::Device device = input_image.device();
 
-    // torch::Tensor output_color_tensor = torch::empty({batch_size, grid_height, grid_width, grid_depth, channel_size}, torch::kFloat); // DO NOT FORGET THAT WE CHANGED THIS
+#ifdef TRAINING
+    torch::Tensor output_color_tensor = torch::empty({batch_size, grid_height, grid_width, grid_depth, channel_size}, torch::kFloat);
+#else
     torch::Tensor output_color_tensor = torch::empty({batch_size, grid_height, grid_width, grid_depth, channel_size}, torch::kHalf);
+#endif
     output_color_tensor = output_color_tensor.to(device);
     auto output_color = output_color_tensor.flatten();
     
@@ -153,8 +156,11 @@ static torch::Tensor slice_grid_wrapper(torch::Tensor input_grid, torch::Tensor 
 
     torch::Device device = input_grid.device();
 
-    // torch::Tensor output_image_tensor = torch::empty({batch_size, image_height, image_width, channel_size}, torch::kFloat);
+#ifdef TRAINING
+    torch::Tensor output_image_tensor = torch::empty({batch_size, image_height, image_width, channel_size}, torch::kFloat);
+#else
     torch::Tensor output_image_tensor = torch::empty({batch_size, image_height, image_width, channel_size}, torch::kHalf);
+#endif
     output_image_tensor = output_image_tensor.to(device);
     auto output_image = output_image_tensor.flatten();
 

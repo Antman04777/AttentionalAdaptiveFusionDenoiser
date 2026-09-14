@@ -31,30 +31,60 @@ __device__ float d_weight_z(float x)
 	}
 }
 #else
-#include <cuda_fp16.h>
+// #include <cuda_fp16.h>
 
+__device__ float diff_abs(float x)
+{
+	float eps = 1e-8;
+	return sqrt(x * x + eps);
+}
+
+__device__ float d_diff_abs(float x)
+{
+	float eps = 1e-8;
+	return x / sqrt(x * x + eps);
+}
+
+__device__ float weight_z(float x)
+{
+	float abx = diff_abs(x);
+	return max(1.0f - abx, 0.0f);
+}
+
+__device__ float d_weight_z(float x)
+{
+	float abx = diff_abs(x);
+	if (abx > 1.0f) {
+		return 0.0f;
+		// return abx;
+	} else {
+		return d_diff_abs(x);
+	}
+}
+
+// overloaded for half
 __device__ __half diff_abs(__half x)
 {
 	__half eps = __float2half(static_cast<float>(1e-8));
-	return hsqrt(x * x + eps);
+	return hsqrt(__hadd(__hmul(x, x), eps));
 }
 
 __device__ __half d_diff_abs(__half x)
 {
 	__half eps = __float2half(static_cast<float>(1e-8));
-	return x / hsqrt(x * x + eps);
+	return __hdiv(x, hsqrt(__hadd(__hmul(x, x), eps)));
 }
 
 __device__ __half weight_z(__half x)
 {
 	__half abx = diff_abs(x);
-	return __hmax(__float2half(1.0f) - abx, __float2half(0.0f));
+	return __hmax(__hsub(__float2half(1.0f), abx), __float2half(0.0f));
 }
 
 __device__ __half d_weight_z(__half x)
 {
 	__half abx = diff_abs(x);
-	if (abx > __float2half(1.0f)) {
+	if (__hgt(abx, __float2half(1.0f))) {
 		return __float2half(0.0f);
 		// return abx;
 	} else {
@@ -143,8 +173,8 @@ __global__ void CreateBiGridKernel(
 #else
 __global__ void CreateBiGridKernel(
     int num_grid_points,
-	const at::Half *input_image,
-	const at::Half *input_guide,
+	const __half *input_image,
+	const __half *input_guide,
     const int batch_size,
 	const int image_height,
 	const int image_width,
@@ -153,7 +183,7 @@ __global__ void CreateBiGridKernel(
 	const int grid_width,
     const int grid_depth,
 	const int sr,
-	at::Half *out_color
+	__half *out_color
 ) 
 
 {
@@ -165,8 +195,8 @@ __global__ void CreateBiGridKernel(
     int h = (i / (channel_size * grid_width)) % grid_height;
     int b = (i / (channel_size * grid_width * grid_height)) % batch_size;
 
-    at::Half f_w = w + 0.5;
-    at::Half f_h = h + 0.5;
+    __half f_w = __hadd(__float2half(static_cast<float>(w)), __float2half(0.5f));
+    __half f_h = __hadd(__float2half(static_cast<float>(h)), __float2half(0.5f));
 
     int left = static_cast<int>(ceil((w - 0.5) * ss));
     int right = left + 2 * ss;
@@ -177,44 +207,47 @@ __global__ void CreateBiGridKernel(
     int sy = channel_size * image_width;
     int sb = channel_size * image_width * image_height;
 
-    at::Half sum_color[64];
-    at::Half sum_count[64];
+    __half sum_color[64];
+    __half sum_count[64];
     for (int dd = 0; dd < grid_depth; dd++) {
-      sum_color[dd] = 0.0;
-      sum_count[dd] = 0.0;
+    	sum_color[dd] = __float2half(0.0f);
+    	sum_count[dd] = __float2half(0.0f);
     }
 
     for (int yy = up; yy < down; yy++) {
-      if (yy < 0 || yy > image_height - 1)
-        continue;
-      at::Half wy = weight_z((yy + 0.5) / ss - f_h);
-      for (int xx = left; xx < right; xx++) {
-        if (xx < 0 || xx > image_width - 1)
-          continue;
-        at::Half wx = weight_z((xx + 0.5) / ss - f_w);
+      	if (yy < 0 || yy > image_height - 1)
+      		continue;
+		// float wy = weight_z((yy + 0.5f) / ss - f_h);
+      	__half wy = weight_z(__hsub(__hdiv(__hadd(__float2half(static_cast<float>(yy)), __float2half(0.5f)), __float2half(static_cast<float>(ss))), f_h));
+      	for (int xx = left; xx < right; xx++) {
+      	  	if (xx < 0 || xx > image_width - 1)
+      	    	continue;
+			// float wx = weight_z((xx + 0.5f) / ss - f_w);
+      	  	__half wx = weight_z(__hsub(__hdiv(__hadd(__float2half(static_cast<float>(xx)), __float2half(0.5f)), __float2half(static_cast<float>(ss))), f_w));
 
-        int idx_guide = xx + yy * image_width + b * image_width * image_height;
-        int idx_image = c + xx * sx + yy * sy + b * sb;
+      	  	int idx_guide = xx + yy * image_width + b * image_width * image_height;
+      	  	int idx_image = c + xx * sx + yy * sy + b * sb;
 
-        at::Half guide_val = (input_guide[idx_guide] + 0.5) / sr;
-        int d_lower = static_cast<int>(max(ceil(guide_val - 1.5), 0.0));
-        int d_upper =
-            static_cast<int>(min(floor(guide_val + 0.5), grid_depth - 1.0));
-        for (int zz = d_lower; zz <= d_upper; zz++) {
-          at::Half wz = weight_z(guide_val - zz - 0.5);
-          at::Half wt = wy * wx * wz;
-          sum_color[zz] += input_image[idx_image] * wt;
-          sum_count[zz] += wt;
-        }
-      }
+      	  	__half guide_val = __hdiv((__hadd(input_guide[idx_guide], __float2half(0.5f))), __float2half(static_cast<float>(sr)));
+      	  	// int d_lower = static_cast<int>(max(ceil(guide_val - 1.5), 0.0));
+			int d_lower = static_cast<int>(__half2float(__hmax(hceil(__hsub(guide_val, __float2half(1.5f))), __float2half(0.0f))));
+      	  	int d_upper = static_cast<int>(__half2float(__hmin(hfloor(__hadd(guide_val, __float2half(0.5f))), __hsub(__float2half(static_cast<float>(grid_depth)), __float2half(1.0f)))));
+
+      	  	for (int zz = d_lower; zz <= d_upper; zz++) {
+      	    	__half wz = weight_z(__hsub(__hsub(guide_val, __float2half(static_cast<float>(zz))), __float2half(0.5f)));
+      	    	__half wt = __hmul(__hmul(wy, wx), wz);
+      	    	sum_color[zz] = __hadd(sum_color[zz], __hmul(input_image[idx_image], wt));
+      	    	sum_count[zz] = __hadd(sum_count[zz], wt);
+      	  	}
+      	}
     }
     int idx_base = w * channel_size * grid_depth +
                    h * channel_size * grid_depth * grid_width +
                    b * channel_size * grid_depth * grid_width * grid_height;
+
     for (int dd = 0; dd < grid_depth; dd++) {
-      int idx_grid = c + dd * sx + idx_base;
-      out_color[idx_grid] =
-          abs(sum_count[dd]) > static_cast<at::Half>(0.0) ? sum_color[dd] / sum_count[dd] : static_cast<at::Half>(0.0); // sum count is 0 for some reason
+    	int idx_grid = c + dd * sx + idx_base;
+    	out_color[idx_grid] = __hgt(__habs(sum_count[dd]), __float2half(0.0f)) ? __hdiv(sum_color[dd], sum_count[dd]) : __float2half(0.0f);
     }
   }
 }
@@ -533,8 +566,8 @@ __global__ void SliceBiGridKernel(
 #else
 __global__ void SliceBiGridKernel(
 	int subpixel_count,
-	const at::Half* input_grid,
-	const at::Half* input_guide,
+	const __half* input_grid,
+	const __half* input_guide,
 	const int batch_size,
 	const int image_height,
 	const int image_width,
@@ -543,7 +576,7 @@ __global__ void SliceBiGridKernel(
 	const int grid_width, 
 	const int grid_depth,
 	const int sr,
-	at::Half* output_image
+	__half* output_image
 )
 
 {
@@ -558,17 +591,20 @@ __global__ void SliceBiGridKernel(
 		
 		int idx_guide =  im_w + im_h * image_width + b * image_width * image_height;
 		
-		at::Half f_gr_d = (input_guide[idx_guide] + 0.5) / sr;
-		at::Half f_gr_w = (im_w + 0.5) / ss;
-		at::Half f_gr_h = (im_h + 0.5) / ss;
+		__half f_gr_d = __hdiv(__hadd(input_guide[idx_guide], __float2half(0.5f)), __float2half(static_cast<float>(sr)));
+		__half f_gr_w = __hdiv(__hadd(__float2half(static_cast<float>(im_w)), __float2half(0.5f)), __float2half(static_cast<float>(ss)));
+		__half f_gr_h = __hdiv(__hadd(__float2half(static_cast<float>(im_h)), __float2half(0.5f)), __float2half(static_cast<float>(ss)));
 
-		int front = static_cast<int>(floor(input_guide[idx_guide] / sr - 0.5));
+		// int front = static_cast<int>(floor(input_guide[idx_guide] / sr - 0.5f));
+		int front = static_cast<int>(__half2float(hfloor(__hsub(__hdiv(input_guide[idx_guide], __float2half(static_cast<float>(sr))), __float2half(0.5f)))));
 		int back = front + 1;
-
-		int left = static_cast<int>(floor(im_w * 1.0 / ss - 0.5));
+		
+		// int left = static_cast<int>(floor(im_w * 1.0f / ss - 0.5f));
+		int left = static_cast<int>(__half2float(hfloor(__hsub(__hdiv(__hmul(__float2half(static_cast<float>(im_w)), __float2half(1.0f)), __float2half(static_cast<float>(ss))), __float2half(0.5f)))));
 		int right = left + 1;
-
-		int up = static_cast<int>(floor(im_h * 1.0 / ss - 0.5));
+		
+		// int up = static_cast<int>(floor(im_h * 1.0f / ss - 0.5f));
+		int up = static_cast<int>(__half2float(hfloor(__hsub(__hdiv(__hmul(__float2half(static_cast<float>(im_h)), __float2half(1.0f)), __float2half(static_cast<float>(ss))), __float2half(0.5f)))));
 		int down = up + 1;
 
 		int sw = channel_size;
@@ -576,34 +612,40 @@ __global__ void SliceBiGridKernel(
 		int sv = channel_size * grid_depth * grid_width;
 		int sb = channel_size * grid_depth * grid_width * grid_height;
 
-		at::Half sum_color = 0.0;
-		at::Half sum_count = 0.0;
+		__half sum_color = __float2half(0.0f);
+		__half sum_count = __float2half(0.0f);
 		for (int vv = up; vv <= down; vv++)
 		{
 			if (vv < 0 || vv > grid_height - 1)
 				continue;
-			at::Half wy = weight_z((vv + 0.5) - f_gr_h);
+			// at::Half wy = weight_z((vv + 0.5) - f_gr_h);
+			__half wy = weight_z(__hsub(__hadd(__float2half(static_cast<float>(vv)), __float2half(0.5f)), f_gr_h));
 			for (int uu = left; uu <= right; uu++)
 			{
 				if (uu < 0 || uu > grid_width - 1)
 					continue;
-				at::Half wx = weight_z((uu + 0.5) - f_gr_w);
+				// __half wx = weight_z((uu + 0.5) - f_gr_w);
+				__half wx = weight_z(__hsub(__hadd(__float2half(static_cast<float>(uu)), __float2half(0.5f)), f_gr_w));
 				for (int ww = front - 2; ww < back + 2; ww++)
 				{
 					if (ww < 0 || ww > grid_depth - 1)
 						continue;
-					at::Half wz = weight_z((ww + 0.5) - f_gr_d);
+					// at::Half wz = weight_z((ww + 0.5) - f_gr_d);
+					__half wz = weight_z(__hsub(__hadd(__float2half(static_cast<float>(ww)), __float2half(0.5f)), f_gr_d));
 					int idx_grid = c + ww * sw + uu * su + vv * sv + b * sb;
-					if (input_grid[idx_grid] > 0.0)
+					if (__hgt(input_grid[idx_grid], __float2half(0.0f)))
 					{
-						at::Half wt =  wy * wx * wz;
-						sum_color += input_grid[idx_grid] * wt;
-						sum_count += wt;
+						// __half wt =  wy * wx * wz;
+						__half wt = __hmul(__hmul(wy, wx), wz);
+						// sum_color += input_grid[idx_grid] * wt;
+						sum_color = __hadd(sum_color, __hmul(input_grid[idx_grid], wt));
+						// sum_count += wt;
+						sum_count = __hadd(sum_count, wt);
 					}
 				}
 			}
 		}
-		output_image[i] = static_cast<at::Half>(abs(sum_count)) > static_cast<at::Half>(0.0) ? sum_color / sum_count : static_cast<at::Half>(0.0);
+		output_image[i] = __hgt(__habs(sum_count), __float2half(0.0f)) ? __hdiv(sum_color, sum_count) : __float2half(0.0f);
 	}
 }
 #endif
@@ -852,24 +894,6 @@ void create_grid_kernel_launcher
 	torch::Device &device,
 	const torch::Dtype &type
 )
-#else
-void create_grid_kernel_launcher
-(
-	const at::Half *input_image,
-	const at::Half *input_guide,
-	const int batch_size,
-	const int image_height,
-	const int image_width,
-	const int channel_size,
-	const int grid_height,
-	const int grid_width,
-	const int grid_depth,
-	const int sr,
-	at::Half *out_color, // changed to non const
-	torch::Device &device,
-	const torch::Dtype &type
-)
-#endif
 {
 	int64_t num_grid_points = batch_size * grid_height * grid_width * channel_size;
 
@@ -906,6 +930,64 @@ void create_grid_kernel_launcher
         }));
 	}
 }
+#else
+void create_grid_kernel_launcher
+(
+	const at::Half *input_image,
+	const at::Half *input_guide,
+	const int batch_size,
+	const int image_height,
+	const int image_width,
+	const int channel_size,
+	const int grid_height,
+	const int grid_width,
+	const int grid_depth,
+	const int sr,
+	at::Half *out_color, // changed to non const
+	torch::Device &device,
+	const torch::Dtype &type
+)
+{
+	int64_t num_grid_points = batch_size * grid_height * grid_width * channel_size;
+
+	torch::Device current_device(torch::kCUDA, 0);
+
+	if (current_device == device && num_grid_points > 0)
+	{		// int64_t num_blocks = at::cuda::detail::GET_BLOCKS(num_grid_points);
+		int64_t num_blocks = at::cuda::detail::GET_BLOCKS(num_grid_points, static_cast<uint64_t>(512));
+
+#if defined(USE_ROCM) || defined(TORCH_USE_HIP_DSA)
+    const hipStream_t stream = at::cuda::getCurrentHIPStream();
+#else
+    const cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+#endif
+
+	const __half *__hinput_image = reinterpret_cast<const __half *>(input_image);
+	const __half *__hinput_guide = reinterpret_cast<const __half *>(input_guide);
+	__half *__hout_color = reinterpret_cast<__half *>(out_color);
+
+    AT_DISPATCH_FLOATING_TYPES_AND_HALF(
+        type, "CreateBiGridKernel", ([&] {
+        // CreateBiGridKernel<<<num_blocks, at::cuda::detail::CUDA_NUM_THREADS, 0, stream>>>
+		CreateBiGridKernel<<<num_blocks, static_cast<uint64_t>(512), 0, stream>>>
+		(
+        	num_grid_points,
+			__hinput_image,
+			__hinput_guide,
+			batch_size,
+        	image_height,
+			image_width,
+			channel_size,
+			grid_height,
+        	grid_width,
+			grid_depth,
+			sr,
+			__hout_color
+		);
+        }));
+	}
+}
+#endif
 
 void create_grid_grad_kernel_launcher
 (
@@ -1005,24 +1087,6 @@ void slice_grid_kernel_launcher
     torch::Device& device,
     const torch::Dtype& type
 )
-#else
-void slice_grid_kernel_launcher
-(
-    const at::Half* input_grid,
-    const at::Half* input_guide,
-    const int batch_size,
-    const int image_height,
-    const int image_width,
-    const int channel_size,
-    const int grid_height,
-    const int grid_width,
-    const int grid_depth,
-    const int sr,
-    at::Half* const output_image,
-    torch::Device& device,
-    const torch::Dtype& type
-)
-#endif
 {
 	int64_t subpixel_count = batch_size * image_height * image_width * channel_size;
 
@@ -1060,6 +1124,65 @@ void slice_grid_kernel_launcher
 
 	}
 }
+#else
+void slice_grid_kernel_launcher
+(
+    const at::Half* input_grid,
+    const at::Half* input_guide,
+    const int batch_size,
+    const int image_height,
+    const int image_width,
+    const int channel_size,
+    const int grid_height,
+    const int grid_width,
+    const int grid_depth,
+    const int sr,
+    at::Half* const output_image,
+    torch::Device& device,
+    const torch::Dtype& type
+)
+{
+	int64_t subpixel_count = batch_size * image_height * image_width * channel_size;
+
+	if(subpixel_count > 0)
+	{
+		torch::Device current_device(torch::kCUDA, 0);
+
+		int64_t num_blocks = at::cuda::detail::GET_BLOCKS(subpixel_count, static_cast<uint64_t>(512));
+
+#if defined(USE_ROCM) || defined(TORCH_USE_HIP_DSA)
+    	const hipStream_t stream = at::cuda::getCurrentHIPStream();
+#else
+    	const cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+#endif
+
+		const __half *__hinput_grid = reinterpret_cast<const __half *>(input_grid);
+		const __half *__hinput_guide = reinterpret_cast<const __half *>(input_guide);
+		__half * const __houtput_image = reinterpret_cast<__half * const>(output_image);
+
+		AT_DISPATCH_FLOATING_TYPES_AND_HALF(
+        	type, "SliceBiGridKernel", ([&] {
+        	// SliceBiGridKernel<<<num_blocks, at::cuda::detail::CUDA_NUM_THREADS, 0, stream>>>
+			SliceBiGridKernel<<<num_blocks, static_cast<uint64_t>(512), 0, stream>>>
+			(
+				subpixel_count,
+				__hinput_grid,
+				__hinput_guide,
+				batch_size,
+				image_height,
+				image_width,
+				channel_size,
+				grid_height,
+				grid_width,
+				grid_depth,
+				sr,
+				__houtput_image
+			);
+    	}));
+
+	}
+}
+#endif
 
 void slice_grid_grad_kernel_launcher
 (

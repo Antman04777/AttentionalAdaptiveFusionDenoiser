@@ -20,6 +20,7 @@ def test(model, device, dataloader, save_dir=''):
         for test_img_idx, (inputs, references) in enumerate(dataloader):
             # inputs = inputs.to(device, non_blocking=True)
             inputs = inputs.to(device, non_blocking=True).half()
+            # references = references.to(device, non_blocking = True)
             references = references.to(device, non_blocking = True).half()
 
             #
