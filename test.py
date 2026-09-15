@@ -16,12 +16,17 @@ def test(model, device, dataloader, save_dir=''):
     PSNRs = []
 
     with torch.no_grad():
+    # with torch.inference_mode():
         for test_img_idx, (inputs, references) in enumerate(dataloader):
-            inputs = inputs.to(device, non_blocking=True)
-            references = references.to(device, non_blocking = True)
+            # inputs = inputs.to(device, non_blocking=True)
+            inputs = inputs.to(device, non_blocking=True).half()
+            # references = references.to(device, non_blocking = True)
+            references = references.to(device, non_blocking = True).half()
 
             #
             outputs = model(inputs).detach()
+            # with torch.autocast(device_type='cuda', dtype=torch.float16):
+                # outputs = model(inputs).detach()
             #
 
             output = outputs.cpu().numpy()[0]
@@ -32,6 +37,13 @@ def test(model, device, dataloader, save_dir=''):
             PSNRs.append(PSNR)
 
             pyexr.write(os.path.join(save_dir, str(test_img_idx)+".exr"), output)
+
+    irr_non_ta_denoised = model.irradiance_non_TA_denoised.cpu().numpy()[0]
+    irr_ta_denoised = model.irradiance_TA_denoised.cpu().numpy()[0]
+    irr_final = model.irradiance_final.cpu().numpy()[0]
+    pyexr.write(os.path.join(save_dir, 'irr_non_ta_denoised.exr'), irr_non_ta_denoised)
+    pyexr.write(os.path.join(save_dir, 'irr_ta_denoised.exr'), irr_ta_denoised)
+    pyexr.write(os.path.join(save_dir, 'irr_final.exr'), irr_final)
 
     print("Test: ")
     SSIM_mean = np.mean(SSIMs)
@@ -52,14 +64,19 @@ def time_inference(model, device, dataloader, steps=60):
     cache_tensor = torch.empty(int(6 * (1024 ** 2)), dtype=torch.int8, device=device) # for the V100 GPU
 
     with torch.no_grad():
+    # with torch.inference_mode():
         for test_img_idx, (inputs, references) in enumerate(dataloader):
             cache_tensor.zero_() # perform cache flush for more accurate measurement
 
-            inputs = inputs.to(device, non_blocking=True)
-            references = references.to(device, non_blocking = True)
+            # inputs = inputs.to(device, non_blocking=True)
+            inputs = inputs.to(device, non_blocking=True).half()
+            # references = references.to(device, non_blocking = True)
+            references = references.to(device, non_blocking = True).half()
 
             start_events[test_img_idx].record()
             outputs = model(inputs).detach()
+            # with torch.autocast(device_type='cuda', dtype=torch.float16):
+                # outputs = model(inputs).detach()
             end_events[test_img_idx].record()
 
         torch.cuda.synchronize()
@@ -109,6 +126,8 @@ if __name__ == '__main__':
     pretrained_model.load_state_dict(checkpoint["model_state_dict"])
 
     deployed_model = network.RepVGG(device, deployed=True, pretrained_model=pretrained_model, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta)
+    deployed_model = deployed_model.half()
+    # deployed_model = torch.compile(deployed_model)
     SSIM_mean, PSNR_mean = test(deployed_model, device, test_dataloader, test_saving_dir)
 
     timing_dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=0, pin_memory=False)
