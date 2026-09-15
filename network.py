@@ -3,6 +3,10 @@ import numpy as np
 import bilateral_ops
 import utils
 
+import pyexr
+import os
+import sys
+
 #from memory_profiler import profile
 
 def reparametrize(conv1, conv3, conv5, has_identity_branch=False):
@@ -15,12 +19,6 @@ def reparametrize(conv1, conv3, conv5, has_identity_branch=False):
     conv = torch.nn.Conv2d(in_channels=reparam_kernel.shape[1], out_channels=reparam_kernel.shape[0], kernel_size=5, stride=1, padding=2, bias=False)
     conv.weight.data = reparam_kernel.detach().clone()
     return conv
-
-# def tone_mapping(self, input_image):
-        # with tf.name_scope("tone_mapping"):
-            # tone_mapped_color = tf.clip_by_value(
-                # tf.math.pow(tf.math.maximum(0., input_image), 0.454545), 0., 1.)
-            # return tone_mapped_color
 
 class RepVGG(torch.nn.Module):
     def __init__(self, device, deployed=False, pretrained_model=None, ss_non_ta=16, sr_non_ta=16, ss_ta=4, sr_ta=4):
@@ -42,6 +40,9 @@ class RepVGG(torch.nn.Module):
         self.sr_non_ta = sr_non_ta
         self.ss_ta = ss_ta
         self.sr_ta = sr_ta
+
+        self.downsampler = torch.nn.AvgPool2d(2, stride=2)
+        self.upsampler = torch.nn.Upsample(size=(128, 128), mode='bilinear')
 
         #debug
         self.x_final_out = None
@@ -111,11 +112,19 @@ class RepVGG(torch.nn.Module):
         x_irradiance_TA = raw_inputs[:, 3:6]
         x_albedo = raw_inputs[:, 6:9]
 
-        #print("Albedo shape: ", x_albedo.shape)
-        #print("x_irradiance_non_TA shape: ", x_irradiance_non_TA.shape)
-        #print("x_irradiance_TA shape: ", x_irradiance_TA.shape)
-
         x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA * x_albedo)
+        # x_tone_mapped_non_TA_frame = x_tone_mapped_non_TA_frame.transpose(1, 3)
+        # x_tone_mapped_non_TA_frame = x_tone_mapped_non_TA_frame.transpose(1, 2)
+        # pyexr.write(os.path.join('x_tone_mapped_non_TA_frame_normal.exr'), x_tone_mapped_non_TA_frame[0, :].cpu().numpy())
+        # x_tone_mapped_non_TA_frame = x_tone_mapped_non_TA_frame.transpose(1, 3)
+        # x_tone_mapped_non_TA_frame = x_tone_mapped_non_TA_frame.transpose(2, 3)
+        x_tone_mapped_non_TA_frame = self.downsampler(x_tone_mapped_non_TA_frame)
+        x_tone_mapped_non_TA_frame = torch.nn.functional.pad(x_tone_mapped_non_TA_frame, pad=(32, 32, 32, 32))
+        # x_tone_mapped_non_TA_frame = x_tone_mapped_non_TA_frame.transpose(1, 3)
+        # x_tone_mapped_non_TA_frame = x_tone_mapped_non_TA_frame.transpose(1, 2)
+        # pyexr.write(os.path.join('x_tone_mapped_non_TA_frame_downsampled_padded.exr'), x_tone_mapped_non_TA_frame[0, :].cpu().numpy())
+        # sys.exit(1)
+
         x_tone_mapped_TA_frame = utils.tone_mapping(x_irradiance_TA * x_albedo)
 
         x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.num_input_channels]), axis=1)
@@ -151,72 +160,68 @@ class RepVGG(torch.nn.Module):
             xf_5 = self.conv_layerf_5(x5_out)
 
             self.x_final_out = self.sigmoid(xf_1 + xf_3 + xf_5)
-            
-            #
-            #x_final_out = x_final_out.transpose((0, 2, 3, 1))
-            #
 
             self.x_final_out = self.x_final_out.transpose(1, 3)
             self.x_final_out = self.x_final_out.transpose(1, 2)
 
-            #self.x_final_out.retain_grad()
-
-            #guide1 = x_final_out[:, 0, :, :] * 255
-            #guide2 = x_final_out[:, 1, :, :] * 255
-
             self.guide1 = self.x_final_out[:, :, :, 0] * 255
-            #self.guide1.retain_grad()
             self.guide2 = self.x_final_out[:, :, :, 1] * 255
-            # print(self.guide1)
 
-            # weight_map1 = x_final_out[:, 2, :, :]
             self.weight_map1 = torch.unsqueeze(self.x_final_out[:, :, :, 2], dim=3)
-            # print(self.weight_map1)
             self.weight_map1 = torch.tile(self.weight_map1, (1, 1, 1, 3))
             weight_map2 = 1.0 - self.weight_map1
 
             attributes_grid_1 = torch.zeros((self.ss_non_ta, self.sr_non_ta), dtype=torch.int32, device=self.device)
             attributes_grid_2 = torch.zeros((self.ss_ta, self.sr_non_ta), dtype=torch.int32, device=self.device)
 
-            # x_irradiance_non_TA = x_irradiance_non_TA.transpose((0, 2, 3, 1))
-            x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 3)
-            x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 2)
-
-            # x_irradiance_TA = x_irradiance_TA.transpose((0, 2, 3, 1))
             x_irradiance_TA = x_irradiance_TA.transpose(1, 3)
             x_irradiance_TA = x_irradiance_TA.transpose(1, 2)
 
-            # x_albedo = x_albedo.transpose((0, 2, 3, 1))
             x_albedo = x_albedo.transpose(1, 3)
             x_albedo = x_albedo.transpose(1, 2)
 
+            ### DOWNSAMPLING ###
+            x_irradiance_non_TA = self.downsampler(x_irradiance_non_TA)
+            x_irradiance_non_TA = torch.nn.functional.pad(x_irradiance_non_TA, pad=(32, 32, 32, 32))
+            x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 3)
+            x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 2)
+            ####################
+
             self.grid1 = bilateral_ops.creation_wrapper(x_irradiance_non_TA, self.guide1, attributes_grid_1)
-            #self.grid1.retain_grad()
             self.grid2 = bilateral_ops.creation_wrapper(x_irradiance_TA, self.guide2, attributes_grid_2)
-            #self.grid2.retain_grad()
-            # print(self.grid2)
 
             self.irradiance_non_TA_denoised = bilateral_ops.slicing_wrapper(self.grid1, self.guide1, attributes_grid_1)
-            #self.irradiance_non_TA_denoised.retain_grad()
             self.irradiance_TA_denoised = bilateral_ops.slicing_wrapper(self.grid2, self.guide2, attributes_grid_2)
-            #self.irradiance_TA_denoised.retain_grad()
-            # print(self.irradiance_TA_denoised) # mostly zeros
 
-            #print("guide1: ", guide1.shape)
-            #print("guide2: ", guide2.shape)
-            #print("weight_map1: ", weight_map1.shape)
-            #print("weight_map2: ", weight_map2.shape)
-            #print("grid1: ", grid1.shape)
-            #print("grid2: ", grid2.shape)
-            #print("irradiance_non_TA_denoised: ", irradiance_non_TA_denoised.shape)
-            #print("irradiance_TA_denoised: ", irradiance_TA_denoised.shape)
+            ### Cutting & upsampling ###
+            height = self.irradiance_non_TA_denoised.shape[1]
+            width = self.irradiance_non_TA_denoised.shape[2]
+            self.irradiance_non_TA_denoised = self.irradiance_non_TA_denoised.transpose(1, 3)
+            self.irradiance_non_TA_denoised = self.irradiance_non_TA_denoised.transpose(2, 3)
+            self.irradiance_non_TA_denoised = self.irradiance_non_TA_denoised[:, :, 32 : height - 32, 32 : width - 32]
+            self.irradiance_non_TA_denoised = self.upsampler(self.irradiance_non_TA_denoised)
+            self.irradiance_non_TA_denoised = self.irradiance_non_TA_denoised.transpose(1, 3)
+            self.irradiance_non_TA_denoised = self.irradiance_non_TA_denoised.transpose(1, 2)
+            ##############
 
-            self.irradiance_final = self.weight_map1 * self.irradiance_non_TA_denoised + weight_map2 * self.irradiance_TA_denoised
-            #self.irradiance_final.retain_grad()
-            # irradiance_final = weight_map1 * x_irradiance_non_TA + weight_map2 * x_irradiance_TA
+            ### Disney Kernel Prediction Equation ###
+            self.irradiance_TA_denoised = self.irradiance_TA_denoised.transpose(1, 3)
+            self.irradiance_TA_denoised = self.irradiance_TA_denoised.transpose(2, 3)
+            du_irradiance_TA_denoised = self.downsampler(self.irradiance_TA_denoised)
+            du_irradiance_TA_denoised = self.upsampler(du_irradiance_TA_denoised)
+            self.irradiance_TA_denoised = self.irradiance_TA_denoised.transpose(1, 3)
+            self.irradiance_TA_denoised = self.irradiance_TA_denoised.transpose(1, 2)
+            du_irradiance_TA_denoised = du_irradiance_TA_denoised.transpose(1, 3)
+            du_irradiance_TA_denoised = du_irradiance_TA_denoised.transpose(1, 2)
+            ###
+
+            # self.irradiance_final = self.weight_map1 * self.irradiance_non_TA_denoised + weight_map2 * self.irradiance_TA_denoised
+            self.irradiance_final = self.irradiance_TA_denoised - (self.weight_map1 * du_irradiance_TA_denoised) + weight_map2 * self.irradiance_non_TA_denoised
+            # pyexr.write(os.path.join('irradiance_final.exr'), self.irradiance_final[0, :].detach().cpu().numpy())
 
             self.final = x_albedo * self.irradiance_final
-            #self.final.retain_grad()
+            # pyexr.write(os.path.join('final.exr'), self.final[0, :].detach().cpu().numpy())
+            # sys.exit(1)
 
             return self.final
 
