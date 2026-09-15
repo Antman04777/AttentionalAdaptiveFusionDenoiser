@@ -43,6 +43,9 @@ class RepVGG(torch.nn.Module):
         self.ss_ta = ss_ta
         self.sr_ta = sr_ta
 
+        self.downsampler = torch.nn.AvgPool2d(2, stride=2)
+        self.upsampler = torch.nn.Upsample(size=(128, 128), mode='bilinear')
+
         #debug
         self.x_final_out = None
         self.guide1 = None
@@ -116,6 +119,9 @@ class RepVGG(torch.nn.Module):
         #print("x_irradiance_TA shape: ", x_irradiance_TA.shape)
 
         x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA * x_albedo)
+        x_tone_mapped_non_TA_frame = self.downsampler(x_tone_mapped_non_TA_frame)
+        x_tone_mapped_non_TA_frame = torch.nn.functional.pad(x_tone_mapped_non_TA_frame, pad=(32, 32, 32, 32))
+
         x_tone_mapped_TA_frame = utils.tone_mapping(x_irradiance_TA * x_albedo)
 
         x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.num_input_channels]), axis=1)
@@ -190,6 +196,11 @@ class RepVGG(torch.nn.Module):
             x_albedo = x_albedo.transpose(1, 3)
             x_albedo = x_albedo.transpose(1, 2)
 
+            ### DOWNSAMPLING ###
+            x_irradiance_non_TA = self.downsampler(x_irradiance_non_TA)
+            x_irradiance_non_TA = torch.nn.functional.pad(x_irradiance_non_TA, pad=(32, 32, 32, 32))
+            ####################
+
             self.grid1 = bilateral_ops.creation_wrapper(x_irradiance_non_TA, self.guide1, attributes_grid_1)
             #self.grid1.retain_grad()
             self.grid2 = bilateral_ops.creation_wrapper(x_irradiance_TA, self.guide2, attributes_grid_2)
@@ -198,10 +209,28 @@ class RepVGG(torch.nn.Module):
 
             self.irradiance_non_TA_denoised = bilateral_ops.slicing_wrapper(self.grid1, self.guide1, attributes_grid_1)
             #self.irradiance_non_TA_denoised.retain_grad()
+
             self.irradiance_TA_denoised = bilateral_ops.slicing_wrapper(self.grid2, self.guide2, attributes_grid_2)
             #self.irradiance_TA_denoised.retain_grad()
-            # print(self.irradiance_TA_denoised) # mostly zeros
 
+            ### Cutting & upsampling ###
+            height = self.irradiance_non_TA_denoised.shape[1]
+            width = self.irradiance_non_TA_denoised.shape[2]
+            x_irradiance_non_TA = x_irradiance_non_TA.transpose(1, 3)
+            x_irradiance_non_TA = x_irradiance_non_TA.transpose(2, 3)
+            self.irradiance_non_TA_denoised = self.irradiance_non_TA_denoised[:, :, 32 : height - 32, 32 : width - 32]
+            self.irradiance_non_TA_denoised = self.upsampler(self.irradiance_non_TA_denoised)
+            self.irradiance_non_TA_denoised = self.irradiance_non_TA_denoised.transpose(1, 3)
+            self.irradiance_non_TA_denoised = self.irradiance_non_TA_denoised.transpose(1, 2)
+            ##############
+
+            ### Disney Kernel Prediction Equation ###
+            du_irradiance_TA_denoised = self.downsampler(self.irradiance_TA_denoised)
+            du_irradiance_TA_denoised = self.upsampler(du_irradiance_TA_denoised)
+            ###
+
+
+            # print(self.irradiance_TA_denoised) # mostly zeros
             #print("guide1: ", guide1.shape)
             #print("guide2: ", guide2.shape)
             #print("weight_map1: ", weight_map1.shape)
@@ -211,7 +240,8 @@ class RepVGG(torch.nn.Module):
             #print("irradiance_non_TA_denoised: ", irradiance_non_TA_denoised.shape)
             #print("irradiance_TA_denoised: ", irradiance_TA_denoised.shape)
 
-            self.irradiance_final = self.weight_map1 * self.irradiance_non_TA_denoised + weight_map2 * self.irradiance_TA_denoised
+            # self.irradiance_final = self.weight_map1 * self.irradiance_non_TA_denoised + weight_map2 * self.irradiance_TA_denoised
+            self.irradiance_final = self.irradiance_TA_denoised - (self.weight_map1 * du_irradiance_TA_denoised) + weight_map2 * self.irradiance_non_TA_denoised
             #self.irradiance_final.retain_grad()
             # irradiance_final = weight_map1 * x_irradiance_non_TA + weight_map2 * x_irradiance_TA
 
