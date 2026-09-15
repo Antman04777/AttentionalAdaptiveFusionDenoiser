@@ -195,8 +195,8 @@ __global__ void CreateBiGridKernel(
     int h = (i / (channel_size * grid_width)) % grid_height;
     int b = (i / (channel_size * grid_width * grid_height)) % batch_size;
 
-    __half f_w = __hadd(__float2half(static_cast<float>(w)), __float2half(0.5f));
-    __half f_h = __hadd(__float2half(static_cast<float>(h)), __float2half(0.5f));
+    __half f_w = __hadd(__int2half_rd(w), __float2half(0.5f));
+    __half f_h = __hadd(__int2half_rd(h), __float2half(0.5f));
 
     int left = static_cast<int>(ceil((w - 0.5) * ss));
     int right = left + 2 * ss;
@@ -218,23 +218,23 @@ __global__ void CreateBiGridKernel(
       	if (yy < 0 || yy > image_height - 1)
       		continue;
 		// float wy = weight_z((yy + 0.5f) / ss - f_h);
-      	__half wy = weight_z(__hsub(__hdiv(__hadd(__float2half(static_cast<float>(yy)), __float2half(0.5f)), __float2half(static_cast<float>(ss))), f_h));
+      	__half wy = weight_z(__hsub(__hdiv(__hadd(__int2half_rd(yy), __float2half(0.5f)), __int2half_rd(ss)), f_h));
       	for (int xx = left; xx < right; xx++) {
       	  	if (xx < 0 || xx > image_width - 1)
       	    	continue;
 			// float wx = weight_z((xx + 0.5f) / ss - f_w);
-      	  	__half wx = weight_z(__hsub(__hdiv(__hadd(__float2half(static_cast<float>(xx)), __float2half(0.5f)), __float2half(static_cast<float>(ss))), f_w));
+      	  	__half wx = weight_z(__hsub(__hdiv(__hadd(__int2half_rd(xx), __float2half(0.5f)), __int2half_rd(ss)), f_w));
 
       	  	int idx_guide = xx + yy * image_width + b * image_width * image_height;
       	  	int idx_image = c + xx * sx + yy * sy + b * sb;
 
-      	  	__half guide_val = __hdiv((__hadd(input_guide[idx_guide], __float2half(0.5f))), __float2half(static_cast<float>(sr)));
+      	  	__half guide_val = __hdiv((__hadd(input_guide[idx_guide], __float2half(0.5f))), __int2half_rd(sr));
       	  	// int d_lower = static_cast<int>(max(ceil(guide_val - 1.5), 0.0));
-			int d_lower = static_cast<int>(__half2float(__hmax(hceil(__hsub(guide_val, __float2half(1.5f))), __float2half(0.0f))));
-      	  	int d_upper = static_cast<int>(__half2float(__hmin(hfloor(__hadd(guide_val, __float2half(0.5f))), __hsub(__float2half(static_cast<float>(grid_depth)), __float2half(1.0f)))));
+			int d_lower = __half2int_rd(__hmax(hceil(__hsub(guide_val, __float2half(1.5f))), __float2half(0.0f)));
+      	  	int d_upper = __half2int_rd(__hmin(hfloor(__hadd(guide_val, __float2half(0.5f))), __hsub(__int2half_rd(grid_depth), __float2half(1.0f))));
 
       	  	for (int zz = d_lower; zz <= d_upper; zz++) {
-      	    	__half wz = weight_z(__hsub(__hsub(guide_val, __float2half(static_cast<float>(zz))), __float2half(0.5f)));
+      	    	__half wz = weight_z(__hsub(__hsub(guide_val, __int2half_rd(zz)), __float2half(0.5f)));
       	    	__half wt = __hmul(__hmul(wy, wx), wz);
       	    	sum_color[zz] = __hadd(sum_color[zz], __hmul(input_image[idx_image], wt));
       	    	sum_count[zz] = __hadd(sum_count[zz], wt);
@@ -578,7 +578,6 @@ __global__ void SliceBiGridKernel(
 	const int sr,
 	__half* output_image
 )
-
 {
 	CUDA_KERNEL_LOOP(i, subpixel_count)
 	{	
@@ -591,20 +590,20 @@ __global__ void SliceBiGridKernel(
 		
 		int idx_guide =  im_w + im_h * image_width + b * image_width * image_height;
 		
-		__half f_gr_d = __hdiv(__hadd(input_guide[idx_guide], __float2half(0.5f)), __float2half(static_cast<float>(sr)));
-		__half f_gr_w = __hdiv(__hadd(__float2half(static_cast<float>(im_w)), __float2half(0.5f)), __float2half(static_cast<float>(ss)));
-		__half f_gr_h = __hdiv(__hadd(__float2half(static_cast<float>(im_h)), __float2half(0.5f)), __float2half(static_cast<float>(ss)));
+		__half f_gr_d = __hdiv(__hadd(input_guide[idx_guide], __float2half(0.5f)), __int2half_rd(sr));
+		__half f_gr_w = __hdiv(__hadd(__int2half_rd(im_w), __float2half(0.5f)), __int2half_rd(ss));
+		__half f_gr_h = __hdiv(__hadd(__int2half_rd(im_h), __float2half(0.5f)), __int2half_rd(ss));
 
 		// int front = static_cast<int>(floor(input_guide[idx_guide] / sr - 0.5f));
-		int front = static_cast<int>(__half2float(hfloor(__hsub(__hdiv(input_guide[idx_guide], __float2half(static_cast<float>(sr))), __float2half(0.5f)))));
+		int front = __half2int_rd(hfloor(__hsub(__hdiv(input_guide[idx_guide], __int2half_rd(sr)), __float2half(0.5f))));
 		int back = front + 1;
 		
 		// int left = static_cast<int>(floor(im_w * 1.0f / ss - 0.5f));
-		int left = static_cast<int>(__half2float(hfloor(__hsub(__hdiv(__hmul(__float2half(static_cast<float>(im_w)), __float2half(1.0f)), __float2half(static_cast<float>(ss))), __float2half(0.5f)))));
+		int left = __half2int_rd(hfloor(__hsub(__hdiv(__hmul(__int2half_rd(im_w), __float2half(1.0f)), __int2half_rd(ss)), __float2half(0.5f))));
 		int right = left + 1;
 		
 		// int up = static_cast<int>(floor(im_h * 1.0f / ss - 0.5f));
-		int up = static_cast<int>(__half2float(hfloor(__hsub(__hdiv(__hmul(__float2half(static_cast<float>(im_h)), __float2half(1.0f)), __float2half(static_cast<float>(ss))), __float2half(0.5f)))));
+		int up = __half2int_rd(hfloor(__hsub(__hdiv(__hmul(__int2half_rd(im_h), __float2half(1.0f)), __int2half_rd(ss)), __float2half(0.5f))));
 		int down = up + 1;
 
 		int sw = channel_size;
@@ -619,19 +618,19 @@ __global__ void SliceBiGridKernel(
 			if (vv < 0 || vv > grid_height - 1)
 				continue;
 			// at::Half wy = weight_z((vv + 0.5) - f_gr_h);
-			__half wy = weight_z(__hsub(__hadd(__float2half(static_cast<float>(vv)), __float2half(0.5f)), f_gr_h));
+			__half wy = weight_z(__hsub(__hadd(__int2half_rd(vv), __float2half(0.5f)), f_gr_h));
 			for (int uu = left; uu <= right; uu++)
 			{
 				if (uu < 0 || uu > grid_width - 1)
 					continue;
 				// __half wx = weight_z((uu + 0.5) - f_gr_w);
-				__half wx = weight_z(__hsub(__hadd(__float2half(static_cast<float>(uu)), __float2half(0.5f)), f_gr_w));
+				__half wx = weight_z(__hsub(__hadd(__int2half_rd(uu), __float2half(0.5f)), f_gr_w));
 				for (int ww = front - 2; ww < back + 2; ww++)
 				{
 					if (ww < 0 || ww > grid_depth - 1)
 						continue;
 					// at::Half wz = weight_z((ww + 0.5) - f_gr_d);
-					__half wz = weight_z(__hsub(__hadd(__float2half(static_cast<float>(ww)), __float2half(0.5f)), f_gr_d));
+					__half wz = weight_z(__hsub(__hadd(__int2half_rd(ww), __float2half(0.5f)), f_gr_d));
 					int idx_grid = c + ww * sw + uu * su + vv * sv + b * sb;
 					if (__hgt(input_grid[idx_grid], __float2half(0.0f)))
 					{
