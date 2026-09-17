@@ -219,7 +219,9 @@ class RepVGG(torch.nn.Module):
             self.irradiance_TA_denoised = bilateral_ops.slicing_wrapper(self.grid2, self.guide2, attributes_grid_2)
 
             # CNN 3 (weight)
-            x_input_weight = torch.cat((self.irradiance_non_TA_denoised, self.irradiance_TA_denoised), axis=3)
+            irr_non_TA_tone_mapped = utils.tone_mapping(self.irradiance_non_TA_denoised)
+            irr_TA_tone_mapped = utils.tone_mapping(self.irradiance_TA_denoised)
+            x_input_weight = torch.cat((irr_non_TA_tone_mapped, irr_TA_tone_mapped), axis=3)
             x_input_weight = x_input_weight.transpose(1, 3)
             x_input_weight = x_input_weight.transpose(2, 3)
 
@@ -306,7 +308,6 @@ class RepVGG(torch.nn.Module):
             x_final_TA_out = x_final_TA_out.transpose(1, 3)
             x_final_TA_out = x_final_TA_out.transpose(1, 2)
 
-            
             self.guide1 = x_final_non_TA_out[:, :, :, 0] * 255
             self.guide2 = x_final_TA_out[:, :, :, 0] * 255
 
@@ -328,8 +329,11 @@ class RepVGG(torch.nn.Module):
             self.irradiance_non_TA_denoised = bilateral_ops.slicing_wrapper(self.grid1, self.guide1, attributes_grid_1)
             self.irradiance_TA_denoised = bilateral_ops.slicing_wrapper(self.grid2, self.guide2, attributes_grid_2)
 
+            irr_non_TA_tone_mapped = utils.tone_mapping(self.irradiance_non_TA_denoised)
+            irr_TA_tone_mapped = utils.tone_mapping(self.irradiance_TA_denoised)
 
-            x_input_weight = torch.cat((self.irradiance_non_TA_denoised, self.irradiance_TA_denoised), axis=3)
+            
+            x_input_weight = torch.cat((irr_non_TA_tone_mapped, irr_TA_tone_mapped), axis=3)
             x_input_weight = x_input_weight.transpose(1, 3)
             x_input_weight = x_input_weight.transpose(2, 3)
 
@@ -340,8 +344,6 @@ class RepVGG(torch.nn.Module):
             x2_final_weight_out = self.sigmoid_weight(x2_weight)
             x2_final_weight_out = x2_final_weight_out.transpose(1, 3)
             x2_final_weight_out = x2_final_weight_out.transpose(1, 2)
-
-            '''
 
             weight_map = torch.unsqueeze(x2_final_weight_out[:, :, :, 0], dim=3)
             weight_map = torch.tile(weight_map, (1, 1, 1, 3))
@@ -376,8 +378,6 @@ class RepVGG(torch.nn.Module):
             self.irradiance_final = self.irradiance_TA_denoised - (weight_map * irradiance_TA_denoised_du) + (weight_map * irradiance_non_TA_denoised_du)
 
             self.final = x_albedo * self.irradiance_final
-            '''
-            self.final = x_albedo
 
             return self.final
 
