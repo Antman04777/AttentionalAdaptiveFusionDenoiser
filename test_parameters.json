@@ -1,5 +1,5 @@
 {
-    "experiment": "official-lr4-epoch-400-batchsize-20-ssta-4-srta-4-ssnta-16-srnta-16-l1_loss",
+    "experiment": "adaptive-equation-test",
     "test_scene": "sponza",
     "ss_non_ta": 16,
     "sr_non_ta": 16,
