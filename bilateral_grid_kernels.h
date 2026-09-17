@@ -9,7 +9,7 @@
 #include <torch/script.h>
 
 #define TRAINING
-// #undef TRAINING
+#undef TRAINING
 
 #ifdef TRAINING
 void create_grid_kernel_launcher

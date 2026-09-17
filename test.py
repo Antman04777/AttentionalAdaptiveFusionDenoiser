@@ -32,6 +32,10 @@ def test(model, device, dataloader, save_dir=''):
             output = outputs.cpu().numpy()[0]
             reference = references.cpu().numpy()[0].transpose((1, 2, 0))
 
+            ### remove asap
+            # output = model.irradiance_final.detach().cpu().numpy()[0]
+            ###
+
             SSIM, PSNR = utils.compute_metrics(reference, output)
             SSIMs.append(SSIM)
             PSNRs.append(PSNR)
