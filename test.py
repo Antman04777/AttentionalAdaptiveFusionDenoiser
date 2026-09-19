@@ -63,8 +63,8 @@ def time_inference(model, device, dataloader, steps=60):
 
     cache_tensor = torch.empty(int(6 * (1024 ** 2)), dtype=torch.int8, device=device) # for the V100 GPU
 
-    with torch.no_grad():
-    # with torch.inference_mode():
+    # with torch.no_grad():
+    with torch.inference_mode():
         for test_img_idx, (inputs, references) in enumerate(dataloader):
             cache_tensor.zero_() # perform cache flush for more accurate measurement
 
@@ -91,6 +91,7 @@ if __name__ == '__main__':
     torch.cuda.set_device(0)
     torch.backends.cudnn.deterministic = True 
     torch.backends.cudnn.benchmark = False 
+    # torch.backends.cudnn.benchmark = True
     device = torch.device("cuda")
     device_name = torch.cuda.get_device_name(0)
 
