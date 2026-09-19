@@ -44,20 +44,20 @@ class AttentionModule(torch.nn.Module):
 
         self.sigmoid = torch.nn.Sigmoid()
 
-    def forward(self, x_in_1, x_in_2, x_in_3):
+    def forward(self, x_in_1, x_in_2):
         # ensure these inputs have the same dimensions
 
         # O and T from the paper are outputs from the beta function which represents batch normalization, find out how to do this
 
         # This code may need to be adjusted depending on how many branches we decide to use
 
-        x_input = x_in_1 + x_in_2 + x_in_3
+        x_input = x_in_1 + x_in_2
 
         height = x_input.shape[2]
         width = x_input.shape[3]
 
         reduced_input = self.conv_compress_layer(x_input)
-        reduced_input = self.bn_compress(reduced_input)
+        # reduced_input = self.bn_compress(reduced_input)
 
         height_width_tensor = reduced_input
         height_channel_tensor = reduced_input.permute((0, 3, 2, 1))
@@ -68,13 +68,13 @@ class AttentionModule(torch.nn.Module):
         channel_width_tensor_pooled = torch.mean(channel_width_tensor, dim=1, keepdim=True)
 
         height_width_tensor_pooled_conv = self.conv_branch_1(height_width_tensor_pooled)
-        height_width_tensor_pooled_conv = self.bn_branch_1(height_width_tensor_pooled_conv)
+        # height_width_tensor_pooled_conv = self.bn_branch_1(height_width_tensor_pooled_conv)
 
         height_channel_tensor_pooled_conv = self.conv_branch_2(height_channel_tensor_pooled)
-        height_channel_tensor_pooled_conv = self.bn_branch_2(height_channel_tensor_pooled_conv)
+        # height_channel_tensor_pooled_conv = self.bn_branch_2(height_channel_tensor_pooled_conv)
 
         channel_width_tensor_pooled_conv = self.conv_branch_3(channel_width_tensor_pooled)
-        channel_width_tensor_pooled_conv = self.bn_branch_3(channel_width_tensor_pooled_conv)
+        # channel_width_tensor_pooled_conv = self.bn_branch_3(channel_width_tensor_pooled_conv)
 
         height_width_tensor_pooled_conv_reshaped = height_width_tensor_pooled_conv
         height_channel_tensor_pooled_conv_reshaped = height_channel_tensor_pooled_conv.permute((0, 3, 2, 1))
@@ -88,7 +88,7 @@ class AttentionModule(torch.nn.Module):
         combined_tensor_expanded = combined_tensor_expanded / 3.0
 
         combined_tensor_expanded = self.conv_decompress_layer(combined_tensor_expanded)
-        combined_tensor_expanded = self.bn_decompress(combined_tensor_expanded)
+        # combined_tensor_expanded = self.bn_decompress(combined_tensor_expanded)
 
         alpha = self.sigmoid(combined_tensor_expanded)
 
@@ -101,6 +101,8 @@ class AdaptiveFusion(torch.nn.Module):
         self.device = device
 
         self.num_input_channels = num_input_channels
+
+        self.attention_layer = AttentionModule(device, r=4, num_input_channels=64).to(device)
 
         self.conv_layer_1 = torch.nn.Conv2d(in_channels=self.num_input_channels, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False)
         self.relu_1 = torch.nn.ReLU()
@@ -122,7 +124,10 @@ class AdaptiveFusion(torch.nn.Module):
         self.conv_layer_7 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False)
         self.relu_6 = torch.nn.ReLU()
 
-        self.conv_layer_8 = torch.nn.Conv2d(in_channels=192, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer_new_8 = torch.nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu_new_7 = torch.nn.ReLU()
+
+        self.conv_layer_8 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.relu_7 = torch.nn.ReLU()
 
         self.conv_layer_9_t = torch.nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, bias=False)
@@ -132,6 +137,39 @@ class AdaptiveFusion(torch.nn.Module):
 
         self.conv_layer_11 = torch.nn.Conv2d(in_channels=96, out_channels=49, kernel_size=3, stride=1, padding=1, bias=False)
         self.relu_9 = torch.nn.ReLU()
+
+        '''
+        self.conv_layer_1 = torch.nn.Conv2d(in_channels=self.num_input_channels, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu_1 = torch.nn.ReLU()
+
+        self.conv_layer_2 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu_2 = torch.nn.ReLU()
+
+        self.conv_layer_3 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
+        self.relu_3 = torch.nn.ReLU()
+
+        self.conv_layer_4 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
+        self.relu_4 = torch.nn.ReLU()
+
+        self.conv_layer_5 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu_5 = torch.nn.ReLU()
+
+        self.conv_layer_6_t = torch.nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=2, stride=2, bias=False)
+
+        self.conv_layer_7 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu_6 = torch.nn.ReLU()
+
+        self.conv_layer_8 = torch.nn.Conv2d(in_channels=256, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu_7 = torch.nn.ReLU()
+
+        self.conv_layer_9_t = torch.nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, bias=False)
+
+        self.conv_layer_10 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu_8 = torch.nn.ReLU()
+
+        self.conv_layer_11 = torch.nn.Conv2d(in_channels=128, out_channels=49, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu_9 = torch.nn.ReLU()
+        '''
 
     def forward(self, x_input):
 
@@ -155,8 +193,16 @@ class AdaptiveFusion(torch.nn.Module):
         x_7 = self.conv_layer_7(x_6)
         x_7 = self.relu_6(x_7)
 
-        # x_8_in = torch.add_(x_3, x_7)
-        x_8_in = torch.cat((x_3, x_7), axis=1)
+        x_8_new = self.conv_layer_new_8(x_7)
+        x_8_new = self.relu_new_7(x_8_new)
+
+        # x_8_in = torch.add_(x_3, x_8_new)
+
+        alpha, one_minus_alpha = self.attention_layer(x_3, x_8_new)
+
+        x_8_in = alpha * x_3 + one_minus_alpha * x_8_new
+
+        # x_8_in = torch.cat((x_3, x_8_new), axis=1)
         x_8 = self.conv_layer_8(x_8_in)
         x_8 = self.relu_7(x_8)
         k_non_TA = x_8
@@ -207,7 +253,6 @@ class RepVGG(torch.nn.Module):
         self.irradiance_final = None
         self.final = None
 
-        self.attention_layer = AttentionModule(device).to(device)
         self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
 
         if not deployed:

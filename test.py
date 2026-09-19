@@ -63,8 +63,13 @@ def time_inference(model, device, dataloader, steps=60):
 
     cache_tensor = torch.empty(int(6 * (1024 ** 2)), dtype=torch.int8, device=device) # for the V100 GPU
 
+    # dummy_tensor = torch.zeros((5, 16, 720, 1920)).to(device).half()
+    # warm_up_reps = 2
+
     # with torch.no_grad():
     with torch.inference_mode():
+        # for i in range(warm_up_reps):
+            # _ = model(dummy_tensor)
         for test_img_idx, (inputs, references) in enumerate(dataloader):
             cache_tensor.zero_() # perform cache flush for more accurate measurement
 
@@ -74,12 +79,14 @@ def time_inference(model, device, dataloader, steps=60):
             references = references.to(device, non_blocking = True).half()
 
             start_events[test_img_idx].record()
-            outputs = model(inputs).detach()
+            # outputs = model(inputs).detach()
+            _ = model(inputs)
             # with torch.autocast(device_type='cuda', dtype=torch.float16):
                 # outputs = model(inputs).detach()
             end_events[test_img_idx].record()
+            torch.cuda.synchronize()
 
-        torch.cuda.synchronize()
+        # torch.cuda.synchronize()
         times = [s.elapsed_time(e) for s, e in zip(start_events, end_events)]
         average_inference_time = statistics.mean(times)
 
