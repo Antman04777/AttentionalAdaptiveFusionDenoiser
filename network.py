@@ -6,6 +6,8 @@ import utils
 import pyexr
 import os
 import sys
+import math
+from torch.nn import functional as F
 
 #from memory_profiler import profile
 
@@ -208,7 +210,7 @@ class AdaptiveFusion(torch.nn.Module):
         # x_8_in = torch.cat((x_3, x_8_new), axis=1)
         x_8 = self.conv_layer_8(x_8_in)
         x_8 = self.relu_7(x_8)
-        k_non_TA = x_8
+        k_non_TA = x_8[:,0:49]              #sliced first 49 channels for non ta kernel map
 
         x_9 = self.conv_layer_9_t(x_8)
 
@@ -258,6 +260,10 @@ class RepVGG(torch.nn.Module):
 
         self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
 
+        self.downsampler = torch.nn.AvgPool2d(2, stride = 2)
+        self.upsampler = torch.nn.Upsample(scale_factor=2)
+
+
     # @profile
     def forward(self, raw_inputs):
         x_irradiance_non_TA = raw_inputs[:, 0:3]
@@ -275,16 +281,56 @@ class RepVGG(torch.nn.Module):
         # x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.num_input_channels]), axis=1)
         x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.adaptive_fusion_conv.num_input_channels]), axis=1)
 
-        y_non_TA, y_TA = self.adaptive_fusion_conv(x_input)
-        y_TA = y_TA[:, :3, :, :]
-        y_TA = y_TA.permute((0, 2, 3, 1))
+        kernel_non_TA, kernel_TA = self.adaptive_fusion_conv(x_input)
+        #y_TA = y_TA[:, :3, :, :]
+        #y_TA = y_TA.permute((0, 2, 3, 1))
 
         # x_albedo = x_albedo.permute((0, 2, 3, 1))
         # alpha = alpha.permute((0, 2, 3, 1))
-        return y_TA
+        #return y_TA
 
         # x_input_non_TA = torch.cat((x_tone_mapped_non_TA_frame, raw_inputs[:, 6:16]), axis=1)
         # x_input_TA = torch.cat((x_tone_mapped_TA_frame, raw_inputs[:, 6:16]), axis=1)
+
+
+        B,_,H_ta,W_ta = x_irradiance_TA.shape
+        _,_,H_non_ta,W_non_ta = x_irradiance_non_TA.shape
+        kernels_num_channels=49
+        kernels_size = 7
+
+        downsampled_irr_non_TA = self.downsampler(x_irradiance_non_TA)
+        TA_denoised = torch.empty((B,3,H_ta,W_ta), dtype=x_irradiance_TA.dtype, device=self.device)
+        Non_TA_denoised = torch.empty((B,3,H_ta,W_ta), dtype=x_irradiance_non_TA.dtype, device=self.device)
+
+
+        for i in range(3):
+            TA_irr_channel = x_irradiance_TA[:,i:(i+1)]
+            non_TA_irr_channel = downsampled_irr_non_TA[:,i:(i+1)]
+
+            #irradiance_TA denoising
+            TA_unfolded = torch.nn.functional.unfold(TA_irr_channel,kernel_size=kernels_size,padding=3,stride=1)
+            kernel_TA_unfolded_format = kernel_TA.reshape(B,kernels_num_channels, H_ta*W_ta)
+            TA_input_kernel_multipliaction = kernel_TA_unfolded_format*TA_unfolded
+            TA_out_flat = TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
+            TA_out = TA_out_flat.reshape(B,1,H_ta,W_ta)
+            TA_norm = kernel_TA.sum(dim=1,keepdim=True)
+            TA_out = TA_out / TA_norm
+
+            TA_denoised[:,i:(i+1)]=TA_out
+
+            #irradiance_non_TA denoising
+            non_TA_unfolded = torch.nn.functional.unfold(non_TA_irr_channel,kernel_size=kernels_size,padding=3,stride=1)
+            kernel_non_TA_unfolded_format = kernel_non_TA.reshape(B,kernels_num_channels, H_non_ta*W_non_ta)
+            Non_TA_input_kernel_multipliaction = kernel_non_TA_unfolded_format*non_TA_unfolded
+            Non_TA_out_flat = Non_TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
+            Non_TA_out = Non_TA_out_flat.reshape(B,1,H_non_ta,W_non_ta)
+            Non_TA_norm = kernel_non_TA.sum(dim=1,keepdim=True)
+            Non_TA_out = Non_TA_out / Non_TA_norm
+
+            Non_TA_denoised[:,i:(i+1)]=Non_TA_out
+
+        
+
 
         
 
