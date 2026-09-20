@@ -15,8 +15,8 @@ def test(model, device, dataloader, save_dir=''):
     SSIMs = []
     PSNRs = []
 
-    with torch.no_grad():
-    # with torch.inference_mode():
+    # with torch.no_grad():
+    with torch.inference_mode():
         for test_img_idx, (inputs, references) in enumerate(dataloader):
             # inputs = inputs.to(device, non_blocking=True)
             inputs = inputs.to(device, non_blocking=True).half()
@@ -58,6 +58,7 @@ def test(model, device, dataloader, save_dir=''):
     return SSIM_mean, PSNR_mean     
 
 def time_inference(model, device, dataloader, steps=60):
+    model.eval()
     start_events = [torch.cuda.Event(enable_timing=True) for _ in range(steps)]
     end_events = [torch.cuda.Event(enable_timing=True) for _ in range(steps)]
 
@@ -94,7 +95,7 @@ def time_inference(model, device, dataloader, steps=60):
 
 
 if __name__ == '__main__':
-
+    # torch.manual_seed(2809)
     torch.cuda.set_device(0)
     torch.backends.cudnn.deterministic = True 
     torch.backends.cudnn.benchmark = False 
@@ -129,16 +130,17 @@ if __name__ == '__main__':
         if not os.path.exists(dir):
             os.makedirs(dir)
     
-    pretrained_model = network.RepVGG(device).to(device)
+    # pretrained_model = network.RepVGG(device).to(device)
     checkpoint = torch.load(os.path.join(model_saving_dir, 'model.pt'), device)
-    pretrained_model.load_state_dict(checkpoint["model_state_dict"])
+    # pretrained_model.load_state_dict(checkpoint["model_state_dict"])
 
-    deployed_model = network.RepVGG(device, deployed=True, pretrained_model=pretrained_model, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta)
+    deployed_model = network.RepVGG(device, deployed=True, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta)
+    deployed_model.load_state_dict(checkpoint["model_state_dict"])
     deployed_model = deployed_model.half()
     # deployed_model = torch.compile(deployed_model)
     SSIM_mean, PSNR_mean = test(deployed_model, device, test_dataloader, test_saving_dir)
 
-    timing_dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=0, pin_memory=False)
+    timing_dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=0, pin_memory=True)
     average_inference_time = time_inference(deployed_model, device, timing_dataloader, steps=rawdata.num_frames_per_scene)
     print(f'Average inference time = {average_inference_time}')
 

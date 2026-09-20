@@ -20,6 +20,9 @@ def reparametrize(conv1, conv3, conv5, has_identity_branch=False):
     conv.weight.data = reparam_kernel.detach().clone()
     return conv
 
+def unfold_and_apply_kernel_maps(kernel_maps, channels):
+    return None
+
 class AttentionModule(torch.nn.Module):
     def __init__(self, device, r=3, num_input_channels=3):
         super().__init__()
@@ -254,84 +257,6 @@ class RepVGG(torch.nn.Module):
         self.final = None
 
         self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
-
-        if not deployed:
-            # CNN 1
-            self.conv_layer1_non_TA_1 = torch.nn.Conv2d(in_channels=self.num_input_channels, out_channels=self.base_depth, kernel_size=1, stride=1, padding=0, bias=False)
-            self.conv_layer1_non_TA_3 = torch.nn.Conv2d(in_channels=self.num_input_channels, out_channels=self.base_depth, kernel_size=3, stride=1, padding=1, bias=False)
-            self.conv_layer1_non_TA_5 = torch.nn.Conv2d(in_channels=self.num_input_channels, out_channels=self.base_depth, kernel_size=5, stride=1, padding=2, bias=False)
-            self.lrelu1 = torch.nn.LeakyReLU(0.1)
-
-            self.conv_layer2_non_TA_1 = torch.nn.Conv2d(in_channels=self.base_depth, out_channels=self.base_depth, kernel_size=1, stride=1, padding=0, bias=False)
-            self.conv_layer2_non_TA_3 = torch.nn.Conv2d(in_channels=self.base_depth, out_channels=self.base_depth, kernel_size=3, stride=1, padding=1, bias=False)
-            self.conv_layer2_non_TA_5 = torch.nn.Conv2d(in_channels=self.base_depth, out_channels=self.base_depth, kernel_size=5, stride=1, padding=2, bias=False)
-            self.lrelu2 = torch.nn.LeakyReLU(0.1)
-
-            self.conv_layer3_non_TA_1 = torch.nn.Conv2d(in_channels=self.base_depth, out_channels=self.num_input_channels, kernel_size=1, stride=1, padding=0, bias=False)
-            self.conv_layer3_non_TA_3 = torch.nn.Conv2d(in_channels=self.base_depth, out_channels=self.num_input_channels, kernel_size=3, stride=1, padding=1, bias=False)
-            self.conv_layer3_non_TA_5 = torch.nn.Conv2d(in_channels=self.base_depth, out_channels=self.num_input_channels, kernel_size=5, stride=1, padding=2, bias=False)
-            # self.lrelu3 = torch.nn.LeakyReLU(0.1)
-            self.sigmoid_non_TA = torch.nn.Sigmoid()
-
-            # CNN 2
-            self.conv_layer1_TA_1 = torch.nn.Conv2d(in_channels=self.num_input_channels, out_channels=self.base_depth, kernel_size=1, stride=1, padding=0, bias=False)
-            self.conv_layer1_TA_3 = torch.nn.Conv2d(in_channels=self.num_input_channels, out_channels=self.base_depth, kernel_size=3, stride=1, padding=1, bias=False)
-            self.conv_layer1_TA_5 = torch.nn.Conv2d(in_channels=self.num_input_channels, out_channels=self.base_depth, kernel_size=5, stride=1, padding=2, bias=False)
-            self.lrelu4 = torch.nn.LeakyReLU(0.1)
-
-            self.conv_layer2_TA_1 = torch.nn.Conv2d(in_channels=self.base_depth, out_channels=self.base_depth, kernel_size=1, stride=1, padding=0, bias=False)
-            self.conv_layer2_TA_3 = torch.nn.Conv2d(in_channels=self.base_depth, out_channels=self.base_depth, kernel_size=3, stride=1, padding=1, bias=False)
-            self.conv_layer2_TA_5 = torch.nn.Conv2d(in_channels=self.base_depth, out_channels=self.base_depth, kernel_size=5, stride=1, padding=2, bias=False)
-            self.lrelu5 = torch.nn.LeakyReLU(0.1)
-
-            self.conv_layer3_TA_1 = torch.nn.Conv2d(in_channels=self.base_depth, out_channels=self.num_output_channels, kernel_size=1, stride=1, padding=0, bias=False)
-            self.conv_layer3_TA_3 = torch.nn.Conv2d(in_channels=self.base_depth, out_channels=self.num_output_channels, kernel_size=3, stride=1, padding=1, bias=False)
-            self.conv_layer3_TA_5 = torch.nn.Conv2d(in_channels=self.base_depth, out_channels=self.num_output_channels, kernel_size=5, stride=1, padding=2, bias=False)
-            self.sigmoid_TA = torch.nn.Sigmoid()
-
-            # CNN 3 (weight prediction)
-            self.conv_layer1_weight_1 = torch.nn.Conv2d(in_channels=6, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
-            self.conv_layer1_weight_3 = torch.nn.Conv2d(in_channels=6, out_channels=3, kernel_size=3, stride=1, padding=1, bias=False)
-            self.conv_layer1_weight_5 = torch.nn.Conv2d(in_channels=6, out_channels=3, kernel_size=5, stride=1, padding=2, bias=False)
-            self.lrelu6 = torch.nn.LeakyReLU(0.1)
-
-            self.conv_layer2_weight_1 = torch.nn.Conv2d(in_channels=3, out_channels=1, kernel_size=1, stride=1, padding=0, bias=False)
-            self.conv_layer2_weight_3 = torch.nn.Conv2d(in_channels=3, out_channels=1, kernel_size=3, stride=1, padding=1, bias=False)
-            self.conv_layer2_weight_5 = torch.nn.Conv2d(in_channels=3, out_channels=1, kernel_size=5, stride=1, padding=2, bias=False)
-            self.sigmoid_weight = torch.nn.Sigmoid()
-
-            self.downsampler = torch.nn.AvgPool2d(2, stride=2)
-            self.upsampler = torch.nn.Upsample(size=(128, 128))
-
-        else:
-            self.rep_non_TA_conv_layer1 = reparametrize(pretrained_model.conv_layer1_non_TA_1, pretrained_model.conv_layer1_non_TA_3, pretrained_model.conv_layer1_non_TA_5)
-            self.lrelu1 = torch.nn.LeakyReLU(0.1)
-
-            self.rep_non_TA_conv_layer2 = reparametrize(pretrained_model.conv_layer2_non_TA_1, pretrained_model.conv_layer2_non_TA_3, pretrained_model.conv_layer2_non_TA_5, has_identity_branch=True)
-            self.lrelu2 = torch.nn.LeakyReLU(0.1)
-
-            self.rep_non_TA_conv_layer3 = reparametrize(pretrained_model.conv_layer3_non_TA_1, pretrained_model.conv_layer3_non_TA_3, pretrained_model.conv_layer3_non_TA_5)
-            self.sigmoid_non_TA = torch.nn.Sigmoid()
-
-
-            self.rep_TA_conv_layer1 = reparametrize(pretrained_model.conv_layer1_TA_1, pretrained_model.conv_layer1_TA_3, pretrained_model.conv_layer1_TA_5)
-            self.lrelu4 = torch.nn.LeakyReLU(0.1)
-
-            self.rep_TA_conv_layer2 = reparametrize(pretrained_model.conv_layer2_TA_1, pretrained_model.conv_layer2_TA_3, pretrained_model.conv_layer2_TA_5, has_identity_branch=True)
-            self.lrelu5 = torch.nn.LeakyReLU(0.1)
-
-            self.rep_TA_conv_layer3 = reparametrize(pretrained_model.conv_layer3_TA_1, pretrained_model.conv_layer3_TA_3, pretrained_model.conv_layer3_TA_5)
-            self.sigmoid_TA = torch.nn.Sigmoid()
-
-
-            self.rep_weight_conv_layer1 = reparametrize(pretrained_model.conv_layer1_weight_1, pretrained_model.conv_layer1_weight_3, pretrained_model.conv_layer1_weight_5)
-            self.lrelu6 = torch.nn.LeakyReLU(0.1)
-
-            self.rep_weight_conv_layer2 = reparametrize(pretrained_model.conv_layer2_weight_1, pretrained_model.conv_layer2_weight_3, pretrained_model.conv_layer2_weight_5)
-            self.sigmoid_weight = torch.nn.Sigmoid()
-
-            self.downsampler = torch.nn.AvgPool2d(2, stride=2)
-            self.upsampler = torch.nn.Upsample(size=(720, 1280))
 
     # @profile
     def forward(self, raw_inputs):
