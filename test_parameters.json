@@ -1,6 +1,6 @@
 {
-    "experiment": "adaptive-equation-test",
-    "test_scene": "sponza",
+    "experiment": "new-model-lr3-epochs-300-batchsize-16",
+    "test_scene": "san-miguel",
     "ss_non_ta": 16,
     "sr_non_ta": 16,
     "ss_ta": 8,
