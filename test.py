@@ -9,7 +9,6 @@ import statistics
 import argparse
 import sys
 
-
 def test(model, device, dataloader, save_dir=''):
     model.eval()
     SSIMs = []
@@ -130,12 +129,12 @@ if __name__ == '__main__':
         if not os.path.exists(dir):
             os.makedirs(dir)
     
-    # pretrained_model = network.RepVGG(device).to(device)
     checkpoint = torch.load(os.path.join(model_saving_dir, 'model.pt'), device)
-    # pretrained_model.load_state_dict(checkpoint["model_state_dict"])
 
-    deployed_model = network.RepVGG(device, deployed=True, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta)
-    deployed_model.load_state_dict(checkpoint["model_state_dict"])
+    deployed_model = network.RepVGG(device, deployed=False, pretrained_model=None, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta).to(device)
+    deployed_model.load_state_dict(checkpoint['model_state_dict'])
+    deployed_model.deployed = True
+    deployed_model.init_deployed_conv_layers()
     deployed_model = deployed_model.half()
     # deployed_model = torch.compile(deployed_model)
     SSIM_mean, PSNR_mean = test(deployed_model, device, test_dataloader, test_saving_dir)

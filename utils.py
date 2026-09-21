@@ -9,7 +9,7 @@ def tone_mapping(image):
     if isinstance(image, np.ndarray):
         return np.clip(np.power(np.maximum(image, 0.0), 0.454545), 0.0, 1.0)
     elif isinstance(image, torch.Tensor):
-        return torch.pow(torch.clamp(image, min=0.0, max=1.0), 0.454545)
+        return torch.pow(torch.clamp(image, min=0.0001, max=1.0), 0.454545)
 
 
 def compute_metrics(reference_image, test_output_image):
@@ -36,6 +36,10 @@ class SMAPEloss(torch.nn.Module):
 
     def forward(self, outputs, references):
         denominator = outputs
+        # print("min ref = ", torch.min(references))
+        # print("max ref = ", torch.max(references))
+        # print("min out = ", torch.min(outputs))
+        # print("max out = ", torch.max(outputs))
         loss = torch.mean(torch.abs(outputs - references) / (denominator.abs() + references.abs() + self.eps))
         return loss
 

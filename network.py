@@ -62,7 +62,7 @@ class AttentionModule(torch.nn.Module):
         width = x_input.shape[3]
 
         reduced_input = self.conv_compress_layer(x_input)
-        # reduced_input = self.bn_compress(reduced_input)
+        reduced_input = self.bn_compress(reduced_input)
 
         height_width_tensor = reduced_input
         height_channel_tensor = reduced_input.permute((0, 3, 2, 1))
@@ -73,13 +73,13 @@ class AttentionModule(torch.nn.Module):
         channel_width_tensor_pooled = torch.mean(channel_width_tensor, dim=1, keepdim=True)
 
         height_width_tensor_pooled_conv = self.conv_branch_1(height_width_tensor_pooled)
-        # height_width_tensor_pooled_conv = self.bn_branch_1(height_width_tensor_pooled_conv)
+        height_width_tensor_pooled_conv = self.bn_branch_1(height_width_tensor_pooled_conv)
 
         height_channel_tensor_pooled_conv = self.conv_branch_2(height_channel_tensor_pooled)
-        # height_channel_tensor_pooled_conv = self.bn_branch_2(height_channel_tensor_pooled_conv)
+        height_channel_tensor_pooled_conv = self.bn_branch_2(height_channel_tensor_pooled_conv)
 
         channel_width_tensor_pooled_conv = self.conv_branch_3(channel_width_tensor_pooled)
-        # channel_width_tensor_pooled_conv = self.bn_branch_3(channel_width_tensor_pooled_conv)
+        channel_width_tensor_pooled_conv = self.bn_branch_3(channel_width_tensor_pooled_conv)
 
         height_width_tensor_pooled_conv_reshaped = height_width_tensor_pooled_conv
         height_channel_tensor_pooled_conv_reshaped = height_channel_tensor_pooled_conv.permute((0, 3, 2, 1))
@@ -93,7 +93,7 @@ class AttentionModule(torch.nn.Module):
         combined_tensor_expanded = combined_tensor_expanded / 3.0
 
         combined_tensor_expanded = self.conv_decompress_layer(combined_tensor_expanded)
-        # combined_tensor_expanded = self.bn_decompress(combined_tensor_expanded)
+        combined_tensor_expanded = self.bn_decompress(combined_tensor_expanded)
 
         alpha = self.sigmoid(combined_tensor_expanded)
 
@@ -110,37 +110,47 @@ class AdaptiveFusion(torch.nn.Module):
         self.attention_layer = AttentionModule(device, r=4, num_input_channels=64).to(device)
 
         self.conv_layer_1 = torch.nn.Conv2d(in_channels=self.num_input_channels, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn_1 = torch.nn.BatchNorm2d(32)
         self.relu_1 = torch.nn.ReLU()
 
         self.conv_layer_2 = torch.nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn_2 = torch.nn.BatchNorm2d(32)
         self.relu_2 = torch.nn.ReLU()
 
         self.conv_layer_3 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
+        self.bn_3 = torch.nn.BatchNorm2d(64)
         self.relu_3 = torch.nn.ReLU()
 
         self.conv_layer_4 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
+        self.bn_4 = torch.nn.BatchNorm2d(128)
         self.relu_4 = torch.nn.ReLU()
 
         self.conv_layer_5 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn_5 = torch.nn.BatchNorm2d(128)
         self.relu_5 = torch.nn.ReLU()
 
         self.conv_layer_6_t = torch.nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=2, stride=2, bias=False)
 
         self.conv_layer_7 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn_6 = torch.nn.BatchNorm2d(128)
         self.relu_6 = torch.nn.ReLU()
 
         self.conv_layer_new_8 = torch.nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn_7 = torch.nn.BatchNorm2d(64)
         self.relu_new_7 = torch.nn.ReLU()
 
         self.conv_layer_8 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn_8 = torch.nn.BatchNorm2d(64)
         self.relu_7 = torch.nn.ReLU()
 
         self.conv_layer_9_t = torch.nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, bias=False)
 
         self.conv_layer_10 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn_9 = torch.nn.BatchNorm2d(64)
         self.relu_8 = torch.nn.ReLU()
 
         self.conv_layer_11 = torch.nn.Conv2d(in_channels=96, out_channels=49, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn_10 = torch.nn.BatchNorm2d(49)
         self.relu_9 = torch.nn.ReLU()
 
         '''
@@ -179,26 +189,33 @@ class AdaptiveFusion(torch.nn.Module):
     def forward(self, x_input):
 
         x_1 = self.conv_layer_1(x_input)
+        x_1 = self.bn_1(x_1)
         x_1 = self.relu_1(x_1)
 
         x_2 = self.conv_layer_2(x_1)
+        x_2 = self.bn_2(x_2)
         x_2 = self.relu_2(x_2) # residual connection output
 
         x_3 = self.conv_layer_3(x_2)
+        x_3 = self.bn_3(x_3)
         x_3 = self.relu_3(x_3) # residual connection output
 
         x_4 = self.conv_layer_4(x_3)
+        x_4 = self.bn_4(x_4)
         x_4 = self.relu_4(x_4)
 
         x_5 = self.conv_layer_5(x_4)
+        x_5 = self.bn_5(x_5)
         x_5 = self.relu_5(x_5)
 
         x_6 = self.conv_layer_6_t(x_5)
 
         x_7 = self.conv_layer_7(x_6)
+        x_7 = self.bn_6(x_7)
         x_7 = self.relu_6(x_7)
 
         x_8_new = self.conv_layer_new_8(x_7)
+        x_8_new = self.bn_7(x_8_new)
         x_8_new = self.relu_new_7(x_8_new)
 
         # x_8_in = torch.add_(x_3, x_8_new)
@@ -209,24 +226,97 @@ class AdaptiveFusion(torch.nn.Module):
 
         # x_8_in = torch.cat((x_3, x_8_new), axis=1)
         x_8 = self.conv_layer_8(x_8_in)
+        x_8 = self.bn_8(x_8)
         x_8 = self.relu_7(x_8)
         k_non_TA = x_8[:,0:49]              #sliced first 49 channels for non ta kernel map
 
         x_9 = self.conv_layer_9_t(x_8)
 
         x_10 = self.conv_layer_10(x_9)
+        x_10 = self.bn_9(x_10)
         x_10 = self.relu_8(x_10)
 
         # x_11_in = torch.add_(x_2, x_10)
         x_11_in = torch.cat((x_2, x_10), axis=1)
         x_11 = self.conv_layer_11(x_11_in)
+        x_11 = self.bn_10(x_11)
         x_11 = self.relu_9(x_11)
         k_TA = x_11
 
         return k_non_TA, k_TA
 
+class WeightCNN(torch.nn.Module):
+    def __init__(self, device=None, pretrained_model=None, state_dict=None, deployed=False):
+        super().__init__()
+
+        self.device = device
+        self.deployed = deployed
+
+        # CNN 3 (weight prediction)
+        # if not deployed:
+        self.conv_layer1_1 = torch.nn.Conv2d(in_channels=6, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_layer1_3 = torch.nn.Conv2d(in_channels=6, out_channels=3, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer1_5 = torch.nn.Conv2d(in_channels=6, out_channels=3, kernel_size=5, stride=1, padding=2, bias=False)
+        self.lrelu = torch.nn.LeakyReLU(0.1)
+
+        self.conv_layer2_1 = torch.nn.Conv2d(in_channels=3, out_channels=1, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_layer2_3 = torch.nn.Conv2d(in_channels=3, out_channels=1, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer2_5 = torch.nn.Conv2d(in_channels=3, out_channels=1, kernel_size=5, stride=1, padding=2, bias=False)
+        self.sigmoid = torch.nn.Sigmoid()
+
+        self.conv_layer_1 = None
+        self.conv_layer_2 = None
+
+        # else:
+            # self.conv_layer1_1 = torch.nn.Conv2d(in_channels=6, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
+            # self.conv_layer1_3 = torch.nn.Conv2d(in_channels=6, out_channels=3, kernel_size=3, stride=1, padding=1, bias=False)
+            # self.conv_layer1_5 = torch.nn.Conv2d(in_channels=6, out_channels=3, kernel_size=5, stride=1, padding=2, bias=False)
+            # self.lrelu = torch.nn.LeakyReLU(0.1)
+# 
+            # self.conv_layer2_1 = torch.nn.Conv2d(in_channels=3, out_channels=1, kernel_size=1, stride=1, padding=0, bias=False)
+            # self.conv_layer2_3 = torch.nn.Conv2d(in_channels=3, out_channels=1, kernel_size=3, stride=1, padding=1, bias=False)
+            # self.conv_layer2_5 = torch.nn.Conv2d(in_channels=3, out_channels=1, kernel_size=5, stride=1, padding=2, bias=False)
+            # self.sigmoid = torch.nn.Sigmoid()
+
+            # conv_layer1_1 = pretrained_model.weight_cnn.conv_layer1_1
+            # conv_layer1_3 = pretrained_model.weight_cnn.conv_layer1_3
+            # conv_layer1_5 = pretrained_model.weight_cnn.conv_layer1_5
+            # conv_layer2_1 = pretrained_model.weight_cnn.conv_layer2_1
+            # conv_layer2_3 = pretrained_model.weight_cnn.conv_layer2_3
+            # conv_layer2_5 = pretrained_model.weight_cnn.conv_layer2_5
+
+            # self.conv_layer_1 = reparametrize(pretrained_model.weight_cnn.conv_layer1_1, pretrained_model.weight_cnn.conv_layer1_3, pretrained_model.weight_cnn.conv_layer1_5)
+            # self.conv_layer_1 = reparametrize(self.conv_layer1_1, self.conv_layer1_3, self.conv_layer1_5)
+
+            # self.conv_layer_2 = reparametrize(pretrained_model.weight_cnn.conv_layer2_1, pretrained_model.weight_cnn.conv_layer2_3, pretrained_model.weight_cnn.conv_layer2_5)
+            # self.conv_layer_2 = reparametrize(self.conv_layer2_1, self.conv_layer2_3, self.conv_layer2_5)
+
+    def forward(self, x_input):
+        # two tone mapped irradiance maps concatenated
+        if not self.deployed:
+            x1_weight_1 = self.conv_layer1_1(x_input)
+            x1_weight_3 = self.conv_layer1_3(x_input)
+            x1_weight_5 = self.conv_layer1_5(x_input)
+            x1_weight_out = self.lrelu(x1_weight_1 + x1_weight_3 + x1_weight_5)
+
+            x2_weight_1 = self.conv_layer2_1(x1_weight_out)
+            x2_weight_3 = self.conv_layer2_3(x1_weight_out)
+            x2_weight_5 = self.conv_layer2_5(x1_weight_out)
+            x2_final_weight_out = self.sigmoid(x2_weight_1 + x2_weight_3 + x2_weight_5)
+
+        else:
+            x1_weight = self.conv_layer_1(x_input)
+            x1_weight_out = self.lrelu(x1_weight)
+
+            x2_weight = self.conv_layer_2(x1_weight_out)
+            x2_final_weight_out =  self.sigmoid(x2_weight)
+
+        return x2_final_weight_out
+
+
+
 class RepVGG(torch.nn.Module):
-    def __init__(self, device, deployed=False, pretrained_model=None, ss_non_ta=16, sr_non_ta=16, ss_ta=4, sr_ta=4):
+    def __init__(self, device, deployed=False, pretrained_model=None, state_dict_preload=None, ss_non_ta=16, sr_non_ta=16, ss_ta=4, sr_ta=4):
         super().__init__()
         # define convolutional layers
         # 4 output channels (weight map 1 (1 channel), weight map 2 (1 channel), guide 1 (1 channel), guide 2 (1 channel))
@@ -259,10 +349,16 @@ class RepVGG(torch.nn.Module):
         self.final = None
 
         self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
+        self.weight_cnn = WeightCNN(device, pretrained_model, state_dict=state_dict_preload, deployed=deployed).to(device)
 
         self.downsampler = torch.nn.AvgPool2d(2, stride = 2)
         self.upsampler = torch.nn.Upsample(scale_factor=2)
 
+        torch.autograd.set_detect_anomaly(True)
+
+    def init_deployed_conv_layers(self):
+        self.weight_cnn.conv_layer_1 = reparametrize(self.weight_cnn.conv_layer1_1, self.weight_cnn.conv_layer1_3, self.weight_cnn.conv_layer1_5)
+        self.weight_cnn.conv_layer_2 = reparametrize(self.weight_cnn.conv_layer2_1, self.weight_cnn.conv_layer2_3, self.weight_cnn.conv_layer2_5)
 
     # @profile
     def forward(self, raw_inputs):
@@ -292,47 +388,70 @@ class RepVGG(torch.nn.Module):
         # x_input_non_TA = torch.cat((x_tone_mapped_non_TA_frame, raw_inputs[:, 6:16]), axis=1)
         # x_input_TA = torch.cat((x_tone_mapped_TA_frame, raw_inputs[:, 6:16]), axis=1)
 
+        downsampled_irr_non_TA = self.downsampler(x_irradiance_non_TA)
 
         B,_,H_ta,W_ta = x_irradiance_TA.shape
-        _,_,H_non_ta,W_non_ta = x_irradiance_non_TA.shape
+        _,_,H_non_ta,W_non_ta = downsampled_irr_non_TA.shape
         kernels_num_channels=49
         kernels_size = 7
 
-        downsampled_irr_non_TA = self.downsampler(x_irradiance_non_TA)
-        TA_denoised = torch.empty((B,3,H_ta,W_ta), dtype=x_irradiance_TA.dtype, device=self.device)
-        Non_TA_denoised = torch.empty((B,3,H_ta,W_ta), dtype=x_irradiance_non_TA.dtype, device=self.device)
-
+        TA_denoised = torch.empty((B, 3, H_ta, W_ta), dtype=x_irradiance_TA.dtype, device=self.device)
+        Non_TA_denoised = torch.empty((B, 3, H_non_ta, W_non_ta), dtype=x_irradiance_non_TA.dtype, device=self.device)
 
         for i in range(3):
-            TA_irr_channel = x_irradiance_TA[:,i:(i+1)]
-            non_TA_irr_channel = downsampled_irr_non_TA[:,i:(i+1)]
+            TA_irr_channel = x_irradiance_TA[:, i:(i+1)]
+            non_TA_irr_channel = downsampled_irr_non_TA[:, i:(i+1)]
 
             #irradiance_TA denoising
-            TA_unfolded = torch.nn.functional.unfold(TA_irr_channel,kernel_size=kernels_size,padding=3,stride=1)
-            kernel_TA_unfolded_format = kernel_TA.reshape(B,kernels_num_channels, H_ta*W_ta)
-            TA_input_kernel_multipliaction = kernel_TA_unfolded_format*TA_unfolded
+            TA_unfolded = torch.nn.functional.unfold(TA_irr_channel, kernel_size=kernels_size, padding=3, stride=1)
+            kernel_TA_unfolded_format = kernel_TA.reshape(B, kernels_num_channels, H_ta*W_ta)
+            TA_input_kernel_multipliaction = kernel_TA_unfolded_format * TA_unfolded
             TA_out_flat = TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
-            TA_out = TA_out_flat.reshape(B,1,H_ta,W_ta)
-            TA_norm = kernel_TA.sum(dim=1,keepdim=True)
-            TA_out = TA_out / TA_norm
+            TA_out = TA_out_flat.reshape(B, 1, H_ta, W_ta)
+            TA_norm = kernel_TA.sum(dim=1, keepdim=True)
+            TA_out = TA_out / (TA_norm + 0.00001)
 
-            TA_denoised[:,i:(i+1)]=TA_out
+            TA_denoised[:, i:(i+1)] = TA_out
 
             #irradiance_non_TA denoising
-            non_TA_unfolded = torch.nn.functional.unfold(non_TA_irr_channel,kernel_size=kernels_size,padding=3,stride=1)
+            non_TA_unfolded = torch.nn.functional.unfold(non_TA_irr_channel, kernel_size=kernels_size, padding=3, stride=1)
             kernel_non_TA_unfolded_format = kernel_non_TA.reshape(B,kernels_num_channels, H_non_ta*W_non_ta)
-            Non_TA_input_kernel_multipliaction = kernel_non_TA_unfolded_format*non_TA_unfolded
+            Non_TA_input_kernel_multipliaction = kernel_non_TA_unfolded_format * non_TA_unfolded
             Non_TA_out_flat = Non_TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
-            Non_TA_out = Non_TA_out_flat.reshape(B,1,H_non_ta,W_non_ta)
-            Non_TA_norm = kernel_non_TA.sum(dim=1,keepdim=True)
-            Non_TA_out = Non_TA_out / Non_TA_norm
+            Non_TA_out = Non_TA_out_flat.reshape(B, 1, H_non_ta, W_non_ta)
+            Non_TA_norm = kernel_non_TA.sum(dim=1, keepdim=True)
+            Non_TA_out = Non_TA_out / (Non_TA_norm + 0.00001)
 
-            Non_TA_denoised[:,i:(i+1)]=Non_TA_out
+            Non_TA_denoised[:, i:(i+1)] = Non_TA_out
 
+        Non_TA_denoised = self.upsampler(Non_TA_denoised)
+
+        TA_denoised_tone_mapped = utils.tone_mapping(TA_denoised)
+        Non_TA_denoised_tone_mapped = utils.tone_mapping(Non_TA_denoised)
+
+        weight_input = torch.cat((Non_TA_denoised_tone_mapped, TA_denoised_tone_mapped), axis=1)
+
+        weight = self.weight_cnn(weight_input)
+
+        # print("min = ", torch.min(weight))
+        # print("max = ", torch.max(weight))
+
+        downsampled_TA_denoised = self.downsampler(TA_denoised)
+        upsampled_TA_denoised = self.upsampler(downsampled_TA_denoised)
+
+        # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
+        # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
+        # final = torch.clamp(TA_denoised - weight, min=0.0) * upsampled_TA_denoised + (weight * Non_TA_denoised)
+        final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
+        final = x_albedo * final_irradiance
+        # final = torch.clamp(TA_denoised - upsampled_TA_denoised, min=0.0) + torch.clamp(Non_TA_denoised, min=0.0)
+
+
+        return final.permute((0, 2, 3, 1))
+        # return TA_denoised.permute((0, 2, 3, 1))
+        # return kernel_TA[:, 0:3].permute((0, 2, 3, 1))
         
 
-
-        
 
 '''
 class RepVGG(torch.nn.Module):
