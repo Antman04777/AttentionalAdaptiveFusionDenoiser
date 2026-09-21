@@ -17,10 +17,10 @@ def test(model, device, dataloader, save_dir=''):
     # with torch.no_grad():
     with torch.inference_mode():
         for test_img_idx, (inputs, references) in enumerate(dataloader):
-            # inputs = inputs.to(device, non_blocking=True)
-            inputs = inputs.to(device, non_blocking=True).half()
-            # references = references.to(device, non_blocking = True)
-            references = references.to(device, non_blocking = True).half()
+            inputs = inputs.to(device, non_blocking=True)
+            # inputs = inputs.to(device, non_blocking=True).half()
+            references = references.to(device, non_blocking = True)
+            # references = references.to(device, non_blocking = True).half()
 
             #
             outputs = model(inputs).detach()
@@ -28,8 +28,8 @@ def test(model, device, dataloader, save_dir=''):
                 # outputs = model(inputs).detach()
             #
 
-            output = outputs.cpu().numpy()[0]
-            reference = references.cpu().numpy()[0].transpose((1, 2, 0))
+            output = outputs.float().cpu().numpy()[0]
+            reference = references.float().cpu().numpy()[0].transpose((1, 2, 0))
 
             SSIM, PSNR = utils.compute_metrics(reference, output)
             SSIMs.append(SSIM)
@@ -73,10 +73,10 @@ def time_inference(model, device, dataloader, steps=60):
         for test_img_idx, (inputs, references) in enumerate(dataloader):
             cache_tensor.zero_() # perform cache flush for more accurate measurement
 
-            # inputs = inputs.to(device, non_blocking=True)
-            inputs = inputs.to(device, non_blocking=True).half()
-            # references = references.to(device, non_blocking = True)
-            references = references.to(device, non_blocking = True).half()
+            inputs = inputs.to(device, non_blocking=True)
+            # inputs = inputs.to(device, non_blocking=True).half()
+            references = references.to(device, non_blocking = True)
+            # references = references.to(device, non_blocking = True).half()
 
             start_events[test_img_idx].record()
             # outputs = model(inputs).detach()
@@ -92,6 +92,11 @@ def time_inference(model, device, dataloader, steps=60):
 
         return average_inference_time
 
+activation = {}
+def get_activation(name):
+    def hook(model, input, output):
+        activation[name] = output.detach()
+    return hook
 
 if __name__ == '__main__':
     # torch.manual_seed(2809)
@@ -132,11 +137,24 @@ if __name__ == '__main__':
     checkpoint = torch.load(os.path.join(model_saving_dir, 'model.pt'), device)
 
     deployed_model = network.RepVGG(device, deployed=False, pretrained_model=None, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta).to(device)
+
+    #hooks
+    deployed_model.adaptive_fusion_conv.relu_1.register_forward_hook(get_activation('relu_1'))
+    deployed_model.adaptive_fusion_conv.relu_2.register_forward_hook(get_activation('relu_2'))
+    deployed_model.adaptive_fusion_conv.relu_3.register_forward_hook(get_activation('relu_3'))
+    deployed_model.adaptive_fusion_conv.relu_4.register_forward_hook(get_activation('relu_4'))
+    deployed_model.adaptive_fusion_conv.relu_5.register_forward_hook(get_activation('relu_5'))
+    deployed_model.adaptive_fusion_conv.relu_6.register_forward_hook(get_activation('relu_6'))
+    deployed_model.adaptive_fusion_conv.relu_new_7.register_forward_hook(get_activation('relu_new_7'))
+    deployed_model.adaptive_fusion_conv.relu_8.register_forward_hook(get_activation('relu_7'))
+    deployed_model.adaptive_fusion_conv.relu_9.register_forward_hook(get_activation('relu_8'))
+    #
+
     deployed_model.load_state_dict(checkpoint['model_state_dict'])
     deployed_model.deployed = True
     deployed_model.init_deployed_conv_layers()
-    deployed_model = deployed_model.half()
-    # deployed_model = torch.compile(deployed_model)
+    # deployed_model = deployed_model.half()
+    deployed_model = torch.compile(deployed_model)
     SSIM_mean, PSNR_mean = test(deployed_model, device, test_dataloader, test_saving_dir)
 
     timing_dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=0, pin_memory=True)
@@ -144,3 +162,5 @@ if __name__ == '__main__':
     print(f'Average inference time = {average_inference_time}')
 
     utils.record_test_results(test_scene, experiment, device_name, ss_ta, sr_ta, ss_non_ta, sr_non_ta, PSNR_mean, SSIM_mean, average_inference_time, test_saving_dir)
+
+    print(activation)
