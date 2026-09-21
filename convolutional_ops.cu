@@ -3,8 +3,10 @@
 #include <cuda_fp16.h>
 #include <ATen/cuda/detail/KernelUtils.h>
 
+
 namespace
 {
+#if defined(USE_ROCM) || defined(TORCH_USE_HIP_DSA)
     __device__ inline __half operator+(const __half &a, const __half &b)
     {
         return __hadd(a, b);
@@ -30,6 +32,7 @@ namespace
         a = __hadd(a, b);
         return a;
     }
+#endif
 }
 
 __global__ void apply_kernel_maps_to_irradiance_maps
