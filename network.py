@@ -62,7 +62,7 @@ class AttentionModule(torch.nn.Module):
         width = x_input.shape[3]
 
         reduced_input = self.conv_compress_layer(x_input)
-        reduced_input = self.bn_compress(reduced_input)
+        #reduced_input = self.bn_compress(reduced_input)
 
         height_width_tensor = reduced_input
         height_channel_tensor = reduced_input.permute((0, 3, 2, 1))
@@ -73,13 +73,13 @@ class AttentionModule(torch.nn.Module):
         channel_width_tensor_pooled = torch.mean(channel_width_tensor, dim=1, keepdim=True)
 
         height_width_tensor_pooled_conv = self.conv_branch_1(height_width_tensor_pooled)
-        height_width_tensor_pooled_conv = self.bn_branch_1(height_width_tensor_pooled_conv)
+        #height_width_tensor_pooled_conv = self.bn_branch_1(height_width_tensor_pooled_conv)
 
         height_channel_tensor_pooled_conv = self.conv_branch_2(height_channel_tensor_pooled)
-        height_channel_tensor_pooled_conv = self.bn_branch_2(height_channel_tensor_pooled_conv)
+        #height_channel_tensor_pooled_conv = self.bn_branch_2(height_channel_tensor_pooled_conv)
 
         channel_width_tensor_pooled_conv = self.conv_branch_3(channel_width_tensor_pooled)
-        channel_width_tensor_pooled_conv = self.bn_branch_3(channel_width_tensor_pooled_conv)
+        #channel_width_tensor_pooled_conv = self.bn_branch_3(channel_width_tensor_pooled_conv)
 
         height_width_tensor_pooled_conv_reshaped = height_width_tensor_pooled_conv
         height_channel_tensor_pooled_conv_reshaped = height_channel_tensor_pooled_conv.permute((0, 3, 2, 1))
@@ -93,7 +93,7 @@ class AttentionModule(torch.nn.Module):
         combined_tensor_expanded = combined_tensor_expanded / 3.0
 
         combined_tensor_expanded = self.conv_decompress_layer(combined_tensor_expanded)
-        combined_tensor_expanded = self.bn_decompress(combined_tensor_expanded)
+        #combined_tensor_expanded = self.bn_decompress(combined_tensor_expanded)
 
         alpha = self.sigmoid(combined_tensor_expanded)
 
@@ -189,33 +189,33 @@ class AdaptiveFusion(torch.nn.Module):
     def forward(self, x_input):
 
         x_1 = self.conv_layer_1(x_input)
-        x_1 = self.bn_1(x_1)
+        #x_1 = self.bn_1(x_1)
         x_1 = self.relu_1(x_1)
 
         x_2 = self.conv_layer_2(x_1)
-        x_2 = self.bn_2(x_2)
+        #x_2 = self.bn_2(x_2)
         x_2 = self.relu_2(x_2) # residual connection output
 
         x_3 = self.conv_layer_3(x_2)
-        x_3 = self.bn_3(x_3)
+        #x_3 = self.bn_3(x_3)
         x_3 = self.relu_3(x_3) # residual connection output
 
         x_4 = self.conv_layer_4(x_3)
-        x_4 = self.bn_4(x_4)
+        #x_4 = self.bn_4(x_4)
         x_4 = self.relu_4(x_4)
 
         x_5 = self.conv_layer_5(x_4)
-        x_5 = self.bn_5(x_5)
+        #x_5 = self.bn_5(x_5)
         x_5 = self.relu_5(x_5)
 
         x_6 = self.conv_layer_6_t(x_5)
 
         x_7 = self.conv_layer_7(x_6)
-        x_7 = self.bn_6(x_7)
+        #x_7 = self.bn_6(x_7)
         x_7 = self.relu_6(x_7)
 
         x_8_new = self.conv_layer_new_8(x_7)
-        x_8_new = self.bn_7(x_8_new)
+        #x_8_new = self.bn_7(x_8_new)
         x_8_new = self.relu_new_7(x_8_new)
 
         # x_8_in = torch.add_(x_3, x_8_new)
@@ -226,20 +226,20 @@ class AdaptiveFusion(torch.nn.Module):
 
         # x_8_in = torch.cat((x_3, x_8_new), axis=1)
         x_8 = self.conv_layer_8(x_8_in)
-        x_8 = self.bn_8(x_8)
+        #x_8 = self.bn_8(x_8)
         x_8 = self.relu_7(x_8)
         k_non_TA = x_8[:,0:49]              #sliced first 49 channels for non ta kernel map
 
         x_9 = self.conv_layer_9_t(x_8)
 
         x_10 = self.conv_layer_10(x_9)
-        x_10 = self.bn_9(x_10)
+        #x_10 = self.bn_9(x_10)
         x_10 = self.relu_8(x_10)
 
         # x_11_in = torch.add_(x_2, x_10)
         x_11_in = torch.cat((x_2, x_10), axis=1)
         x_11 = self.conv_layer_11(x_11_in)
-        x_11 = self.bn_10(x_11)
+        #x_11 = self.bn_10(x_11)
         x_11 = self.relu_9(x_11)
         k_TA = x_11
 
