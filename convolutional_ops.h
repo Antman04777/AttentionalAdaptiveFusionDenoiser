@@ -11,7 +11,6 @@
 void apply_kernel_maps_to_irradiance_maps_launcher
 (
     torch::Tensor input_irradiance,
-    torch::Tensor albedo,
     torch::Tensor kernel_maps,
     torch::Tensor output
 );

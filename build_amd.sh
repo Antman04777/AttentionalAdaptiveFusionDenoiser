@@ -1,4 +1,4 @@
-hipify-perl bilateral_grid_kernels.cu > bilateral_grid_kernels.hip
+hipify-perl convolutional_ops.cu > convolutional_ops.hip
 rm -rf build
 mkdir build
 cd build

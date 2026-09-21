@@ -1,6 +1,7 @@
 import torch
 import numpy as np
-import bilateral_ops
+# import bilateral_ops
+import convolutional_ops
 import utils
 
 import pyexr
@@ -390,39 +391,44 @@ class RepVGG(torch.nn.Module):
 
         downsampled_irr_non_TA = self.downsampler(x_irradiance_non_TA)
 
-        B,_,H_ta,W_ta = x_irradiance_TA.shape
-        _,_,H_non_ta,W_non_ta = downsampled_irr_non_TA.shape
-        kernels_num_channels=49
-        kernels_size = 7
+        if not self.deployed:
+            B,_,H_ta,W_ta = x_irradiance_TA.shape
+            _,_,H_non_ta,W_non_ta = downsampled_irr_non_TA.shape
+            kernels_num_channels=49
+            kernels_size = 7
 
-        TA_denoised = torch.empty((B, 3, H_ta, W_ta), dtype=x_irradiance_TA.dtype, device=self.device)
-        Non_TA_denoised = torch.empty((B, 3, H_non_ta, W_non_ta), dtype=x_irradiance_non_TA.dtype, device=self.device)
+            TA_denoised = torch.empty((B, 3, H_ta, W_ta), dtype=x_irradiance_TA.dtype, device=self.device)
+            Non_TA_denoised = torch.empty((B, 3, H_non_ta, W_non_ta), dtype=x_irradiance_non_TA.dtype, device=self.device)
 
-        for i in range(3):
-            TA_irr_channel = x_irradiance_TA[:, i:(i+1)]
-            non_TA_irr_channel = downsampled_irr_non_TA[:, i:(i+1)]
+            for i in range(3):
+                TA_irr_channel = x_irradiance_TA[:, i:(i+1)]
+                non_TA_irr_channel = downsampled_irr_non_TA[:, i:(i+1)]
 
-            #irradiance_TA denoising
-            TA_unfolded = torch.nn.functional.unfold(TA_irr_channel, kernel_size=kernels_size, padding=3, stride=1)
-            kernel_TA_unfolded_format = kernel_TA.reshape(B, kernels_num_channels, H_ta*W_ta)
-            TA_input_kernel_multipliaction = kernel_TA_unfolded_format * TA_unfolded
-            TA_out_flat = TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
-            TA_out = TA_out_flat.reshape(B, 1, H_ta, W_ta)
-            TA_norm = kernel_TA.sum(dim=1, keepdim=True)
-            TA_out = TA_out / (TA_norm + 0.00001)
+                #irradiance_TA denoising
+                TA_unfolded = torch.nn.functional.unfold(TA_irr_channel, kernel_size=kernels_size, padding=3, stride=1)
+                kernel_TA_unfolded_format = kernel_TA.reshape(B, kernels_num_channels, H_ta*W_ta)
+                TA_input_kernel_multipliaction = kernel_TA_unfolded_format * TA_unfolded
+                TA_out_flat = TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
+                TA_out = TA_out_flat.reshape(B, 1, H_ta, W_ta)
+                TA_norm = kernel_TA.sum(dim=1, keepdim=True)
+                TA_out = TA_out / (TA_norm + 0.00001)
 
-            TA_denoised[:, i:(i+1)] = TA_out
+                TA_denoised[:, i:(i+1)] = TA_out
 
-            #irradiance_non_TA denoising
-            non_TA_unfolded = torch.nn.functional.unfold(non_TA_irr_channel, kernel_size=kernels_size, padding=3, stride=1)
-            kernel_non_TA_unfolded_format = kernel_non_TA.reshape(B,kernels_num_channels, H_non_ta*W_non_ta)
-            Non_TA_input_kernel_multipliaction = kernel_non_TA_unfolded_format * non_TA_unfolded
-            Non_TA_out_flat = Non_TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
-            Non_TA_out = Non_TA_out_flat.reshape(B, 1, H_non_ta, W_non_ta)
-            Non_TA_norm = kernel_non_TA.sum(dim=1, keepdim=True)
-            Non_TA_out = Non_TA_out / (Non_TA_norm + 0.00001)
+                #irradiance_non_TA denoising
+                non_TA_unfolded = torch.nn.functional.unfold(non_TA_irr_channel, kernel_size=kernels_size, padding=3, stride=1)
+                kernel_non_TA_unfolded_format = kernel_non_TA.reshape(B,kernels_num_channels, H_non_ta*W_non_ta)
+                Non_TA_input_kernel_multipliaction = kernel_non_TA_unfolded_format * non_TA_unfolded
+                Non_TA_out_flat = Non_TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
+                Non_TA_out = Non_TA_out_flat.reshape(B, 1, H_non_ta, W_non_ta)
+                Non_TA_norm = kernel_non_TA.sum(dim=1, keepdim=True)
+                Non_TA_out = Non_TA_out / (Non_TA_norm + 0.00001)
 
-            Non_TA_denoised[:, i:(i+1)] = Non_TA_out
+                Non_TA_denoised[:, i:(i+1)] = Non_TA_out
+        else:
+            # custom cuda kernels
+            Non_TA_denoised = convolutional_ops.apply_kernel_maps_to_irradiance_maps_launcher(downsampled_irr_non_TA, kernel_non_TA)
+            TA_denoised = convolutional_ops.apply_kernel_maps_to_irradiance_maps_launcher(x_irradiance_TA, kernel_TA)
 
         Non_TA_denoised = self.upsampler(Non_TA_denoised)
 
