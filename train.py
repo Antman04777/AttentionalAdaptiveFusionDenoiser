@@ -175,7 +175,8 @@ if __name__ == "__main__":
         lower_bound = previously_elapsed_epochs + 1
     else:
         writer = SummaryWriter(tensorboard_saving_dir)
-        
+
+    # model = torch.compile(model)
     utils.record_training_parameters(learning_rate, epochs, epochs_validate, batch_size, current_testing_scene_name, experiment, device_name, model.ss_ta, model.sr_ta, model.ss_non_ta, model.sr_non_ta, loss_function, model_saving_dir)
 
     for epoch in range(lower_bound, upper_bound):
