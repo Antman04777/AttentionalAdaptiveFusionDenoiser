@@ -139,15 +139,15 @@ if __name__ == '__main__':
     deployed_model = network.RepVGG(device, deployed=False, pretrained_model=None, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta).to(device)
 
     # debug hooks
-    deployed_model.adaptive_fusion_conv.relu_1.register_forward_hook(get_activation('relu_1'))
-    deployed_model.adaptive_fusion_conv.relu_2.register_forward_hook(get_activation('relu_2'))
-    deployed_model.adaptive_fusion_conv.relu_3.register_forward_hook(get_activation('relu_3'))
-    deployed_model.adaptive_fusion_conv.relu_4.register_forward_hook(get_activation('relu_4'))
-    deployed_model.adaptive_fusion_conv.relu_5.register_forward_hook(get_activation('relu_5'))
-    deployed_model.adaptive_fusion_conv.relu_6.register_forward_hook(get_activation('relu_6'))
-    deployed_model.adaptive_fusion_conv.relu_new_7.register_forward_hook(get_activation('relu_new_7'))
-    deployed_model.adaptive_fusion_conv.relu_8.register_forward_hook(get_activation('relu_7'))
-    deployed_model.adaptive_fusion_conv.relu_9.register_forward_hook(get_activation('relu_8'))
+    # deployed_model.adaptive_fusion_conv.relu_1.register_forward_hook(get_activation('relu_1'))
+    # deployed_model.adaptive_fusion_conv.relu_2.register_forward_hook(get_activation('relu_2'))
+    # deployed_model.adaptive_fusion_conv.relu_3.register_forward_hook(get_activation('relu_3'))
+    # deployed_model.adaptive_fusion_conv.relu_4.register_forward_hook(get_activation('relu_4'))
+    # deployed_model.adaptive_fusion_conv.relu_5.register_forward_hook(get_activation('relu_5'))
+    # deployed_model.adaptive_fusion_conv.relu_6.register_forward_hook(get_activation('relu_6'))
+    # deployed_model.adaptive_fusion_conv.relu_new_7.register_forward_hook(get_activation('relu_new_7'))
+    # deployed_model.adaptive_fusion_conv.relu_8.register_forward_hook(get_activation('relu_7'))
+    # deployed_model.adaptive_fusion_conv.relu_9.register_forward_hook(get_activation('relu_8'))
     #
 
     deployed_model.load_state_dict(checkpoint['model_state_dict'])
