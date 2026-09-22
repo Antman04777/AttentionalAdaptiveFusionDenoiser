@@ -37,12 +37,11 @@ def test(model, device, dataloader, save_dir=''):
 
             pyexr.write(os.path.join(save_dir, str(test_img_idx)+".exr"), output)
 
-    # irr_non_ta_denoised = model.irradiance_non_TA_denoised.cpu().numpy()[0]
-    # irr_ta_denoised = model.irradiance_TA_denoised.cpu().numpy()[0]
-    # irr_final = model.irradiance_final.cpu().numpy()[0]
-    # pyexr.write(os.path.join(save_dir, 'irr_non_ta_denoised.exr'), irr_non_ta_denoised)
-    # pyexr.write(os.path.join(save_dir, 'irr_ta_denoised.exr'), irr_ta_denoised)
-    # pyexr.write(os.path.join(save_dir, 'irr_final.exr'), irr_final)
+            irr_non_ta_denoised = model.fnta.cpu().numpy()[0].transpose((1, 2, 0))
+            irr_ta_denoised = model.fta.cpu().numpy()[0].transpose((1, 2, 0))
+            # irr_final = model.irradiance_final.cpu().numpy()[0]
+            pyexr.write(os.path.join(save_dir, f'irr_non_ta_denoised-{test_img_idx}.exr'), irr_non_ta_denoised)
+            pyexr.write(os.path.join(save_dir, f'irr_ta_denoised-{test_img_idx}.exr'), irr_ta_denoised)
 
     print("Test: ")
     SSIM_mean = np.mean(SSIMs)

@@ -188,8 +188,10 @@ if __name__ == "__main__":
             ssim_val, psnr_val = validate(model, device, dataloader_val, loss_func=loss_function)
             writer.add_scalar("SSIM-val", ssim_val, epoch)
             writer.add_scalar("PSNR-val", psnr_val, epoch)
-            
+
             torch.save({'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, os.path.join(model_saving_dir, "model.pt"))
+            if epoch + 1 > 200:
+                torch.save({'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, os.path.join(model_saving_dir, f"model-epoch-{epoch+1}.pt"))
 
         with open(parameters_path, 'r+') as f:
             parameters_json = json.load(f)

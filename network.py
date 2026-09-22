@@ -108,17 +108,18 @@ class AdaptiveFusion(torch.nn.Module):
 
         self.num_input_channels = num_input_channels
 
-        self.attention_layer = AttentionModule(device, r=4, num_input_channels=64).to(device)
+        self.attention_layer_1 = AttentionModule(device, r=4, num_input_channels=64).to(device)
+        self.attention_layer_2 = AttentionModule(device, r=4, num_input_channels=64).to(device)
 
         self.conv_layer_1 = torch.nn.Conv2d(in_channels=self.num_input_channels, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_1 = torch.nn.BatchNorm2d(32)
         self.relu_1 = torch.nn.ReLU()
 
-        self.conv_layer_2 = torch.nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn_2 = torch.nn.BatchNorm2d(32)
+        self.conv_layer_2 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn_2 = torch.nn.BatchNorm2d(64)
         self.relu_2 = torch.nn.ReLU()
 
-        self.conv_layer_3 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv_layer_3 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn_3 = torch.nn.BatchNorm2d(64)
         self.relu_3 = torch.nn.ReLU()
 
@@ -150,7 +151,7 @@ class AdaptiveFusion(torch.nn.Module):
         self.bn_9 = torch.nn.BatchNorm2d(64)
         self.relu_8 = torch.nn.ReLU()
 
-        self.conv_layer_11 = torch.nn.Conv2d(in_channels=96, out_channels=49, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer_11 = torch.nn.Conv2d(in_channels=64, out_channels=49, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_10 = torch.nn.BatchNorm2d(49)
         self.relu_9 = torch.nn.ReLU()
 
@@ -221,9 +222,9 @@ class AdaptiveFusion(torch.nn.Module):
 
         # x_8_in = torch.add_(x_3, x_8_new)
 
-        alpha, one_minus_alpha = self.attention_layer(x_3, x_8_new)
+        alpha_1, one_minus_alpha_1 = self.attention_layer_1(x_3, x_8_new)
 
-        x_8_in = alpha * x_3 + one_minus_alpha * x_8_new
+        x_8_in = alpha_1 * x_3 + one_minus_alpha_1 * x_8_new
 
         # x_8_in = torch.cat((x_3, x_8_new), axis=1)
         x_8 = self.conv_layer_8(x_8_in)
@@ -238,7 +239,10 @@ class AdaptiveFusion(torch.nn.Module):
         x_10 = self.relu_8(x_10)
 
         # x_11_in = torch.add_(x_2, x_10)
-        x_11_in = torch.cat((x_2, x_10), axis=1)
+        # x_11_in = torch.cat((x_2, x_10), axis=1)
+        alpha_2, one_minus_alpha_2 = self.attention_layer_2(x_2, x_10)
+        x_11_in = alpha_2 * x_2 + one_minus_alpha_2 * x_10
+
         x_11 = self.conv_layer_11(x_11_in)
         x_11 = self.bn_10(x_11)
         x_11 = self.relu_9(x_11)
@@ -255,9 +259,12 @@ class WeightCNN(torch.nn.Module):
 
         # CNN 3 (weight prediction)
         # if not deployed:
-        self.conv_layer1_1 = torch.nn.Conv2d(in_channels=6, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_layer1_3 = torch.nn.Conv2d(in_channels=6, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.conv_layer1_5 = torch.nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5, stride=1, padding=2, bias=False)
+        self.input_layer = torch.nn.Conv2d(in_channels=6, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
+        self.lrelu_in = torch.nn.LeakyReLU(0.1)
+
+        self.conv_layer1_1 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_layer1_3 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer1_5 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, stride=1, padding=2, bias=False)
         self.lrelu_1 = torch.nn.LeakyReLU(0.1)
 
         self.conv_layer2_1 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
@@ -280,9 +287,12 @@ class WeightCNN(torch.nn.Module):
         self.conv_layer5_5 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, stride=1, padding=2, bias=False)
         self.lrelu_5 = torch.nn.LeakyReLU(0.1)
 
-        self.conv_layer6_1 = torch.nn.Conv2d(in_channels=16, out_channels=1, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_layer6_3 = torch.nn.Conv2d(in_channels=16, out_channels=1, kernel_size=3, stride=1, padding=1, bias=False)
-        self.conv_layer6_5 = torch.nn.Conv2d(in_channels=16, out_channels=1, kernel_size=5, stride=1, padding=2, bias=False)
+        self.conv_layer6_1 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_layer6_3 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer6_5 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, stride=1, padding=2, bias=False)
+        self.lrelu_6 = torch.nn.LeakyReLU(0.1)
+
+        self.output_layer = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
         self.sigmoid = torch.nn.Sigmoid()
 
         self.conv_layer_1 = None
@@ -319,10 +329,13 @@ class WeightCNN(torch.nn.Module):
     def forward(self, x_input):
         # two tone mapped irradiance maps concatenated
         if not self.deployed:
-            x1_1 = self.conv_layer1_1(x_input)
-            x1_3 = self.conv_layer1_3(x_input)
-            x1_5 = self.conv_layer1_5(x_input)
-            x1_out = self.lrelu_1(x1_1 + x1_3 + x1_5)
+            x_in = self.input_layer(x_input)
+            x_in = self.lrelu_in(x_in)
+
+            x1_1 = self.conv_layer1_1(x_in)
+            x1_3 = self.conv_layer1_3(x_in)
+            x1_5 = self.conv_layer1_5(x_in)
+            x1_out = self.lrelu_1(x1_1 + x1_3 + x1_5 + x_in)
 
             x2_1 = self.conv_layer2_1(x1_out)
             x2_3 = self.conv_layer2_3(x1_out)
@@ -347,11 +360,19 @@ class WeightCNN(torch.nn.Module):
             x6_1 = self.conv_layer6_1(x5_out)
             x6_3 = self.conv_layer6_3(x5_out)
             x6_5 = self.conv_layer6_5(x5_out)
-            x6_out = self.sigmoid(x6_1 + x6_3 + x6_5)
+            x6_out = self.lrelu_6(x6_1 + x6_3 + x6_5 + x5_out)
+
+            x_out = self.output_layer(x6_out)
+            x_out = self.sigmoid(x_out)
+
+            # x6_out = self.sigmoid(x6_1 + x6_3 + x6_5)
 
             
         else:
-            x1 = self.conv_layer_1(x_input)
+            x_in = self.input_layer(x_input)
+            x_in = self.lrelu_in(x_in)
+
+            x1 = self.conv_layer_1(x_in)
             x1_out = self.lrelu_1(x1)
 
             x2 = self.conv_layer_2(x1_out)
@@ -367,10 +388,12 @@ class WeightCNN(torch.nn.Module):
             x5_out = self.lrelu_5(x5)
 
             x6 = self.conv_layer_6(x5_out)
-            x6_out =  self.sigmoid(x6)
+            x6_out = self.lrelu_6(x6)
 
-            
-        return x6_out
+            x_out = self.output_layer(x6_out)
+            x_out = self.sigmoid(x6)
+
+        return x_out
 
 
 class RepVGG(torch.nn.Module):
@@ -405,6 +428,8 @@ class RepVGG(torch.nn.Module):
         self.irradiance_TA_denoised = None
         self.irradiance_final = None
         self.final = None
+        self.fta = None
+        self.fnta = None
 
         self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
         self.weight_cnn = WeightCNN(device, pretrained_model, state_dict=state_dict_preload, deployed=deployed).to(device)
@@ -415,12 +440,12 @@ class RepVGG(torch.nn.Module):
         torch.autograd.set_detect_anomaly(True)
 
     def init_deployed_conv_layers(self):
-        self.weight_cnn.conv_layer_1 = reparametrize(self.weight_cnn.conv_layer1_1, self.weight_cnn.conv_layer1_3, self.weight_cnn.conv_layer1_5)
+        self.weight_cnn.conv_layer_1 = reparametrize(self.weight_cnn.conv_layer1_1, self.weight_cnn.conv_layer1_3, self.weight_cnn.conv_layer1_5, has_identity_branch=True)
         self.weight_cnn.conv_layer_2 = reparametrize(self.weight_cnn.conv_layer2_1, self.weight_cnn.conv_layer2_3, self.weight_cnn.conv_layer2_5, has_identity_branch=True)
         self.weight_cnn.conv_layer_3 = reparametrize(self.weight_cnn.conv_layer3_1, self.weight_cnn.conv_layer3_3, self.weight_cnn.conv_layer3_5, has_identity_branch=True)
         self.weight_cnn.conv_layer_4 = reparametrize(self.weight_cnn.conv_layer4_1, self.weight_cnn.conv_layer4_3, self.weight_cnn.conv_layer4_5, has_identity_branch=True)
         self.weight_cnn.conv_layer_5 = reparametrize(self.weight_cnn.conv_layer5_1, self.weight_cnn.conv_layer5_3, self.weight_cnn.conv_layer5_5, has_identity_branch=True)
-        self.weight_cnn.conv_layer_6 = reparametrize(self.weight_cnn.conv_layer6_1, self.weight_cnn.conv_layer6_3, self.weight_cnn.conv_layer6_5)
+        self.weight_cnn.conv_layer_6 = reparametrize(self.weight_cnn.conv_layer6_1, self.weight_cnn.conv_layer6_3, self.weight_cnn.conv_layer6_5, has_identity_branch=True)
 
     # @profile
     def forward(self, raw_inputs):
@@ -499,6 +524,9 @@ class RepVGG(torch.nn.Module):
 
         TA_denoised_tone_mapped = utils.tone_mapping(TA_denoised)
         Non_TA_denoised_tone_mapped = utils.tone_mapping(Non_TA_denoised)
+
+        self.fta = TA_denoised_tone_mapped
+        self.fnta = Non_TA_denoised_tone_mapped
 
         weight_input = torch.cat((Non_TA_denoised_tone_mapped, TA_denoised_tone_mapped), axis=1)
 
