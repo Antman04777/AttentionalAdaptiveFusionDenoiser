@@ -13,6 +13,9 @@ def test(model, device, dataloader, save_dir=''):
     model.eval()
     SSIMs = []
     PSNRs = []
+    SMAPEs = []
+
+    criterion = utils.SMAPEloss().to(device)
 
     # with torch.no_grad():
     with torch.inference_mode():
@@ -27,6 +30,7 @@ def test(model, device, dataloader, save_dir=''):
             # with torch.autocast(device_type='cuda', dtype=torch.float16):
                 # outputs = model(inputs).detach()
             #
+            SMAPE = float(criterion(outputs,references).item())
 
             output = outputs.cpu().numpy()[0]
             reference = references.cpu().numpy()[0].transpose((1, 2, 0))
@@ -34,6 +38,7 @@ def test(model, device, dataloader, save_dir=''):
             SSIM, PSNR = utils.compute_metrics(reference, output)
             SSIMs.append(SSIM)
             PSNRs.append(PSNR)
+            SMAPEs.append(SMAPE)
 
             pyexr.write(os.path.join(save_dir, str(test_img_idx)+".exr"), output)
 
@@ -46,8 +51,10 @@ def test(model, device, dataloader, save_dir=''):
     print("Test: ")
     SSIM_mean = np.mean(SSIMs)
     PSNR_mean = np.mean(PSNRs)
+    SMAPE_mean = np.mean(SMAPE)
     print("mean SSIM: ", SSIM_mean)
     print("mean PSNR: ", PSNR_mean)
+    print("mean SMAPE: ", SMAPE_mean)
     SSIMs.append(SSIM_mean)
     PSNRs.append(PSNR_mean)
     np.savetxt(os.path.join(save_dir, 'ssim.txt'), SSIMs, fmt="%s")
