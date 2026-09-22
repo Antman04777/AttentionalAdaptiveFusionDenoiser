@@ -9,8 +9,8 @@ def tone_mapping(image):
     if isinstance(image, np.ndarray):
         return np.clip(np.power(np.maximum(image, 0.0), 0.454545), 0.0, 1.0)
     elif isinstance(image, torch.Tensor):
-        return torch.pow(torch.clamp(image, min=0.0001, max=1.0), 0.454545)
-        # return torch.clamp(torch.pow(np.maximum(image, 0.0), 0.454545), min=0.0, max=1.0)
+        # return torch.pow(torch.clamp(image, min=0.0001, max=1.0), 0.454545)
+        return torch.clamp(torch.pow(torch.clamp(image, min=0.0001), 0.454545), min=0.0, max=1.0)
 
 
 def compute_metrics(reference_image, test_output_image):
