@@ -280,9 +280,9 @@ class WeightCNN(torch.nn.Module):
         self.conv_layer5_5 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, stride=1, padding=2, bias=False)
         self.lrelu_5 = torch.nn.LeakyReLU(0.1)
 
-        self.conv_layer6_1 = torch.nn.Conv2d(in_channels=16, out_channels=1, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_layer6_3 = torch.nn.Conv2d(in_channels=16, out_channels=1, kernel_size=3, stride=1, padding=1, bias=False)
-        self.conv_layer6_5 = torch.nn.Conv2d(in_channels=16, out_channels=1, kernel_size=5, stride=1, padding=2, bias=False)
+        self.conv_layer6_1 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_layer6_3 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer6_5 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=5, stride=1, padding=2, bias=False)
         self.sigmoid = torch.nn.Sigmoid()
 
         self.conv_layer_1 = None
