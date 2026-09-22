@@ -30,7 +30,7 @@ def test(model, device, dataloader, save_dir=''):
             # with torch.autocast(device_type='cuda', dtype=torch.float16):
                 # outputs = model(inputs).detach()
             #
-            SMAPE = float(criterion(outputs,references).item())
+            SMAPE = float(criterion(outputs,references.permute((0, 2, 3, 1))).item())
 
             output = outputs.cpu().numpy()[0]
             reference = references.cpu().numpy()[0].transpose((1, 2, 0))
@@ -51,7 +51,7 @@ def test(model, device, dataloader, save_dir=''):
     print("Test: ")
     SSIM_mean = np.mean(SSIMs)
     PSNR_mean = np.mean(PSNRs)
-    SMAPE_mean = np.mean(SMAPE)
+    SMAPE_mean = np.mean(SMAPEs)
     print("mean SSIM: ", SSIM_mean)
     print("mean PSNR: ", PSNR_mean)
     print("mean SMAPE: ", SMAPE_mean)
