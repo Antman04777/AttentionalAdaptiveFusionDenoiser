@@ -13,6 +13,11 @@ def test(model, device, dataloader, save_dir=''):
     model.eval()
     SSIMs = []
     PSNRs = []
+    SMAPEs = []
+    RMSEs = []
+
+    criterion = utils.SMAPEloss().to(device)
+    criterion_RMSE = torch.nn.MSELoss()
 
     # with torch.no_grad():
     with torch.inference_mode():
@@ -28,12 +33,19 @@ def test(model, device, dataloader, save_dir=''):
                 # outputs = model(inputs).detach()
             #
 
+            SMAPE = float(criterion(outputs,references.permute((0, 2, 3, 1))).item())
+            RMSE = criterion_RMSE(outputs, references.permute((0, 2, 3, 1)))
+            RMSE = torch.sqrt(RMSE)
+            RMSE = float(RMSE.item())
+
             output = outputs.cpu().numpy()[0]
             reference = references.cpu().numpy()[0].transpose((1, 2, 0))
 
             SSIM, PSNR = utils.compute_metrics(reference, output)
             SSIMs.append(SSIM)
             PSNRs.append(PSNR)
+            SMAPEs.append(SMAPE)
+            RMSEs.append(RMSE)
 
             pyexr.write(os.path.join(save_dir, str(test_img_idx)+".exr"), output)
 
@@ -47,8 +59,12 @@ def test(model, device, dataloader, save_dir=''):
     print("Test: ")
     SSIM_mean = np.mean(SSIMs)
     PSNR_mean = np.mean(PSNRs)
+    SMAPE_mean = np.mean(SMAPEs)
+    RMSE_mean = np.mean(RMSEs)
     print("mean SSIM: ", SSIM_mean)
     print("mean PSNR: ", PSNR_mean)
+    print("mean SMAPE: ", SMAPE_mean)
+    print("mean RMSE: ", RMSE_mean)
     SSIMs.append(SSIM_mean)
     PSNRs.append(PSNR_mean)
     np.savetxt(os.path.join(save_dir, 'ssim.txt'), SSIMs, fmt="%s")
