@@ -363,7 +363,7 @@ if __name__ == "__main__":
             if not os.path.exists(dir):
                 os.makedirs(dir)
 
-        model = TransformerBlock(ch=8).to(device)
+        model = TransformerBlock(ch=8,num_heads=1).to(device)
         optimizer = torch.optim.Adam(model.parameters(), learning_rate)
 
         lower_bound = 0
@@ -438,7 +438,7 @@ if __name__ == "__main__":
         
         checkpoint = torch.load(os.path.join(model_saving_dir, 'model.pt'), device)
 
-        deployed_model = TransformerBlock(ch=8).to(device)
+        deployed_model = TransformerBlock(ch=8,num_heads=1).to(device)
 
 
         deployed_model.load_state_dict(checkpoint['model_state_dict'])
