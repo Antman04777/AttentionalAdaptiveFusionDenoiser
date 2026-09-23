@@ -24,7 +24,7 @@ def compute_metrics(reference_image, test_output_image):
     min_2 = np.min(test_output_image)
     lower = min(min_1, min_2)
 
-    SSIM = structural_similarity(reference_image, test_output_image, channel_axis = 2, data_range=(upper - lower))
+    SSIM = structural_similarity(reference_image, test_output_image, channel_axis = -1, data_range=2.0)
     PSNR = peak_signal_noise_ratio(reference_image, test_output_image)
 
     return SSIM, PSNR
