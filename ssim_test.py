@@ -1,4 +1,4 @@
-# from skimage.metrics import structural_similarity
+from skimage.metrics import structural_similarity
 from skimage.metrics import peak_signal_noise_ratio
 from skimage.metrics import mean_squared_error
 import numpy as np
@@ -24,7 +24,7 @@ def tone_mapping(image):
 #    denominator = outputs
 #    loss = np.mean(np.abs(outputs - references) / (np.abs(denominator) + np.abs(references) + 0.01))
 #    return loss
-
+'''
 def structural_similarity(im1, im2,
                           *,
                           win_size=None, gradient=False, data_range=None,
@@ -246,13 +246,11 @@ def structural_similarity(im1, im2,
             return mssim, S
         else:
             return mssim
+'''
 
 def compute_metrics(reference_image, test_output_image):
     reference_image = tone_mapping(reference_image)
     test_output_image = tone_mapping(test_output_image)
-
-    reference_image=reference_image.astype(np.uint8)
-    test_output_image=test_output_image.astype(np.uint8)
 
     max_1 = np.max(reference_image)
     max_2 = np.max(test_output_image)
@@ -264,9 +262,9 @@ def compute_metrics(reference_image, test_output_image):
 
     # SSIM = structural_similarity(reference_image, test_output_image, channel_axis = 2, data_range=(upper - lower))
     # SSIM = structural_similarity(reference_image, test_output_image, channel_axis = -1, data_range=255, gaussian_weights=True, K1=0.01, K2=0.03, sigma=1.5)
-    SSIM = structural_similarity(reference_image, test_output_image, multichannel=True)
-    # SSIM = structural_similarity(reference_image, test_output_image, channel_axis = 2)
-    PSNR = peak_signal_noise_ratio(reference_image, test_output_image, data_range=255)
+    # SSIM = structural_similarity(reference_image, test_output_image, multichannel=True)
+    SSIM = structural_similarity(reference_image, test_output_image, channel_axis = -1, data_range=2.0)
+    PSNR = peak_signal_noise_ratio(reference_image, test_output_image)
 
     criterion_SMAPE = utils.SMAPEloss()
     ref = torch.tensor(reference_image)
@@ -281,22 +279,22 @@ total_SSIM = 0
 total_PSNR = 0
 total_SMAPE = 0
 method = 'ONND'
-for i in range(1, 61):
-    if i < 10:
-        ref = Image.open(os.path.join('dataset', 'sponza', 'Reference', f'Sponza-Reference-00{i}.png'))
-        out = Image.open(os.path.join('dataset', 'sponza', method, f'Sponza-{method}-00{i}.png'))
-    else:
-        ref = Image.open(os.path.join('dataset', 'sponza', 'Reference', f'Sponza-Reference-0{i}.png'))
-        out = Image.open(os.path.join('dataset', 'sponza', method, f'Sponza-{method}-0{i}.png'))
+#for i in range(1, 61):
+#    if i < 10:
+#        ref = Image.open(os.path.join('dataset', 'sponza', 'Reference', f'Sponza-Reference-00{i}.png'))
+#        out = Image.open(os.path.join('dataset', 'sponza', method, f'Sponza-{method}-00{i}.png'))
+#    else:
+#        ref = Image.open(os.path.join('dataset', 'sponza', 'Reference', f'Sponza-Reference-0{i}.png'))
+#        out = Image.open(os.path.join('dataset', 'sponza', method, f'Sponza-{method}-0{i}.png'))
 
-#for i in range(5):
-#    # ref = Image.open(os.path.join('dataset', ''))
-#    # out = Image.open(os.path.join('dataset', 'sponza', method, f'Sponza-{method}-00{i}.png'))
-#    out = pyexr.read(os.path.join('wskpn_results', f'{i}.exr'))[:, :, :3]
-#    ref = pyexr.read(os.path.join('dataset', 'classroom', 'inputs', f'reference{i}.exr'))[:, :, :3]
+for i in range(5):
+    # ref = Image.open(os.path.join('dataset', ''))
+    # out = Image.open(os.path.join('dataset', 'sponza', method, f'Sponza-{method}-00{i}.png'))
+    out = pyexr.read(os.path.join('wskpn_results', f'{i}.exr'))[:, :, :3]
+    ref = pyexr.read(os.path.join('dataset', 'classroom', 'inputs', f'reference{i}.exr'))[:, :, :3]
 
-    ref = np.asarray(ref)
-    out = np.asarray(out)
+    ref = np.asarray(ref, dtype=np.float16)
+    out = np.asarray(out, dtype=np.float16)
 
     SSIM, PSNR, SMAPE = compute_metrics(ref, out)
     # print(f'SSIM-{i}: {SSIM}')
@@ -304,9 +302,9 @@ for i in range(1, 61):
     total_PSNR += PSNR
     total_SMAPE += SMAPE
 
-total_SSIM /= 60
-total_PSNR /= 60
-total_SMAPE /= 60
+total_SSIM /= 5
+total_PSNR /= 5
+total_SMAPE /= 5
 
 print(f'SSIM = {total_SSIM}, PSNR = {total_PSNR}, SMAPE = {total_SMAPE}')
 
