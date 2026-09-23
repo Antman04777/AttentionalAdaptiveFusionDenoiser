@@ -293,8 +293,8 @@ for i in range(5):
     out = pyexr.read(os.path.join('wskpn_results', f'{i}.exr'))[:, :, :3]
     ref = pyexr.read(os.path.join('dataset', 'classroom', 'inputs', f'reference{i}.exr'))[:, :, :3]
 
-    ref = np.asarray(ref, dtype=np.float16)
-    out = np.asarray(out, dtype=np.float16)
+    ref = np.asarray(ref, dtype=np.float32)
+    out = np.asarray(out, dtype=np.float32)
 
     SSIM, PSNR, SMAPE = compute_metrics(ref, out)
     # print(f'SSIM-{i}: {SSIM}')
