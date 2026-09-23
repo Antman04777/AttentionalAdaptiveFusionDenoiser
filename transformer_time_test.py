@@ -21,7 +21,7 @@ import torch.nn.init as init
 from torch.utils.checkpoint import checkpoint
 from einops import rearrange, repeat
 
-from train import train
+#from train import train
 from torch.utils.tensorboard import SummaryWriter
 
 import statistics
@@ -150,7 +150,8 @@ class TransformerBlock(nn.Module):
         else:
             noisy = x[0] + self.attention(x[0], x[1])
         noisy = noisy + self.feed_forward(noisy)
-        return (noisy, x[1])
+        return noisy[:,0:3]
+        #return (noisy, x[1])
 
 def test(model, device, dataloader, save_dir=''):
     model.eval()
@@ -166,6 +167,9 @@ def test(model, device, dataloader, save_dir=''):
     with torch.inference_mode():
         for test_img_idx, (inputs, references) in enumerate(dataloader):
             # inputs = inputs.to(device, non_blocking=True)
+            irraddiance = inputs[:,0:6]
+            aux = inputs[:,6:16]
+            inputs = torch.stack(irraddiance,aux) 
             inputs = inputs.to(device, non_blocking=True).half()
             # references = references.to(device, non_blocking = True)
             references = references.to(device, non_blocking = True).half()
@@ -175,7 +179,7 @@ def test(model, device, dataloader, save_dir=''):
             # with torch.autocast(device_type='cuda', dtype=torch.float16):
                 # outputs = model(inputs).detach()
             #
-
+            outputs=outputs.permute(0, 2, 3, 1)
             SMAPE = float(criterion(outputs,references.permute((0, 2, 3, 1))).item())
             RMSE = criterion_RMSE(outputs, references.permute((0, 2, 3, 1)))
             RMSE = torch.sqrt(RMSE)
@@ -233,6 +237,9 @@ def time_inference(model, device, dataloader, steps=60):
             cache_tensor.zero_() # perform cache flush for more accurate measurement
 
             # inputs = inputs.to(device, non_blocking=True)
+            irraddiance = inputs[:,0:6]
+            aux = inputs[:,6:16]
+            inputs = torch.stack(irraddiance,aux)
             inputs = inputs.to(device, non_blocking=True).half()
             # references = references.to(device, non_blocking = True)
             references = references.to(device, non_blocking = True).half()
@@ -251,6 +258,50 @@ def time_inference(model, device, dataloader, steps=60):
 
         return average_inference_time
 
+def train(model, device, dataloader, optimizer, epoch, writer, loss_func='smape'):
+    model.train()
+    losses=[]
+
+    criterion = None
+    match loss_func:
+        case 'smape':
+            criterion = utils.SMAPEloss().to(device)
+        case 'l1':
+            criterion = utils.l1_loss().to(device) #loss used by NBG
+        case _:
+            print('Invalid loss function, defaulting to SMAPE loss')
+            criterion = utils.SMAPEloss().to(device)
+
+    preloader = DatasetPreloader(loader=dataloader, device=device)
+
+    #Each iteration acts on a different batch
+    # for (inputs, references) in dataloader:
+    for (inputs, references) in preloader:
+        optimizer.zero_grad()
+        # optimizer.zero_grad(set_to_none=True)
+
+        references = references.transpose(1, 3)
+        references = references.transpose(1, 2)
+
+        irraddiance = inputs[:,0:8]
+        aux = inputs[:,8:16]
+        inputs = torch.stack(irraddiance,aux)
+        inputs = inputs.to(device, non_blocking=True)
+        references = references.to(device, non_blocking=True)
+
+        outputs = model(inputs)
+
+        outputs=outputs.permute(0, 2, 3, 1)
+        loss = criterion(outputs,references)
+        loss.backward()
+
+        optimizer.step()
+
+        losses.append(loss.item())
+
+    mean_loss = np.mean(losses)
+    writer.add_scalar("Loss/total_train", mean_loss, epoch)
+    print(mean_loss)
 
 if __name__ == "__main__":
 
@@ -312,7 +363,7 @@ if __name__ == "__main__":
             if not os.path.exists(dir):
                 os.makedirs(dir)
 
-        model = TransformerBlock(ch=32).to(device)
+        model = TransformerBlock(ch=8).to(device)
         optimizer = torch.optim.Adam(model.parameters(), learning_rate)
 
         lower_bound = 0
@@ -387,7 +438,7 @@ if __name__ == "__main__":
         
         checkpoint = torch.load(os.path.join(model_saving_dir, 'model.pt'), device)
 
-        deployed_model = TransformerBlock(ch=32).to(device)
+        deployed_model = TransformerBlock(ch=8).to(device)
 
 
         deployed_model.load_state_dict(checkpoint['model_state_dict'])
