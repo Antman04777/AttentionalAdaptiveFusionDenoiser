@@ -108,7 +108,7 @@ class AdaptiveFusion(torch.nn.Module):
 
         self.num_input_channels = num_input_channels
 
-        self.attention_layer = AttentionModule(device, r=4, num_input_channels=64).to(device)
+        #self.attention_layer = AttentionModule(device, r=4, num_input_channels=64).to(device)
 
         self.conv_layer_1 = torch.nn.Conv2d(in_channels=self.num_input_channels, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_1 = torch.nn.BatchNorm2d(32)
@@ -221,11 +221,11 @@ class AdaptiveFusion(torch.nn.Module):
 
         # x_8_in = torch.add_(x_3, x_8_new)
 
-        alpha, one_minus_alpha = self.attention_layer(x_3, x_8_new)
+        #alpha, one_minus_alpha = self.attention_layer(x_3, x_8_new)
 
-        x_8_in = alpha * x_3 + one_minus_alpha * x_8_new
+        #x_8_in = alpha * x_3 + one_minus_alpha * x_8_new
 
-        # x_8_in = torch.cat((x_3, x_8_new), axis=1)
+        x_8_in = torch.cat((x_3, x_8_new), axis=1)
         x_8 = self.conv_layer_8(x_8_in)
         x_8 = self.bn_8(x_8)
         x_8 = self.relu_7(x_8)
