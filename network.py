@@ -140,7 +140,7 @@ class AdaptiveFusion(torch.nn.Module):
         self.bn_7 = torch.nn.BatchNorm2d(64)
         self.relu_new_7 = torch.nn.ReLU()
 
-        self.conv_layer_8 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer_8 = torch.nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_8 = torch.nn.BatchNorm2d(64)
         self.relu_7 = torch.nn.ReLU()
 
