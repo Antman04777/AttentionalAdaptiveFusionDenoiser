@@ -237,8 +237,8 @@ def time_inference(model, device, dataloader, steps=60):
             cache_tensor.zero_() # perform cache flush for more accurate measurement
 
             # inputs = inputs.to(device, non_blocking=True)
-            irraddiance = inputs[:,0:6]
-            aux = inputs[:,6:16]
+            irraddiance = inputs[:,0:8]
+            aux = inputs[:,8:16]
             inputs = torch.stack(irraddiance,aux)
             inputs = inputs.to(device, non_blocking=True).half()
             # references = references.to(device, non_blocking = True)
@@ -363,7 +363,7 @@ if __name__ == "__main__":
             if not os.path.exists(dir):
                 os.makedirs(dir)
 
-        model = TransformerBlock(ch=8,num_heads=1).to(device)
+        model = TransformerBlock(ch=8,num_heads=1,checkpoint=False).to(device)
         optimizer = torch.optim.Adam(model.parameters(), learning_rate)
 
         lower_bound = 0
@@ -435,7 +435,7 @@ if __name__ == "__main__":
         
         checkpoint = torch.load(os.path.join(model_saving_dir, 'model.pt'), device)
 
-        deployed_model = TransformerBlock(ch=8,num_heads=1).to(device)
+        deployed_model = TransformerBlock(ch=8,num_heads=1,checkpoint=False).to(device)
 
 
         deployed_model.load_state_dict(checkpoint['model_state_dict'])
