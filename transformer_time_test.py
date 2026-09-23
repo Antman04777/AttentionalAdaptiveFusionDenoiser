@@ -380,7 +380,7 @@ if __name__ == "__main__":
             writer = SummaryWriter(tensorboard_saving_dir)
 
         # model = torch.compile(model)
-        utils.record_training_parameters(learning_rate, epochs, epochs_validate, batch_size, current_testing_scene_name, experiment, device_name, model.ss_ta, model.sr_ta, model.ss_non_ta, model.sr_non_ta, loss_function, model_saving_dir)
+        #utils.record_training_parameters(learning_rate, epochs, epochs_validate, batch_size, current_testing_scene_name, experiment, device_name, model.ss_ta, model.sr_ta, model.ss_non_ta, model.sr_non_ta, loss_function, model_saving_dir)
 
         for epoch in range(lower_bound, upper_bound):
             print(f'Epoch: {epoch}')
@@ -405,9 +405,6 @@ if __name__ == "__main__":
         writer.close()
 
     else:
-        rawdata = RawDataReader(is_training=False, hold_out_scene="san-miguel")
-        dataset = BMFRFinalDataset(rawdata, use_test=True)
-        test_dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=0, pin_memory=False)
 
         parser = argparse.ArgumentParser(prog='train')
         parser.add_argument('--parameters', type=str, help='<path_to_parameters.json>')

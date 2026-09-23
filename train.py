@@ -14,8 +14,8 @@ from skimage.metrics import peak_signal_noise_ratio
 import argparse
 import sys
 import json
-#REMOVED WRITER MUST ADD BACK    
-def train(model, device, dataloader, optimizer, epoch, loss_func='smape'):
+   
+def train(model, device, dataloader, optimizer, epoch, writer, loss_func='smape'):
     model.train()
     losses=[]
 
@@ -52,7 +52,7 @@ def train(model, device, dataloader, optimizer, epoch, loss_func='smape'):
         losses.append(loss.item())
 
     mean_loss = np.mean(losses)
-    #writer.add_scalar("Loss/total_train", mean_loss, epoch)
+    writer.add_scalar("Loss/total_train", mean_loss, epoch)
     print(mean_loss)
 
 
