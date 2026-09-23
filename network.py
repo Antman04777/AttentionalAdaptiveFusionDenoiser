@@ -255,34 +255,34 @@ class WeightCNN(torch.nn.Module):
 
         # CNN 3 (weight prediction)
         # if not deployed:
-        self.conv_layer1_1 = torch.nn.Conv2d(in_channels=6, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_layer1_3 = torch.nn.Conv2d(in_channels=6, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.conv_layer1_5 = torch.nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5, stride=1, padding=2, bias=False)
+        self.conv_layer1_1 = torch.nn.Conv2d(in_channels=6, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_layer1_3 = torch.nn.Conv2d(in_channels=6, out_channels=3, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer1_5 = torch.nn.Conv2d(in_channels=6, out_channels=3, kernel_size=5, stride=1, padding=2, bias=False)
         self.lrelu_1 = torch.nn.LeakyReLU(0.1)
 
-        self.conv_layer2_1 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_layer2_3 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.conv_layer2_5 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, stride=1, padding=2, bias=False)
-        self.lrelu_2 = torch.nn.LeakyReLU(0.1)
-
-        self.conv_layer3_1 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_layer3_3 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.conv_layer3_5 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, stride=1, padding=2, bias=False)
-        self.lrelu_3 = torch.nn.LeakyReLU(0.1)
-
-        self.conv_layer4_1 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_layer4_3 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.conv_layer4_5 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, stride=1, padding=2, bias=False)
-        self.lrelu_4 = torch.nn.LeakyReLU(0.1)
-
-        self.conv_layer5_1 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_layer5_3 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.conv_layer5_5 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, stride=1, padding=2, bias=False)
-        self.lrelu_5 = torch.nn.LeakyReLU(0.1)
-
-        self.conv_layer6_1 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_layer6_3 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=3, stride=1, padding=1, bias=False)
-        self.conv_layer6_5 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=5, stride=1, padding=2, bias=False)
+        self.conv_layer2_1 = torch.nn.Conv2d(in_channels=3, out_channels=1, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_layer2_3 = torch.nn.Conv2d(in_channels=3, out_channels=1, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer2_5 = torch.nn.Conv2d(in_channels=3, out_channels=1, kernel_size=5, stride=1, padding=2, bias=False)
+        # self.lrelu_2 = torch.nn.LeakyReLU(0.1)
+#
+        #self.conv_layer3_1 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
+        #self.conv_layer3_3 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
+        #self.conv_layer3_5 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, stride=1, padding=2, bias=False)
+        #self.lrelu_3 = torch.nn.LeakyReLU(0.1)
+#
+        #self.conv_layer4_1 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
+        #self.conv_layer4_3 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
+        #self.conv_layer4_5 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, stride=1, padding=2, bias=False)
+        #self.lrelu_4 = torch.nn.LeakyReLU(0.1)
+#
+        #self.conv_layer5_1 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
+        #self.conv_layer5_3 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
+        #self.conv_layer5_5 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, stride=1, padding=2, bias=False)
+        #self.lrelu_5 = torch.nn.LeakyReLU(0.1)
+#
+        #self.conv_layer6_1 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
+        #self.conv_layer6_3 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=3, stride=1, padding=1, bias=False)
+        #self.conv_layer6_5 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=5, stride=1, padding=2, bias=False)
         self.sigmoid = torch.nn.Sigmoid()
 
         self.conv_layer_1 = None
@@ -327,27 +327,27 @@ class WeightCNN(torch.nn.Module):
             x2_1 = self.conv_layer2_1(x1_out)
             x2_3 = self.conv_layer2_3(x1_out)
             x2_5 = self.conv_layer2_5(x1_out)
-            x2_out = self.lrelu_2(x2_1 + x2_3 + x2_5 + x1_out)
+            # x2_out = self.lrelu_2(x2_1 + x2_3 + x2_5 + x1_out)
+#
+            #x3_1 = self.conv_layer3_1(x2_out)
+            #x3_3 = self.conv_layer3_3(x2_out)
+            #x3_5 = self.conv_layer3_5(x2_out)
+            #x3_out = self.lrelu_3(x3_1 + x3_3 + x3_5 + x2_out)
+#
+            #x4_1 = self.conv_layer4_1(x3_out)
+            #x4_3 = self.conv_layer4_3(x3_out)
+            #x4_5 = self.conv_layer4_5(x3_out)
+            #x4_out = self.lrelu_4(x4_1 + x4_3 + x4_5 + x3_out)
+#
+            #x5_1 = self.conv_layer5_1(x4_out)
+            #x5_3 = self.conv_layer5_3(x4_out)
+            #x5_5 = self.conv_layer5_5(x4_out)
+            #x5_out = self.lrelu_5(x5_1 + x5_3 + x5_5 + x4_out)
 
-            x3_1 = self.conv_layer3_1(x2_out)
-            x3_3 = self.conv_layer3_3(x2_out)
-            x3_5 = self.conv_layer3_5(x2_out)
-            x3_out = self.lrelu_3(x3_1 + x3_3 + x3_5 + x2_out)
-
-            x4_1 = self.conv_layer4_1(x3_out)
-            x4_3 = self.conv_layer4_3(x3_out)
-            x4_5 = self.conv_layer4_5(x3_out)
-            x4_out = self.lrelu_4(x4_1 + x4_3 + x4_5 + x3_out)
-
-            x5_1 = self.conv_layer5_1(x4_out)
-            x5_3 = self.conv_layer5_3(x4_out)
-            x5_5 = self.conv_layer5_5(x4_out)
-            x5_out = self.lrelu_5(x5_1 + x5_3 + x5_5 + x4_out)
-
-            x6_1 = self.conv_layer6_1(x5_out)
-            x6_3 = self.conv_layer6_3(x5_out)
-            x6_5 = self.conv_layer6_5(x5_out)
-            x6_out = self.sigmoid(x6_1 + x6_3 + x6_5)
+            #x6_1 = self.conv_layer6_1(x1_out)
+            #x6_3 = self.conv_layer6_3(x1_out)
+            #x6_5 = self.conv_layer6_5(x1_out)
+            x6_out = self.sigmoid(x2_1 + x2_3 + x2_5)
 
             
         else:
@@ -355,19 +355,19 @@ class WeightCNN(torch.nn.Module):
             x1_out = self.lrelu_1(x1)
 
             x2 = self.conv_layer_2(x1_out)
-            x2_out = self.lrelu_2(x2)
+            #x2_out = self.lrelu_2(x2)
+#
+            #x3 = self.conv_layer_3(x2_out)
+            #x3_out = self.lrelu_3(x3)
+#
+            #x4 = self.conv_layer_4(x3_out)
+            #x4_out = self.lrelu_4(x4)
+#
+            #x5 = self.conv_layer_5(x4_out)
+            #x5_out = self.lrelu_5(x5)
 
-            x3 = self.conv_layer_3(x2_out)
-            x3_out = self.lrelu_3(x3)
-
-            x4 = self.conv_layer_4(x3_out)
-            x4_out = self.lrelu_4(x4)
-
-            x5 = self.conv_layer_5(x4_out)
-            x5_out = self.lrelu_5(x5)
-
-            x6 = self.conv_layer_6(x5_out)
-            x6_out =  self.sigmoid(x6)
+            # x6 = self.conv_layer_6(x1_out)
+            x6_out =  self.sigmoid(x2)
 
             
         return x6_out
@@ -416,11 +416,11 @@ class RepVGG(torch.nn.Module):
 
     def init_deployed_conv_layers(self):
         self.weight_cnn.conv_layer_1 = reparametrize(self.weight_cnn.conv_layer1_1, self.weight_cnn.conv_layer1_3, self.weight_cnn.conv_layer1_5)
-        self.weight_cnn.conv_layer_2 = reparametrize(self.weight_cnn.conv_layer2_1, self.weight_cnn.conv_layer2_3, self.weight_cnn.conv_layer2_5, has_identity_branch=True)
-        self.weight_cnn.conv_layer_3 = reparametrize(self.weight_cnn.conv_layer3_1, self.weight_cnn.conv_layer3_3, self.weight_cnn.conv_layer3_5, has_identity_branch=True)
-        self.weight_cnn.conv_layer_4 = reparametrize(self.weight_cnn.conv_layer4_1, self.weight_cnn.conv_layer4_3, self.weight_cnn.conv_layer4_5, has_identity_branch=True)
-        self.weight_cnn.conv_layer_5 = reparametrize(self.weight_cnn.conv_layer5_1, self.weight_cnn.conv_layer5_3, self.weight_cnn.conv_layer5_5, has_identity_branch=True)
-        self.weight_cnn.conv_layer_6 = reparametrize(self.weight_cnn.conv_layer6_1, self.weight_cnn.conv_layer6_3, self.weight_cnn.conv_layer6_5)
+        self.weight_cnn.conv_layer_2 = reparametrize(self.weight_cnn.conv_layer2_1, self.weight_cnn.conv_layer2_3, self.weight_cnn.conv_layer2_5, has_identity_branch=False)
+        # self.weight_cnn.conv_layer_3 = reparametrize(self.weight_cnn.conv_layer3_1, self.weight_cnn.conv_layer3_3, self.weight_cnn.conv_layer3_5, has_identity_branch=True)
+        # self.weight_cnn.conv_layer_4 = reparametrize(self.weight_cnn.conv_layer4_1, self.weight_cnn.conv_layer4_3, self.weight_cnn.conv_layer4_5, has_identity_branch=True)
+        # self.weight_cnn.conv_layer_5 = reparametrize(self.weight_cnn.conv_layer5_1, self.weight_cnn.conv_layer5_3, self.weight_cnn.conv_layer5_5, has_identity_branch=True)
+        # self.weight_cnn.conv_layer_6 = reparametrize(self.weight_cnn.conv_layer6_1, self.weight_cnn.conv_layer6_3, self.weight_cnn.conv_layer6_5)
 
     # @profile
     def forward(self, raw_inputs):

@@ -1,5 +1,5 @@
 {
-    "experiment": "new-model-lr3-epochs-300-batchsize-16-increased-weight-cnn-3",
+    "experiment": "new-model-lr3-epochs-300-batchsize-16",
     "test_scene": "san-miguel",
     "ss_non_ta": 16,
     "sr_non_ta": 16,
