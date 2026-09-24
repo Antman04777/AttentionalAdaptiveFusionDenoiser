@@ -39,9 +39,9 @@ class RepBlock(torch.nn.Module):
         self.conv_layer1_5 = torch.nn.Conv2d(in_channels=in_ch, out_channels=out_ch, kernel_size=5, stride=1, padding=2, bias=False)
         self.lrelu_1 = torch.nn.LeakyReLU(0.1)
 
-        self.conv_layer2_1 = torch.nn.Conv2d(in_channels=3, out_channels=out_ch, kernel_size=1, stride=1, padding=0, bias=False)
-        self.conv_layer2_3 = torch.nn.Conv2d(in_channels=3, out_channels=out_ch, kernel_size=3, stride=1, padding=1, bias=False)
-        self.conv_layer2_5 = torch.nn.Conv2d(in_channels=3, out_channels=out_ch, kernel_size=5, stride=1, padding=2, bias=False)
+        self.conv_layer2_1 = torch.nn.Conv2d(in_channels=out_ch, out_channels=out_ch, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_layer2_3 = torch.nn.Conv2d(in_channels=out_ch, out_channels=out_ch, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer2_5 = torch.nn.Conv2d(in_channels=out_ch, out_channels=out_ch, kernel_size=5, stride=1, padding=2, bias=False)
         self.lrelu_2 = torch.nn.LeakyReLU(0.1)
 
         self.conv_layer_1 = None
@@ -89,17 +89,16 @@ class SqueezeExcite(torch.nn.Module):
         self.avg_pool = torch.nn.AdaptiveAvgPool2d(1)
         self.fully_connect = torch.nn.Sequential(
             torch.nn.Linear(num_input_channels, self.channel_compressed,bias=False),
-            torch.nn.Relu(),
+            torch.nn.ReLU(),
             torch.nn.Linear(self.channel_compressed, num_input_channels, bias = False),
             torch.nn.Sigmoid()
         )
 
-        
-
     def forward(self, x_in):
-        embedding = self.avg_pool(x_in)
-        channel_weights = self.fully_connect(embedding)
-        x_out = channel_weights * embedding.expand_as(x_in)
+        b, c, _, _ = x_in.shape
+        embedding = self.avg_pool(x_in).view(b, c)
+        channel_weights = self.fully_connect(embedding).view(b, c, 1, 1)
+        x_out = x_in * channel_weights.expand_as(x_in)
         return x_out
 
 
@@ -112,20 +111,20 @@ class AdaptiveFusion(torch.nn.Module):
         self.num_input_channels = num_input_channels
 
 
-        self.rep1 = RepBlock(device, in_ch=self.num_input_channels, out_channel=32, is_input=True).to(device)
+        self.rep1 = RepBlock(device, in_ch=self.num_input_channels, out_ch=32, is_input=True).to(device)
         self.squeeze_excite_layer1 = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
 
         self.conv_layer_2 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
-        self.bn_2 = torch.nn.BatchNorm2d(64).to(device)
-        self.relu_2 = torch.nn.ReLU().to(device)
+        self.bn_2 = torch.nn.BatchNorm2d(64)
+        self.relu_2 = torch.nn.ReLU()
 
-        self.rep2 = RepBlock(device, in_ch=64, out_channel=64).to(device)
+        self.rep2 = RepBlock(device, in_ch=64, out_ch=64).to(device)
 
         self.conv_layer_3 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn_3 = torch.nn.BatchNorm2d(128)
         self.relu_3 = torch.nn.ReLU()
 
-        self.rep3 = RepBlock(device, in_ch=128, out_channel=128).to(device)
+        self.rep3 = RepBlock(device, in_ch=128, out_ch=128).to(device)
 
         #for decoder
         self.squeeze_excite_layer2 = SqueezeExcite(device, r=4, num_input_channels=128).to(device)
@@ -166,7 +165,7 @@ class AdaptiveFusion(torch.nn.Module):
         x_4 = self.relu_3(x_4) # residual connection output
 
         x_5 = self.rep3(x_4)
-        x_5 = self.squeeze_excite_layer1(x_5)
+        x_5 = self.squeeze_excite_layer2(x_5)
 
         x_6 = self.conv_layer_4_t(x_5)
 
@@ -174,7 +173,7 @@ class AdaptiveFusion(torch.nn.Module):
         x_7 = self.bn_4(x_7)
         x_7 = self.relu_4(x_7)
 
-        x_8 = torch.cat((x_4, x_7), axis=1)
+        x_8 = torch.cat((x_2, x_7), axis=1)
         x_8 = self.conv_layer_6(x_8)
         x_8 = self.bn_5(x_8)
         x_8 = self.relu_5(x_8)
@@ -203,8 +202,8 @@ class WeightCNN(torch.nn.Module):
 
         # CNN 3 (weight prediction)
         # if not deployed:
-        self.conv_layer1 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
-        self.rep1 = RepBlock(device, 16, 16)
+        self.conv_layer1 = torch.nn.Conv2d(in_channels=6, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
+        self.rep1 = RepBlock(device, in_ch=16, out_ch=16).to(device)
         #self.conv_layer1_1 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
         #self.conv_layer1_3 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
         #self.conv_layer1_5 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, stride=1, padding=2, bias=False)
