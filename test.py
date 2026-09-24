@@ -152,7 +152,7 @@ if __name__ == '__main__':
     
     checkpoint = torch.load(os.path.join(model_saving_dir, 'model.pt'), device)
 
-    deployed_model = network.RepVGG(device, deployed=False, pretrained_model=None, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta).to(device)
+    deployed_model = network.Net(device, deployed=False, pretrained_model=None, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta).to(device)
 
     # debug hooks
     # deployed_model.adaptive_fusion_conv.relu_1.register_forward_hook(get_activation('relu_1'))
@@ -167,7 +167,8 @@ if __name__ == '__main__':
     #
 
     deployed_model.load_state_dict(checkpoint['model_state_dict'])
-    deployed_model.deployed = True
+    #deployed_model.deployed = True
+    deployed_model.deploy()
     deployed_model.init_deployed_conv_layers()
     deployed_model = deployed_model.half()
     deployed_model = torch.compile(deployed_model) # torch compile is in our favour now? lol

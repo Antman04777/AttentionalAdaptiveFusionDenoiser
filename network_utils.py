@@ -231,8 +231,8 @@ class FeatureExtractor(torch.nn.Module):
         self.num_input_channels=num_input_channels
         self.device=device
 
-        self.rep_noisy = RepBlock(device,in_ch=6,out_ch=64)
-        self.rep_aux = RepBlock(device,in_ch=10,out_ch=64)
+        self.rep_noisy = RepBlock(device,in_ch=6,out_ch=64,is_input=True)
+        self.rep_aux = RepBlock(device,in_ch=10,out_ch=64,is_input=True)
 
     def forward(self, x_input):
 
@@ -258,7 +258,7 @@ class KMP(torch.nn.Module):
         self.bn_7 = torch.nn.BatchNorm2d(64)
         self.relu_new_7 = torch.nn.ReLU()
 
-        self.conv_layer_8 = torch.nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer_8 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_8 = torch.nn.BatchNorm2d(64)
         self.relu_7 = torch.nn.ReLU()
 
@@ -268,7 +268,7 @@ class KMP(torch.nn.Module):
         self.bn_9 = torch.nn.BatchNorm2d(64)
         self.relu_8 = torch.nn.ReLU()
 
-        self.conv_layer_11 = torch.nn.Conv2d(in_channels=96, out_channels=49, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer_11 = torch.nn.Conv2d(in_channels=64, out_channels=49, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_10 = torch.nn.BatchNorm2d(49)
         self.relu_9 = torch.nn.ReLU()
 
@@ -277,5 +277,30 @@ class KMP(torch.nn.Module):
         inputs = torch.stack((noisy_ft,aux_ft), dim=1)
         x1,_ = self.transformer(inputs)
 
-        x2 = self.conv_layer_6_t()
+        x2 = self.conv_layer_6_t(x1)
 
+        x3 = self.conv_layer_7(x2)
+        x3 = self.bn_6(x3)
+        x3 = self.relu_6
+
+        x4 = self.conv_layer_new_8(x3)
+        x4 = self.bn_7(x4) 
+        x4 = self.relu_new_7(x4) 
+
+        x5 = self.conv_layer_8(x4) 
+        x5 = self.bn_8(x5) 
+        x5 = self.relu_7(x5)
+        kNonTA = x5[:,0:49] 
+
+        x6 = self.conv_layer_9_t(x5) 
+
+        x7 = self.conv_layer_10(x6) 
+        x7 = self.bn_9(x7) 
+        x7 = self.relu_8(x7) 
+
+        x8 = self.conv_layer_11(x7) 
+        x8 = self.bn_10(x7) 
+        x8 = self.relu_9(x7)
+        kTA = x8
+
+        return kNonTA,kTA

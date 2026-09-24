@@ -150,8 +150,8 @@ class TransformerBlock(nn.Module):
         else:
             noisy = x[0] + self.attention(x[0], x[1])
         noisy = noisy + self.feed_forward(noisy)
-        return noisy[:,0:3]
-        #return (noisy, x[1])
+        
+        return (noisy, x[1])
 
 def test(model, device, dataloader, save_dir=''):
     model.eval()
