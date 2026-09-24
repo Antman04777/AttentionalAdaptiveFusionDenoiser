@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 # import bilateral_ops
-import convolutional_ops
+# import convolutional_ops
 import utils
 
 import pyexr
@@ -102,7 +102,7 @@ class Net(torch.nn.Module):
         # alpha, one_minus_alpha = self.attention_layer(x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, x_tone_mapped_TA_frame_copy)
 
         # x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.num_input_channels]), axis=1)
-        x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.adaptive_fusion_conv.num_input_channels]), axis=1)
+        x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.kernel_predictor.num_input_channels]), axis=1)
 
         noisy_ft, aux_ft = self.feature_extract(x_input)
         kernel_non_TA, kernel_TA = self.kernel_predictor(noisy_ft,aux_ft)

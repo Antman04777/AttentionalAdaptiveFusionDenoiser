@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 # import bilateral_ops
-import convolutional_ops
+# import convolutional_ops
 import utils
 
 import pyexr
@@ -137,12 +137,11 @@ class TransformerBlock(nn.Module):
 
     def forward(self, x):
         if self.checkpoint:
-            noisy = x[0] + checkpoint(self.attention, x[0], x[1])
+            noisy = x[:, 0] + checkpoint(self.attention, x[:, 0], x[:, 1])
         else:
-            noisy = x[0] + self.attention(x[0], x[1])
+            noisy = x[:, 0] + self.attention(x[:, 0], x[:, 1])
         noisy = noisy + self.feed_forward(noisy)
-        
-        return (noisy, x[1])
+        return (noisy, x[:, 1])
     
 class RepBlock(torch.nn.Module):
     def __init__(self, device=None, in_ch=3,out_ch=1, is_input=False,pretrained_model=None, state_dict=None, deployed=False):
@@ -228,6 +227,7 @@ class WeightCNN(torch.nn.Module):
 
 class FeatureExtractor(torch.nn.Module):
     def __init__(self,device,num_input_channels=16):
+        super().__init__()
         self.num_input_channels=num_input_channels
         self.device=device
 
@@ -237,18 +237,19 @@ class FeatureExtractor(torch.nn.Module):
     def forward(self, x_input):
 
         noisy_ft = self.rep_noisy(x_input[:,0:6])
-        aux_ft = self.rep_noisy(x_input[:,6:10])
+        aux_ft = self.rep_aux(x_input[:,6:16])
 
         return noisy_ft,aux_ft
 
 class KMP(torch.nn.Module):
     def __init__(self,device,num_input_channels=16):
-
+        super().__init__()
         self.device=device
         self.num_input_channels=num_input_channels
         self.transformer=TransformerBlock(ch=64,checkpoint=False)
 
-        self.conv_layer_6_t = torch.nn.ConvTranspose2d(in_channels=64, out_channels=128, kernel_size=2, stride=2, bias=False)
+        # self.conv_layer_6_t = torch.nn.ConvTranspose2d(in_channels=64, out_channels=128, kernel_size=2, stride=2, bias=False)
+        self.conv_layer_6 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
         
         self.conv_layer_7 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_6 = torch.nn.BatchNorm2d(128)
@@ -277,11 +278,11 @@ class KMP(torch.nn.Module):
         inputs = torch.stack((noisy_ft,aux_ft), dim=1)
         x1,_ = self.transformer(inputs)
 
-        x2 = self.conv_layer_6_t(x1)
+        x2 = self.conv_layer_6(x1)
 
         x3 = self.conv_layer_7(x2)
         x3 = self.bn_6(x3)
-        x3 = self.relu_6
+        x3 = self.relu_6(x3)
 
         x4 = self.conv_layer_new_8(x3)
         x4 = self.bn_7(x4) 
@@ -299,8 +300,8 @@ class KMP(torch.nn.Module):
         x7 = self.relu_8(x7) 
 
         x8 = self.conv_layer_11(x7) 
-        x8 = self.bn_10(x7) 
-        x8 = self.relu_9(x7)
-        kTA = x8
+        x8 = self.bn_10(x8) 
+        x8 = self.relu_9(x8)
+        kTA = x8[:, 0:49]
 
         return kNonTA,kTA
