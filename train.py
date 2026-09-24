@@ -191,7 +191,7 @@ if __name__ == "__main__":
             
             torch.save({'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, os.path.join(model_saving_dir, "model.pt"))
 
-            if epoch + 1 >= 200:
+            if epoch + 1 >= 150:
                 torch.save({'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, os.path.join(model_saving_dir, f"model-epoch-{epoch+1}.pt"))
 
         with open(parameters_path, 'r+') as f:

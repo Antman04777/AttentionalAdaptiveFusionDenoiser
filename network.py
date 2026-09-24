@@ -110,11 +110,13 @@ class AdaptiveFusion(torch.nn.Module):
 
         self.num_input_channels = num_input_channels
 
+        self.rep1_noisy = RepBlock(device, in_ch=self.num_input_channels, out_ch=32, is_input=True).to(device)
+        self.squeeze_excite_layer1_noisy = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
 
-        self.rep1 = RepBlock(device, in_ch=self.num_input_channels, out_ch=32, is_input=True).to(device)
-        self.squeeze_excite_layer1 = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
+        self.rep1_aux = RepBlock(device, in_ch=self.num_input_channels, out_ch=32, is_input=True).to(device)
+        self.squeeze_excite_layer1_aux = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
 
-        self.conv_layer_2 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv_layer_2 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn_2 = torch.nn.BatchNorm2d(64)
         self.relu_2 = torch.nn.ReLU()
 
@@ -145,16 +147,21 @@ class AdaptiveFusion(torch.nn.Module):
         self.bn_6 = torch.nn.BatchNorm2d(64)
         self.relu_6 = torch.nn.ReLU()
 
-        self.conv_layer_9 = torch.nn.Conv2d(in_channels=96, out_channels=49, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer_9 = torch.nn.Conv2d(in_channels=128, out_channels=49, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_7 = torch.nn.BatchNorm2d(49)
         self.relu_7 = torch.nn.ReLU()
 
     def forward(self, x_input):
 
-        x_1 = self.rep1(x_input)  
-        x_1 = self.squeeze_excite_layer1(x_1)  #res connection out
+        x_1_noisy = self.rep1_noisy(x_input)
+        x_1_noisy = self.squeeze_excite_layer1_noisy(x_1_noisy)  #res connection out
 
-        x_2 = self.conv_layer_2(x_1)
+        x_1_aux = self.rep1_aux(x_input)
+        x_1_aux = self.squeeze_excite_layer1_aux(x_1_aux)
+
+        x_embedded = torch.cat((x_1_noisy, x_1_aux), axis=1)
+
+        x_2 = self.conv_layer_2(x_embedded)
         x_2 = self.bn_2(x_2)
         x_2 = self.relu_2(x_2)
 
@@ -177,7 +184,7 @@ class AdaptiveFusion(torch.nn.Module):
         x_8 = self.conv_layer_6(x_8)
         x_8 = self.bn_5(x_8)
         x_8 = self.relu_5(x_8)
-        k_non_TA = x_8[:,0:49]              #sliced first 49 channels for non ta kernel map
+        k_non_TA = x_8[:,0:49] #sliced first 49 channels for non ta kernel map
 
         x_9 = self.conv_layer_7_t(x_8)
 
@@ -185,7 +192,7 @@ class AdaptiveFusion(torch.nn.Module):
         x_10 = self.bn_6(x_10)
         x_10 = self.relu_6(x_10)
 
-        x_11_in = torch.cat((x_1, x_10), axis=1)
+        x_11_in = torch.cat((x_embedded, x_10), axis=1)
         x_11 = self.conv_layer_9(x_11_in)
         x_11 = self.bn_7(x_11)
         x_11 = self.relu_7(x_11)
@@ -299,17 +306,22 @@ class RepVGG(torch.nn.Module):
 
     def deploy(self):
         self.deployed=True
-        self.adaptive_fusion_conv.rep1.deployed=True
+        self.adaptive_fusion_conv.rep1_noisy.deployed=True
+        self.adaptive_fusion_conv.rep1_aux.deployed=True
         self.adaptive_fusion_conv.rep2.deployed=True
         self.adaptive_fusion_conv.rep3.deployed=True
+        self.weight_cnn.rep1.deployed=True
         self.weight_cnn.rep1.deployed=True
 
     def init_deployed_conv_layers(self):
         self.weight_cnn.rep1.conv_layer_1 = reparametrize(self.weight_cnn.rep1.conv_layer1_1, self.weight_cnn.rep1.conv_layer1_3, self.weight_cnn.rep1.conv_layer1_5)
         self.weight_cnn.rep1.conv_layer_2 = reparametrize(self.weight_cnn.rep1.conv_layer2_1, self.weight_cnn.rep1.conv_layer2_3, self.weight_cnn.rep1.conv_layer2_5, has_identity_branch=False)
 
-        self.adaptive_fusion_conv.rep1.conv_layer_1 = reparametrize(self.adaptive_fusion_conv.rep1.conv_layer1_1, self.adaptive_fusion_conv.rep1.conv_layer1_3, self.adaptive_fusion_conv.rep1.conv_layer1_5)
-        self.adaptive_fusion_conv.rep1.conv_layer_2 = reparametrize(self.adaptive_fusion_conv.rep1.conv_layer2_1, self.adaptive_fusion_conv.rep1.conv_layer2_3, self.adaptive_fusion_conv.rep1.conv_layer2_5, has_identity_branch=True)
+        self.adaptive_fusion_conv.rep1_aux.conv_layer_1 = reparametrize(self.adaptive_fusion_conv.rep1_aux.conv_layer1_1, self.adaptive_fusion_conv.rep1_aux.conv_layer1_3, self.adaptive_fusion_conv.rep1_aux.conv_layer1_5)
+        self.adaptive_fusion_conv.rep1_aux.conv_layer_2 = reparametrize(self.adaptive_fusion_conv.rep1_aux.conv_layer2_1, self.adaptive_fusion_conv.rep1_aux.conv_layer2_3, self.adaptive_fusion_conv.rep1_aux.conv_layer2_5, has_identity_branch=True)
+        
+        self.adaptive_fusion_conv.rep1_noisy.conv_layer_1 = reparametrize(self.adaptive_fusion_conv.rep1_noisy.conv_layer1_1, self.adaptive_fusion_conv.rep1_noisy.conv_layer1_3, self.adaptive_fusion_conv.rep1_noisy.conv_layer1_5)
+        self.adaptive_fusion_conv.rep1_noisy.conv_layer_2 = reparametrize(self.adaptive_fusion_conv.rep1_noisy.conv_layer2_1, self.adaptive_fusion_conv.rep1_noisy.conv_layer2_3, self.adaptive_fusion_conv.rep1_noisy.conv_layer2_5, has_identity_branch=True)
 
         self.adaptive_fusion_conv.rep2.conv_layer_1 = reparametrize(self.adaptive_fusion_conv.rep2.conv_layer1_1, self.adaptive_fusion_conv.rep2.conv_layer1_3, self.adaptive_fusion_conv.rep2.conv_layer1_5, has_identity_branch=True)
         self.adaptive_fusion_conv.rep2.conv_layer_2 = reparametrize(self.adaptive_fusion_conv.rep2.conv_layer2_1, self.adaptive_fusion_conv.rep2.conv_layer2_3, self.adaptive_fusion_conv.rep2.conv_layer2_5, has_identity_branch=True)
