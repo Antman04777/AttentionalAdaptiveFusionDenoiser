@@ -167,7 +167,8 @@ if __name__ == '__main__':
     #
 
     deployed_model.load_state_dict(checkpoint['model_state_dict'])
-    deployed_model.deployed = True
+    #deployed_model.deployed = True
+    deployed_model.deploy()
     deployed_model.init_deployed_conv_layers()
     deployed_model = deployed_model.half()
     deployed_model = torch.compile(deployed_model) # torch compile is in our favour now? lol
