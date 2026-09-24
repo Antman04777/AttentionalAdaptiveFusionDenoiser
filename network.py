@@ -23,7 +23,59 @@ def reparametrize(conv1, conv3, conv5, has_identity_branch=False):
     conv.weight.data = reparam_kernel.detach().clone()
     return conv
 
+class RepBlock(torch.nn.Module):
+    def __init__(self, device=None, in_ch=3,out_ch=1, is_input=False,pretrained_model=None, state_dict=None, deployed=False):
+        super().__init__()
 
+        self.device = device
+        self.deployed = deployed
+        self.is_input = is_input
+
+        # CNN 3 (weight prediction)
+        # if not deployed:
+        self.conv_layer1_1 = torch.nn.Conv2d(in_channels=in_ch, out_channels=out_ch, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_layer1_3 = torch.nn.Conv2d(in_channels=in_ch, out_channels=out_ch, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer1_5 = torch.nn.Conv2d(in_channels=in_ch, out_channels=out_ch, kernel_size=5, stride=1, padding=2, bias=False)
+        self.lrelu_1 = torch.nn.LeakyReLU(0.1)
+
+        self.conv_layer2_1 = torch.nn.Conv2d(in_channels=out_ch, out_channels=out_ch, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_layer2_3 = torch.nn.Conv2d(in_channels=out_ch, out_channels=out_ch, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer2_5 = torch.nn.Conv2d(in_channels=out_ch, out_channels=out_ch, kernel_size=5, stride=1, padding=2, bias=False)
+        self.lrelu_2 = torch.nn.LeakyReLU(0.1)
+
+        self.conv_layer_1 = None
+        self.conv_layer_2 = None
+
+
+    def forward(self, x_input):
+        
+        if not self.deployed:
+            if self.is_input:
+                x1_1 = self.conv_layer1_1(x_input)
+                x1_3 = self.conv_layer1_3(x_input)
+                x1_5 = self.conv_layer1_5(x_input)
+                x1_out = self.lrelu_1(x1_1 + x1_3 + x1_5)
+            else:
+                x1_1 = self.conv_layer1_1(x_input)
+                x1_3 = self.conv_layer1_3(x_input)
+                x1_5 = self.conv_layer1_5(x_input)
+                x1_out = self.lrelu_1(x1_1 + x1_3 + x1_5 + x_input) 
+
+            x2_1 = self.conv_layer2_1(x1_out)
+            x2_3 = self.conv_layer2_3(x1_out)
+            x2_5 = self.conv_layer2_5(x1_out)
+            x2_out = self.lrelu_2(x2_1 + x2_3 + x2_5 + x1_out)
+
+            
+        else:
+            x1 = self.conv_layer_1(x_input)
+            x1_out = self.lrelu_1(x1)
+
+            x2 = self.conv_layer_2(x1_out)
+            x2_out =  self.lrelu_2(x2)
+
+            
+        return x2_out
 
 class WeightCNN(torch.nn.Module):
     def __init__(self, device=None, pretrained_model=None, state_dict=None, deployed=False):
