@@ -5,6 +5,7 @@ import pyexr
 from tqdm import tqdm
 from torch.utils.data import Dataset
 import torchvision.transforms.functional as tf
+import torchvision.transforms as transforms
 # import json
 
 # from memory_profiler import profile
@@ -168,6 +169,11 @@ class BMFRFinalDataset(Dataset):
 
         def rotate270(input):
             return torch.rot90(input, -1, dims=(1, 2))
+
+        self.brightness_distortion = transforms.Compose([
+            transforms.ColorJitter(brightness=(0.8, 1.2)),
+            transforms.ToTensor()
+        ])
 
         self.augmentation_operations = [rotate90, rotate270, tf.hflip, tf.vflip]
 
