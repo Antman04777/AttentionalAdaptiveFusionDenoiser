@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 # import bilateral_ops
-import convolutional_ops
+# import convolutional_ops
 import utils
 
 import pyexr
