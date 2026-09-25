@@ -138,9 +138,12 @@ class AFF(torch.nn.Module):
 
         x_global = self.global_context(x_in)
 
+        b_in, c_in, h_in, w_in = x_in.shape
+        x_in = x_in.reshape(b_in, c_in, h_in * w_in)
         x_local = self.conv1(x_in)
         x_local = self.relu1(x_local)
         x_local = self.conv2(x_local)
+        x_local = x_local.reshape(b_in, c_in, h_in, w_in)
 
         x_context = x_global + x_local
         x_context = self.sigmoid(x_context)
@@ -180,13 +183,13 @@ class AdaptiveFusion(torch.nn.Module):
 
         self.conv_layer_4_t = torch.nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=2, stride=2, bias=False)
 
-        self.conv_layer_5 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn_4 = torch.nn.BatchNorm2d(128)
+        self.conv_layer_5 = torch.nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn_4 = torch.nn.BatchNorm2d(64)
         self.relu_4 = torch.nn.ReLU()
 
-        self.conv_layer_5_new = torch.nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn_4_new = torch.nn.BatchNorm2d(64)
-        self.relu_4_new = torch.nn.ReLU()
+        # self.conv_layer_5_new = torch.nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        # self.bn_4_new = torch.nn.BatchNorm2d(64)
+        # self.relu_4_new = torch.nn.ReLU()
 
         self.aff = AFF(device,r=4,num_input_channels=64) 
 
