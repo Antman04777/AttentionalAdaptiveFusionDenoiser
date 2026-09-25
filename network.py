@@ -38,12 +38,12 @@ class RepBlock(torch.nn.Module):
         self.conv_layer1_1 = torch.nn.Conv2d(in_channels=in_ch, out_channels=out_ch, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_layer1_3 = torch.nn.Conv2d(in_channels=in_ch, out_channels=out_ch, kernel_size=3, stride=1, padding=1, bias=False)
         self.conv_layer1_5 = torch.nn.Conv2d(in_channels=in_ch, out_channels=out_ch, kernel_size=5, stride=1, padding=2, bias=False)
-        self.lrelu_1 = torch.nn.LeakyReLU(0.1)
+        self.relu_1 = torch.nn.ReLU()
 
         self.conv_layer2_1 = torch.nn.Conv2d(in_channels=out_ch, out_channels=out_ch, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv_layer2_3 = torch.nn.Conv2d(in_channels=out_ch, out_channels=out_ch, kernel_size=3, stride=1, padding=1, bias=False)
         self.conv_layer2_5 = torch.nn.Conv2d(in_channels=out_ch, out_channels=out_ch, kernel_size=5, stride=1, padding=2, bias=False)
-        self.lrelu_2 = torch.nn.LeakyReLU(0.1)
+        self.relu_2 = torch.nn.ReLU()
 
         if self.bn:
             self.bn_1 = torch.nn.BatchNorm2d(out_ch)
@@ -60,12 +60,12 @@ class RepBlock(torch.nn.Module):
                 x1_1 = self.conv_layer1_1(x_input)
                 x1_3 = self.conv_layer1_3(x_input)
                 x1_5 = self.conv_layer1_5(x_input)
-                x1_out = self.lrelu_1(x1_1 + x1_3 + x1_5)
+                x1_out = self.relu_1(x1_1 + x1_3 + x1_5)
             else:
                 x1_1 = self.conv_layer1_1(x_input)
                 x1_3 = self.conv_layer1_3(x_input)
                 x1_5 = self.conv_layer1_5(x_input)
-                x1_out = self.lrelu_1(x1_1 + x1_3 + x1_5 + x_input) 
+                x1_out = self.relu_1(x1_1 + x1_3 + x1_5 + x_input) 
 
             if self.bn:
                 x1_out = self.bn_1(x1_out)
@@ -73,7 +73,7 @@ class RepBlock(torch.nn.Module):
             x2_1 = self.conv_layer2_1(x1_out)
             x2_3 = self.conv_layer2_3(x1_out)
             x2_5 = self.conv_layer2_5(x1_out)
-            x2_out = self.lrelu_2(x2_1 + x2_3 + x2_5 + x1_out)
+            x2_out = self.relu_2(x2_1 + x2_3 + x2_5 + x1_out)
 
             if self.bn:
                 x2_out = self.bn_2(x2_out)
@@ -81,17 +81,16 @@ class RepBlock(torch.nn.Module):
             
         else:
             x1 = self.conv_layer_1(x_input)
-            x1_out = self.lrelu_1(x1)
+            x1_out = self.relu_1(x1)
 
             if self.bn:
                 x1_out = self.bn_1(x1_out)
 
             x2 = self.conv_layer_2(x1_out)
+            x2_out =  self.relu_2(x2)
 
             if self.bn:
                 x2_out = self.bn_2(x2_out)
-
-            x2_out =  self.lrelu_2(x2)
             
         return x2_out
 
@@ -383,7 +382,7 @@ class RepVGG(torch.nn.Module):
             TA_out_flat = TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
             TA_out = TA_out_flat.reshape(B, 1, H_ta, W_ta)
             TA_norm = kernel_TA.sum(dim=1, keepdim=True)
-            TA_out = TA_out / (TA_norm + 0.000001)
+            TA_out = TA_out / (TA_norm + 0.0001)
 
             TA_denoised[:, i:(i+1)] = TA_out
 
@@ -394,7 +393,7 @@ class RepVGG(torch.nn.Module):
             Non_TA_out_flat = Non_TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
             Non_TA_out = Non_TA_out_flat.reshape(B, 1, H_non_ta, W_non_ta)
             Non_TA_norm = kernel_non_TA.sum(dim=1, keepdim=True)
-            Non_TA_out = Non_TA_out / (Non_TA_norm + 0.000001)
+            Non_TA_out = Non_TA_out / (Non_TA_norm + 0.0001)
 
             Non_TA_denoised[:, i:(i+1)] = Non_TA_out
         # else:

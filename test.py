@@ -33,12 +33,15 @@ def test(model, device, dataloader, save_dir=''):
                 # outputs = model(inputs).detach()
             #
 
+
             SMAPE = float(criterion(outputs,references.permute((0, 2, 3, 1))).item())
             RMSE = criterion_RMSE(outputs, references.permute((0, 2, 3, 1)))
+            print('RMSE: ', RMSE.item())
             RMSE = torch.sqrt(RMSE)
             RMSE = float(RMSE.item())
 
             output = outputs.cpu().numpy()[0]
+            print('out max: ', output.max())
             reference = references.cpu().numpy()[0].transpose((1, 2, 0))
 
             SSIM, PSNR = utils.compute_metrics(reference, output)
@@ -157,10 +160,18 @@ if __name__ == '__main__':
     deployed_model = network.RepVGG(device, deployed=False, pretrained_model=None, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta).to(device)
 
     # debug hooks
-    # deployed_model.adaptive_fusion_conv.rep2.lrelu_1.register_forward_hook(get_activation('relu_1'))
-    # deployed_model.adaptive_fusion_conv.rep2.lrelu_2.register_forward_hook(get_activation('relu_2'))
-    # deployed_model.adaptive_fusion_conv.relu_2.register_forward_hook(get_activation('relu_2'))
-    # deployed_model.adaptive_fusion_conv.relu_3.register_forward_hook(get_activation('relu_3'))
+    deployed_model.adaptive_fusion_conv.rep1.relu_1.register_forward_hook(get_activation('relu_1'))
+    deployed_model.adaptive_fusion_conv.rep2.relu_2.register_forward_hook(get_activation('relu_2'))
+    deployed_model.adaptive_fusion_conv.rep2.relu_1.register_forward_hook(get_activation('relu_3'))
+    deployed_model.adaptive_fusion_conv.rep2.relu_2.register_forward_hook(get_activation('relu_4'))
+    deployed_model.adaptive_fusion_conv.rep3.relu_1.register_forward_hook(get_activation('relu_5'))
+    deployed_model.adaptive_fusion_conv.rep3.relu_2.register_forward_hook(get_activation('relu_6'))
+    deployed_model.adaptive_fusion_conv.relu_4.register_forward_hook(get_activation('relu_7'))
+    deployed_model.adaptive_fusion_conv.relu_5.register_forward_hook(get_activation('relu_8'))
+    deployed_model.adaptive_fusion_conv.relu_6.register_forward_hook(get_activation('relu_9'))
+    deployed_model.adaptive_fusion_conv.relu_7.register_forward_hook(get_activation('relu_10'))
+    deployed_model.weight_cnn.rep1.relu_1.register_forward_hook(get_activation('relu_11'))
+    deployed_model.weight_cnn.rep1.relu_2.register_forward_hook(get_activation('relu_12'))
     # deployed_model.adaptive_fusion_conv.relu_4.register_forward_hook(get_activation('relu_4'))
     # deployed_model.adaptive_fusion_conv.relu_5.register_forward_hook(get_activation('relu_5'))
     # deployed_model.adaptive_fusion_conv.relu_6.register_forward_hook(get_activation('relu_6'))

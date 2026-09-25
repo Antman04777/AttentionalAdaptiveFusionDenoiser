@@ -30,7 +30,7 @@ def compute_metrics(reference_image, test_output_image):
     return SSIM, PSNR
 
 class SMAPEloss(torch.nn.Module):
-    def __init__(self, eps=0.001):
+    def __init__(self, eps=0.01):
         super().__init__()
         self.eps=eps
 
