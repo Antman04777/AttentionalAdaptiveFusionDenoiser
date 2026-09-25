@@ -25,13 +25,14 @@ def reparametrize(conv1, conv3, conv5, has_identity_branch=False):
 
 
 class RepBlock(torch.nn.Module):
-    def __init__(self, device=None, in_ch=3,out_ch=1, is_input=False,pretrained_model=None, state_dict=None, bn=False, deployed=False):
+    def __init__(self, device=None, in_ch=3,out_ch=1, is_input=False,pretrained_model=None, state_dict=None, bn=False, use_both=True, deployed=False):
         super().__init__()
 
         self.device = device
         self.deployed = deployed
         self.is_input = is_input
         self.bn = bn
+        self.use_both = use_both
 
         # CNN 3 (weight prediction)
         # if not deployed:
@@ -60,39 +61,41 @@ class RepBlock(torch.nn.Module):
                 x1_1 = self.conv_layer1_1(x_input)
                 x1_3 = self.conv_layer1_3(x_input)
                 x1_5 = self.conv_layer1_5(x_input)
-                x1_out = self.relu_1(x1_1 + x1_3 + x1_5)
+                x_out = self.relu_1(x1_1 + x1_3 + x1_5)
             else:
                 x1_1 = self.conv_layer1_1(x_input)
                 x1_3 = self.conv_layer1_3(x_input)
                 x1_5 = self.conv_layer1_5(x_input)
-                x1_out = self.relu_1(x1_1 + x1_3 + x1_5 + x_input) 
+                x_out = self.relu_1(x1_1 + x1_3 + x1_5 + x_input) 
 
             if self.bn:
-                x1_out = self.bn_1(x1_out)
+                x_out = self.bn_1(x_out)
 
-            x2_1 = self.conv_layer2_1(x1_out)
-            x2_3 = self.conv_layer2_3(x1_out)
-            x2_5 = self.conv_layer2_5(x1_out)
-            x2_out = self.relu_2(x2_1 + x2_3 + x2_5 + x1_out)
+            if(self.use_both):
+                x2_1 = self.conv_layer2_1(x_out)
+                x2_3 = self.conv_layer2_3(x_out)
+                x2_5 = self.conv_layer2_5(x_out)
+                x_out = self.relu_2(x2_1 + x2_3 + x2_5 + x_out)
 
-            if self.bn:
-                x2_out = self.bn_2(x2_out)
+                if self.bn:
+                    x_out = self.bn_2(x_out)
                 
             
         else:
             x1 = self.conv_layer_1(x_input)
-            x1_out = self.relu_1(x1)
+            x_out = self.relu_1(x1)
 
             if self.bn:
-                x1_out = self.bn_1(x1_out)
+                x_out = self.bn_1(x_out)
 
-            x2 = self.conv_layer_2(x1_out)
-            x2_out =  self.relu_2(x2)
+            if(self.use_both):
+                x2 = self.conv_layer_2(x_out)
+                x_out =  self.relu_2(x2)
 
-            if self.bn:
-                x2_out = self.bn_2(x2_out)
+                if self.bn:
+                    x_out = self.bn_2(x_out)
             
-        return x2_out
+        return x_out
 
 class SqueezeExcite(torch.nn.Module):
     def __init__(self, device, r=3, num_input_channels=3):
@@ -164,13 +167,13 @@ class AdaptiveFusion(torch.nn.Module):
         self.bn_2 = torch.nn.BatchNorm2d(64)
         self.relu_2 = torch.nn.ReLU()
 
-        self.rep2 = RepBlock(device, in_ch=64, out_ch=64, bn=True).to(device)
+        self.rep2 = RepBlock(device, in_ch=64, out_ch=64, bn=True, use_both=False).to(device)
 
         self.conv_layer_3 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn_3 = torch.nn.BatchNorm2d(128)
         self.relu_3 = torch.nn.ReLU()
 
-        self.rep3 = RepBlock(device, in_ch=128, out_ch=128, bn=True).to(device)
+        self.rep3 = RepBlock(device, in_ch=128, out_ch=128, bn=True,use_both=False).to(device)
 
         #for decoder
         self.squeeze_excite_layer2 = SqueezeExcite(device, r=4, num_input_channels=128).to(device)
@@ -187,7 +190,7 @@ class AdaptiveFusion(torch.nn.Module):
 
         self.aff = AFF(device,r=4,num_input_channels=64) 
 
-        self.conv_layer_6 = torch.nn.Conv2d(in_channels=192, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer_6 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_5 = torch.nn.BatchNorm2d(64)
         self.relu_5 = torch.nn.ReLU()
 
