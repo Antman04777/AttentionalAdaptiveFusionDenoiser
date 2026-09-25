@@ -122,9 +122,31 @@ class AFF(torch.nn.Module):
         super().__init__()
 
         self.num_input_channels=num_input_channels
+        self.compressed_channels = int(num_input_channels/r)
         self.global_context = SqueezeExcite(device,4,num_input_channels)
-        self.conv1 = torch.nn.Conv1d(num_input_channels, 192, 1, bias=False)
-        self.conv2 = torch.nn.Conv1d(num_input_channels, 49, 1, bias=False)
+        self.conv1 = torch.nn.Conv1d(num_input_channels, self.compressed_channels, 1, bias=False)
+        self.relu1 = torch.nn.ReLU() 
+        self.conv2 = torch.nn.Conv1d(self.compressed_channels, 64, 1, bias=False)
+        self.sigmoid = torch.nn.Sigmoid()
+
+    def forward(self, x, y):
+
+        x_in = x + y
+
+        x_global = self.global_context(x_in)
+
+        x_local = self.conv1(x_in)
+        x_local = self.relu1(x_local)
+        x_local = self.conv2(x_local)
+
+        x_context = x_global + x_local
+        x_context = self.sigmoid(x_context)
+
+        x_out = (x_context * x) + ((1-x_context) * y)
+
+        return x_out
+
+        
 
 class AdaptiveFusion(torch.nn.Module):
     def __init__(self, device, num_input_channels=16):
@@ -158,6 +180,12 @@ class AdaptiveFusion(torch.nn.Module):
         self.conv_layer_5 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_4 = torch.nn.BatchNorm2d(128)
         self.relu_4 = torch.nn.ReLU()
+
+        self.conv_layer_5_new = torch.nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn_4_new = torch.nn.BatchNorm2d(64)
+        self.relu_4_new = torch.nn.ReLU()
+
+        self.aff = AFF(device,r=4,num_input_channels=64) 
 
         self.conv_layer_6 = torch.nn.Conv2d(in_channels=192, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_5 = torch.nn.BatchNorm2d(64)
@@ -197,7 +225,8 @@ class AdaptiveFusion(torch.nn.Module):
         x_7 = self.relu_4(x_7)
         x_7 = self.bn_4(x_7)
 
-        x_8 = torch.cat((x_2, x_7), axis=1)
+        x_8 = self.aff(x_7, x_2)           #order of entries matter
+        #x_8 = torch.cat((x_2, x_7), axis=1)
         x_8 = self.conv_layer_6(x_8)
         x_8 = self.relu_5(x_8)
         x_8 = self.bn_5(x_8)
