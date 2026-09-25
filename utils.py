@@ -27,7 +27,15 @@ def compute_metrics(reference_image, test_output_image):
     SSIM = structural_similarity(reference_image, test_output_image, channel_axis = -1, data_range=2.0)
     PSNR = peak_signal_noise_ratio(reference_image, test_output_image)
 
-    return SSIM, PSNR
+    criterion_SMAPE = SMAPEloss()
+    criterion_RMSE = torch.nn.MSELoss()
+
+    SMAPE = float(criterion_SMAPE(torch.tensor(test_output_image), torch.tensor(reference_image)).item())
+    RMSE = criterion_RMSE(torch.tensor(test_output_image), torch.tensor(reference_image))
+    RMSE = torch.sqrt(RMSE)
+    RMSE = float(RMSE.item())
+
+    return SSIM, PSNR, SMAPE, RMSE
 
 class SMAPEloss(torch.nn.Module):
     def __init__(self, eps=0.01):

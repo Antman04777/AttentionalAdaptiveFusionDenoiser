@@ -16,16 +16,13 @@ def test(model, device, dataloader, save_dir=''):
     SMAPEs = []
     RMSEs = []
 
-    criterion = utils.SMAPEloss().to(device)
-    criterion_RMSE = torch.nn.MSELoss()
-
     # with torch.no_grad():
     with torch.inference_mode():
         for test_img_idx, (inputs, references) in enumerate(dataloader):
-            # inputs = inputs.to(device, non_blocking=True)
-            inputs = inputs.to(device, non_blocking=True).half()
-            # references = references.to(device, non_blocking = True)
-            references = references.to(device, non_blocking = True).half()
+            inputs = inputs.to(device, non_blocking=True)
+            # inputs = inputs.to(device, non_blocking=True).half()
+            references = references.to(device, non_blocking = True)
+            # references = references.to(device, non_blocking = True).half()
 
             #
             outputs = model(inputs).detach()
@@ -33,15 +30,10 @@ def test(model, device, dataloader, save_dir=''):
                 # outputs = model(inputs).detach()
             #
 
-            SMAPE = float(criterion(outputs,references.permute((0, 2, 3, 1))).item())
-            RMSE = criterion_RMSE(outputs, references.permute((0, 2, 3, 1)))
-            RMSE = torch.sqrt(RMSE)
-            RMSE = float(RMSE.item())
-
             output = outputs.cpu().numpy()[0]
             reference = references.cpu().numpy()[0].transpose((1, 2, 0))
 
-            SSIM, PSNR = utils.compute_metrics(reference, output)
+            SSIM, PSNR, SMAPE, RMSE = utils.compute_metrics(reference, output)
             SSIMs.append(SSIM)
             PSNRs.append(PSNR)
             SMAPEs.append(SMAPE)
@@ -89,10 +81,10 @@ def time_inference(model, device, dataloader, steps=60):
         for test_img_idx, (inputs, references) in enumerate(dataloader):
             cache_tensor.zero_() # perform cache flush for more accurate measurement
 
-            # inputs = inputs.to(device, non_blocking=True)
-            inputs = inputs.to(device, non_blocking=True).half()
-            # references = references.to(device, non_blocking = True)
-            references = references.to(device, non_blocking = True).half()
+            inputs = inputs.to(device, non_blocking=True)
+            # inputs = inputs.to(device, non_blocking=True).half()
+            references = references.to(device, non_blocking = True)
+            # references = references.to(device, non_blocking = True).half()
 
             start_events[test_img_idx].record()
             # outputs = model(inputs).detach()
@@ -170,7 +162,7 @@ if __name__ == '__main__':
     #deployed_model.deployed = True
     deployed_model.deploy()
     deployed_model.init_deployed_conv_layers()
-    deployed_model = deployed_model.half()
+    # deployed_model = deployed_model.half()
     deployed_model = torch.compile(deployed_model) # torch compile is in our favour now? lol
 
     SSIM_mean, PSNR_mean = test(deployed_model, device, test_dataloader, test_saving_dir)

@@ -1,5 +1,5 @@
 {
-    "experiment": "new-model-pleeeeeease",
+    "experiment": "repvgg-se-attention",
     "test_scene": "san-miguel",
     "ss_non_ta": 16,
     "sr_non_ta": 16,
