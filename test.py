@@ -123,6 +123,8 @@ if __name__ == '__main__':
     device = torch.device("cuda")
     device_name = torch.cuda.get_device_name(0)
 
+    torch.set_float32_matmul_precision('high')
+
     parser = argparse.ArgumentParser(prog='train')
     parser.add_argument('--parameters', type=str, help='<path_to_parameters.json>')
 
@@ -155,7 +157,8 @@ if __name__ == '__main__':
     deployed_model = network.RepVGG(device, deployed=False, pretrained_model=None, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta).to(device)
 
     # debug hooks
-    # deployed_model.adaptive_fusion_conv.relu_1.register_forward_hook(get_activation('relu_1'))
+    # deployed_model.adaptive_fusion_conv.rep2.lrelu_1.register_forward_hook(get_activation('relu_1'))
+    # deployed_model.adaptive_fusion_conv.rep2.lrelu_2.register_forward_hook(get_activation('relu_2'))
     # deployed_model.adaptive_fusion_conv.relu_2.register_forward_hook(get_activation('relu_2'))
     # deployed_model.adaptive_fusion_conv.relu_3.register_forward_hook(get_activation('relu_3'))
     # deployed_model.adaptive_fusion_conv.relu_4.register_forward_hook(get_activation('relu_4'))

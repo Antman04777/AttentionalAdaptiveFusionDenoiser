@@ -25,12 +25,13 @@ def reparametrize(conv1, conv3, conv5, has_identity_branch=False):
 
 
 class RepBlock(torch.nn.Module):
-    def __init__(self, device=None, in_ch=3,out_ch=1, is_input=False,pretrained_model=None, state_dict=None, deployed=False):
+    def __init__(self, device=None, in_ch=3,out_ch=1, is_input=False,pretrained_model=None, state_dict=None, bn=False, deployed=False):
         super().__init__()
 
         self.device = device
         self.deployed = deployed
         self.is_input = is_input
+        self.bn = bn
 
         # CNN 3 (weight prediction)
         # if not deployed:
@@ -43,6 +44,10 @@ class RepBlock(torch.nn.Module):
         self.conv_layer2_3 = torch.nn.Conv2d(in_channels=out_ch, out_channels=out_ch, kernel_size=3, stride=1, padding=1, bias=False)
         self.conv_layer2_5 = torch.nn.Conv2d(in_channels=out_ch, out_channels=out_ch, kernel_size=5, stride=1, padding=2, bias=False)
         self.lrelu_2 = torch.nn.LeakyReLU(0.1)
+
+        if self.bn:
+            self.bn_1 = torch.nn.BatchNorm2d(out_ch)
+            self.bn_2 = torch.nn.BatchNorm2d(out_ch)
 
         self.conv_layer_1 = None
         self.conv_layer_2 = None
@@ -62,19 +67,31 @@ class RepBlock(torch.nn.Module):
                 x1_5 = self.conv_layer1_5(x_input)
                 x1_out = self.lrelu_1(x1_1 + x1_3 + x1_5 + x_input) 
 
+            if self.bn:
+                x1_out = self.bn_1(x1_out)
+
             x2_1 = self.conv_layer2_1(x1_out)
             x2_3 = self.conv_layer2_3(x1_out)
             x2_5 = self.conv_layer2_5(x1_out)
             x2_out = self.lrelu_2(x2_1 + x2_3 + x2_5 + x1_out)
 
+            if self.bn:
+                x2_out = self.bn_2(x2_out)
+                
             
         else:
             x1 = self.conv_layer_1(x_input)
             x1_out = self.lrelu_1(x1)
 
-            x2 = self.conv_layer_2(x1_out)
-            x2_out =  self.lrelu_2(x2)
+            if self.bn:
+                x1_out = self.bn_1(x1_out)
 
+            x2 = self.conv_layer_2(x1_out)
+
+            if self.bn:
+                x2_out = self.bn_2(x2_out)
+
+            x2_out =  self.lrelu_2(x2)
             
         return x2_out
 
@@ -111,20 +128,20 @@ class AdaptiveFusion(torch.nn.Module):
         self.num_input_channels = num_input_channels
 
 
-        self.rep1 = RepBlock(device, in_ch=self.num_input_channels, out_ch=32, is_input=True).to(device)
+        self.rep1 = RepBlock(device, in_ch=self.num_input_channels, out_ch=32, is_input=True, bn=True).to(device)
         self.squeeze_excite_layer1 = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
 
         self.conv_layer_2 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn_2 = torch.nn.BatchNorm2d(64)
         self.relu_2 = torch.nn.ReLU()
 
-        self.rep2 = RepBlock(device, in_ch=64, out_ch=64).to(device)
+        self.rep2 = RepBlock(device, in_ch=64, out_ch=64, bn=True).to(device)
 
         self.conv_layer_3 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn_3 = torch.nn.BatchNorm2d(128)
         self.relu_3 = torch.nn.ReLU()
 
-        self.rep3 = RepBlock(device, in_ch=128, out_ch=128).to(device)
+        self.rep3 = RepBlock(device, in_ch=128, out_ch=128, bn=True).to(device)
 
         #for decoder
         self.squeeze_excite_layer2 = SqueezeExcite(device, r=4, num_input_channels=128).to(device)
@@ -155,14 +172,14 @@ class AdaptiveFusion(torch.nn.Module):
         x_1 = self.squeeze_excite_layer1(x_1)  #res connection out
 
         x_2 = self.conv_layer_2(x_1)
-        x_2 = self.bn_2(x_2)
         x_2 = self.relu_2(x_2)
+        x_2 = self.bn_2(x_2)
 
         x_3 = self.rep2(x_2)
 
         x_4 = self.conv_layer_3(x_3)
-        x_4 = self.bn_3(x_4)
         x_4 = self.relu_3(x_4) # residual connection output
+        x_4 = self.bn_3(x_4)
 
         x_5 = self.rep3(x_4)
         x_5 = self.squeeze_excite_layer2(x_5)
@@ -170,25 +187,25 @@ class AdaptiveFusion(torch.nn.Module):
         x_6 = self.conv_layer_4_t(x_5)
 
         x_7 = self.conv_layer_5(x_6)
-        x_7 = self.bn_4(x_7)
         x_7 = self.relu_4(x_7)
+        x_7 = self.bn_4(x_7)
 
         x_8 = torch.cat((x_2, x_7), axis=1)
         x_8 = self.conv_layer_6(x_8)
-        x_8 = self.bn_5(x_8)
         x_8 = self.relu_5(x_8)
+        x_8 = self.bn_5(x_8)
         k_non_TA = x_8[:,0:49]              #sliced first 49 channels for non ta kernel map
 
         x_9 = self.conv_layer_7_t(x_8)
 
         x_10 = self.conv_layer_8(x_9)
-        x_10 = self.bn_6(x_10)
         x_10 = self.relu_6(x_10)
+        x_10 = self.bn_6(x_10)
 
         x_11_in = torch.cat((x_1, x_10), axis=1)
         x_11 = self.conv_layer_9(x_11_in)
-        x_11 = self.bn_7(x_11)
         x_11 = self.relu_7(x_11)
+        x_11 = self.bn_7(x_11)
         k_TA = x_11
 
         return k_non_TA, k_TA
