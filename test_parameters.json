@@ -1,8 +1,4 @@
 {
-    "experiment": "repvgg-se-attention-retrain",
-    "test_scene": "sponza-moving-light",
-    "ss_non_ta": 16,
-    "sr_non_ta": 16,
-    "ss_ta": 8,
-    "sr_ta": 8
+    "experiment": "new-model-pleeeeeease",
+    "test_scene": "san-miguel"
 }

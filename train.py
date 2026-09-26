@@ -89,7 +89,7 @@ def validate(model, device, dataloader, loss_func='smape'):
             for i in range(output.shape[0]):
                 if np.sum(reference[i]) == 0.0:
                     continue
-                SSIM, PSNR = utils.compute_metrics(reference[i], output[i])
+                SSIM, PSNR, _, _ = utils.compute_metrics(reference[i], output[i])
                 SSIMs.append(SSIM)
                 PSNRs.append(PSNR)
 
@@ -143,8 +143,7 @@ if __name__ == "__main__":
     #batch_size = 20     #og 40
 
     experiment, current_testing_scene_name, learning_rate, loss_function, \
-    epochs, epochs_validate, batch_size, previously_elapsed_epochs, \
-    ss_non_ta, sr_non_ta, ss_ta, sr_ta = utils.load_train_parameters_from_json(parameters_path)
+    epochs, epochs_validate, batch_size, previously_elapsed_epochs = utils.load_train_parameters_from_json(parameters_path)
 
     raw_data = RawDataReader(is_training=True, hold_out_scene=current_testing_scene_name)
     dataset_train = BMFRFinalDataset(raw_data, use_train=True)
@@ -160,7 +159,7 @@ if __name__ == "__main__":
         if not os.path.exists(dir):
             os.makedirs(dir)
 
-    model = RepVGG(device, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta).to(device)
+    model = RepVGG(device).to(device)
     optimizer = torch.optim.Adam(model.parameters(), learning_rate)
 
     lower_bound = 0
@@ -177,7 +176,7 @@ if __name__ == "__main__":
         writer = SummaryWriter(tensorboard_saving_dir)
 
     # model = torch.compile(model)
-    utils.record_training_parameters(learning_rate, epochs, epochs_validate, batch_size, current_testing_scene_name, experiment, device_name, model.ss_ta, model.sr_ta, model.ss_non_ta, model.sr_non_ta, loss_function, model_saving_dir)
+    utils.record_training_parameters(learning_rate, epochs, epochs_validate, batch_size, current_testing_scene_name, experiment, device_name, loss_function, model_saving_dir)
 
     for epoch in range(lower_bound, upper_bound):
         print(f'Epoch: {epoch}')

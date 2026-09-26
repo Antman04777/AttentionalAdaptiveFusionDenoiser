@@ -143,7 +143,7 @@ if __name__ == '__main__':
 
     parameters_path = args.parameters
 
-    experiment, test_scene, ss_non_ta, sr_non_ta, ss_ta, sr_ta = utils.load_test_parameters_from_json(parameters_path)
+    experiment, test_scene = utils.load_test_parameters_from_json(parameters_path)
 
     rawdata = dataloader.RawDataReader(is_training=False, hold_out_scene=test_scene)
     dataset = dataloader.BMFRFinalDataset(rawdata, use_test=True)
@@ -157,7 +157,9 @@ if __name__ == '__main__':
     
     checkpoint = torch.load(os.path.join(model_saving_dir, 'model.pt'), device)
 
-    deployed_model = network.RepVGG(device, deployed=False, pretrained_model=None, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta).to(device)
+    deployed_model = network.RepVGG(device).to(device)
+    deployed_model.load_state_dict(checkpoint['model_state_dict'])
+    deployed_model.deploy()
 
     # debug hooks
     deployed_model.adaptive_fusion_conv.rep1.relu_1.register_forward_hook(get_activation('relu_1'))
@@ -180,10 +182,9 @@ if __name__ == '__main__':
     # deployed_model.adaptive_fusion_conv.relu_9.register_forward_hook(get_activation('relu_8'))
     #
 
-    deployed_model.load_state_dict(checkpoint['model_state_dict'])
     #deployed_model.deployed = True
-    deployed_model.deploy()
-    deployed_model.init_deployed_conv_layers()
+    # deployed_model.deploy()
+    # deployed_model.init_deployed_conv_layers()
     deployed_model = deployed_model.half()
     deployed_model = torch.compile(deployed_model) # torch compile is in our favour now? lol
 
@@ -195,4 +196,4 @@ if __name__ == '__main__':
 
     utils.record_test_results(test_scene, experiment, device_name, ss_ta, sr_ta, ss_non_ta, sr_non_ta, PSNR_mean, SSIM_mean, average_inference_time, test_saving_dir)
 
-    print(activation)
+    # print(activation)
