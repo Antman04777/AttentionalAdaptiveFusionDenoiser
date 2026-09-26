@@ -214,15 +214,15 @@ class AdaptiveFusion(torch.nn.Module):
         x_1 = self.squeeze_excite_layer1(x_1)  #res connection out
 
         x_2 = self.conv_layer_2(x_1)
-        x_2 = self.relu_2(x_2)
         x_2 = self.bn_2(x_2)
+        x_2 = self.relu_2(x_2)
 
         x_3 = self.rep3(x_2)
         x_3 = self.rep4(x_3)
 
         x_4 = self.conv_layer_3(x_3)
-        x_4 = self.relu_3(x_4) # residual connection output
         x_4 = self.bn_3(x_4)
+        x_4 = self.relu_3(x_4) # residual connection output
 
         x_5 = self.rep5(x_4)
         x_5 = self.rep6(x_5)
@@ -231,25 +231,25 @@ class AdaptiveFusion(torch.nn.Module):
         x_6 = self.conv_layer_4_t(x_5)
 
         x_7 = self.conv_layer_5(x_6)
-        x_7 = self.relu_4(x_7)
         x_7 = self.bn_4(x_7)
+        x_7 = self.relu_4(x_7)
 
         x_8 = torch.cat((x_2, x_7), axis=1)
         x_8 = self.conv_layer_6(x_8)
-        x_8 = self.relu_5(x_8)
         x_8 = self.bn_5(x_8)
+        x_8 = self.relu_5(x_8)
         k_non_TA = x_8[:,0:49]   #sliced first 49 channels for non ta kernel map
 
         x_9 = self.conv_layer_7_t(x_8)
 
         x_10 = self.conv_layer_8(x_9)
-        x_10 = self.relu_6(x_10)
         x_10 = self.bn_6(x_10)
+        x_10 = self.relu_6(x_10)
 
         x_11_in = torch.cat((x_1, x_10), axis=1)
         x_11 = self.conv_layer_9(x_11_in)
-        x_11 = self.relu_7(x_11)
         x_11 = self.bn_7(x_11)
+        x_11 = self.relu_7(x_11)
         k_TA = x_11
 
         return k_non_TA, k_TA
