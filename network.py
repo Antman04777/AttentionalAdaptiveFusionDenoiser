@@ -147,6 +147,7 @@ class SqueezeExcite(torch.nn.Module):
         x_out = x_in * channel_weights.expand_as(x_in)
         return x_out
 
+
 class AFF(torch.nn.Module):
     def __init__(self,device,r=4,num_input_channels=3):
         super().__init__()
