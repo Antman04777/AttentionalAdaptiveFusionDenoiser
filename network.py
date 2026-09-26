@@ -207,6 +207,7 @@ class AFF(torch.nn.Module):
 
         x_context = x_g + x_l
         x_context = self.sigmoid(x_context)
+        x_context = x_context.reshape(b_in, c_in, h_in, w_in)
 
         x_out = (x_context * x) + ((1-x_context) * y)
 
