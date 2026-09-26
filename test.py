@@ -19,13 +19,14 @@ def test(model, device, dataloader, save_dir=''):
     # with torch.no_grad():
     with torch.inference_mode():
         for test_img_idx, (inputs, references) in enumerate(dataloader):
-            # inputs = inputs.to(device, non_blocking=True)
-            inputs = inputs.to(device, non_blocking=True).half()
-            # references = references.to(device, non_blocking = True)
-            references = references.to(device, non_blocking = True).half()
+            inputs = inputs.to(device, non_blocking=True)
+            # inputs = inputs.to(device, non_blocking=True).half()
+            references = references.to(device, non_blocking = True)
+            # references = references.to(device, non_blocking = True).half()
 
             #
-            outputs = model(inputs).detach()
+            with torch.autocast(device_type="cuda"):
+                outputs = model(inputs).detach()
             # with torch.autocast(device_type='cuda', dtype=torch.float16):
                 # outputs = model(inputs).detach()
             #
@@ -82,14 +83,15 @@ def time_inference(model, device, dataloader, steps=60):
         for test_img_idx, (inputs, references) in enumerate(dataloader):
             cache_tensor.zero_() # perform cache flush for more accurate measurement
 
-            # inputs = inputs.to(device, non_blocking=True)
-            inputs = inputs.to(device, non_blocking=True).half()
-            # references = references.to(device, non_blocking = True)
-            references = references.to(device, non_blocking = True).half()
+            inputs = inputs.to(device, non_blocking=True)
+            # inputs = inputs.to(device, non_blocking=True).half()
+            references = references.to(device, non_blocking = True)
+            # references = references.to(device, non_blocking = True).half()
 
             start_events[test_img_idx].record()
             # outputs = model(inputs).detach()
-            _ = model(inputs)
+            with torch.autocast(device_type="cuda"):
+                _ = model(inputs)
             # with torch.autocast(device_type='cuda', dtype=torch.float16):
                 # outputs = model(inputs).detach()
             end_events[test_img_idx].record()
@@ -173,7 +175,7 @@ if __name__ == '__main__':
     # deployed_model.adaptive_fusion_conv.relu_9.register_forward_hook(get_activation('relu_8'))
     #
 
-    deployed_model = deployed_model.half()
+    # deployed_model = deployed_model.half()
     deployed_model = torch.compile(deployed_model) # torch compile is in our favour now? lol
 
     SSIM_mean, PSNR_mean = test(deployed_model, device, test_dataloader, test_saving_dir)
