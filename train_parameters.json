@@ -3,8 +3,8 @@
     "current_testing_scene_name": "san-miguel",
     "learning_rate": 0.001,
     "loss_function": "smape",
-    "epochs": 300,
+    "epochs": 10,
     "epochs_validate": 5,
     "batch_size": 16,
-    "previously_elapsed_epochs": 54
+    "previously_elapsed_epochs": 64
 }
