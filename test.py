@@ -173,9 +173,6 @@ if __name__ == '__main__':
     # deployed_model.adaptive_fusion_conv.relu_9.register_forward_hook(get_activation('relu_8'))
     #
 
-    #deployed_model.deployed = True
-    # deployed_model.deploy()
-    # deployed_model.init_deployed_conv_layers()
     deployed_model = deployed_model.half()
     deployed_model = torch.compile(deployed_model) # torch compile is in our favour now? lol
 
