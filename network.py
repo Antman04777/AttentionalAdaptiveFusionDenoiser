@@ -236,11 +236,12 @@ class AdaptiveFusion(torch.nn.Module):
         x_7 = self.relu_4(x_7)
         x_7 = self.bn_4(x_7)
 
-        x_8 = torch.cat((x_2, x_7), axis=1)
+        x_8 = self.aff(x_7, x_2)           #order of entries matter
+        #x_8 = torch.cat((x_2, x_7), axis=1)
         x_8 = self.conv_layer_6(x_8)
         x_8 = self.relu_5(x_8)
         x_8 = self.bn_5(x_8)
-        k_non_TA = x_8[:,0:49]   #sliced first 49 channels for non ta kernel map
+        k_non_TA = x_8[:,0:49]              #sliced first 49 channels for non ta kernel map
 
         x_9 = self.conv_layer_7_t(x_8)
 
@@ -255,6 +256,7 @@ class AdaptiveFusion(torch.nn.Module):
         k_TA = x_11
 
         return k_non_TA, k_TA
+
 
 class WeightCNN(torch.nn.Module):
     def __init__(self, device=None):
