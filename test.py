@@ -16,9 +16,6 @@ def test(model, device, dataloader, save_dir=''):
     SMAPEs = []
     RMSEs = []
 
-    criterion = utils.SMAPEloss().to(device)
-    criterion_RMSE = torch.nn.MSELoss()
-
     # with torch.no_grad():
     with torch.inference_mode():
         for test_img_idx, (inputs, references) in enumerate(dataloader):
@@ -34,17 +31,10 @@ def test(model, device, dataloader, save_dir=''):
             #
 
 
-            SMAPE = float(criterion(outputs,references.permute((0, 2, 3, 1))).item())
-            RMSE = criterion_RMSE(outputs, references.permute((0, 2, 3, 1)))
-            print('RMSE: ', RMSE.item())
-            RMSE = torch.sqrt(RMSE)
-            RMSE = float(RMSE.item())
-
             output = outputs.cpu().numpy()[0]
-            print('out max: ', output.max())
             reference = references.cpu().numpy()[0].transpose((1, 2, 0))
 
-            SSIM, PSNR = utils.compute_metrics(reference, output)
+            SSIM, PSNR, SMAPE, RMSE = utils.compute_metrics(reference, output)
             SSIMs.append(SSIM)
             PSNRs.append(PSNR)
             SMAPEs.append(SMAPE)
@@ -159,21 +149,22 @@ if __name__ == '__main__':
 
     deployed_model = network.RepVGG(device).to(device)
     deployed_model.load_state_dict(checkpoint['model_state_dict'])
-    deployed_model.deploy()
+    with torch.no_grad():
+        deployed_model.deploy()
 
     # debug hooks
-    deployed_model.adaptive_fusion_conv.rep1.relu_1.register_forward_hook(get_activation('relu_1'))
-    deployed_model.adaptive_fusion_conv.rep2.relu_2.register_forward_hook(get_activation('relu_2'))
-    deployed_model.adaptive_fusion_conv.rep2.relu_1.register_forward_hook(get_activation('relu_3'))
-    deployed_model.adaptive_fusion_conv.rep2.relu_2.register_forward_hook(get_activation('relu_4'))
-    deployed_model.adaptive_fusion_conv.rep3.relu_1.register_forward_hook(get_activation('relu_5'))
-    deployed_model.adaptive_fusion_conv.rep3.relu_2.register_forward_hook(get_activation('relu_6'))
-    deployed_model.adaptive_fusion_conv.relu_4.register_forward_hook(get_activation('relu_7'))
-    deployed_model.adaptive_fusion_conv.relu_5.register_forward_hook(get_activation('relu_8'))
-    deployed_model.adaptive_fusion_conv.relu_6.register_forward_hook(get_activation('relu_9'))
-    deployed_model.adaptive_fusion_conv.relu_7.register_forward_hook(get_activation('relu_10'))
-    deployed_model.weight_cnn.rep1.relu_1.register_forward_hook(get_activation('relu_11'))
-    deployed_model.weight_cnn.rep1.relu_2.register_forward_hook(get_activation('relu_12'))
+    # deployed_model.adaptive_fusion_conv.rep1.relu_1.register_forward_hook(get_activation('relu_1'))
+    # deployed_model.adaptive_fusion_conv.rep2.relu_2.register_forward_hook(get_activation('relu_2'))
+    # deployed_model.adaptive_fusion_conv.rep2.relu_1.register_forward_hook(get_activation('relu_3'))
+    # deployed_model.adaptive_fusion_conv.rep2.relu_2.register_forward_hook(get_activation('relu_4'))
+    # deployed_model.adaptive_fusion_conv.rep3.relu_1.register_forward_hook(get_activation('relu_5'))
+    # deployed_model.adaptive_fusion_conv.rep3.relu_2.register_forward_hook(get_activation('relu_6'))
+    # deployed_model.adaptive_fusion_conv.relu_4.register_forward_hook(get_activation('relu_7'))
+    # deployed_model.adaptive_fusion_conv.relu_5.register_forward_hook(get_activation('relu_8'))
+    # deployed_model.adaptive_fusion_conv.relu_6.register_forward_hook(get_activation('relu_9'))
+    # deployed_model.adaptive_fusion_conv.relu_7.register_forward_hook(get_activation('relu_10'))
+    # deployed_model.weight_cnn.rep1.relu_1.register_forward_hook(get_activation('relu_11'))
+    # deployed_model.weight_cnn.rep1.relu_2.register_forward_hook(get_activation('relu_12'))
     # deployed_model.adaptive_fusion_conv.relu_4.register_forward_hook(get_activation('relu_4'))
     # deployed_model.adaptive_fusion_conv.relu_5.register_forward_hook(get_activation('relu_5'))
     # deployed_model.adaptive_fusion_conv.relu_6.register_forward_hook(get_activation('relu_6'))
@@ -194,6 +185,6 @@ if __name__ == '__main__':
     average_inference_time = time_inference(deployed_model, device, timing_dataloader, steps=rawdata.num_frames_per_scene)
     print(f'Average inference time = {average_inference_time}')
 
-    utils.record_test_results(test_scene, experiment, device_name, ss_ta, sr_ta, ss_non_ta, sr_non_ta, PSNR_mean, SSIM_mean, average_inference_time, test_saving_dir)
+    utils.record_test_results(test_scene, experiment, device_name, PSNR_mean, SSIM_mean, average_inference_time, test_saving_dir)
 
     # print(activation)

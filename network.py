@@ -113,8 +113,8 @@ def get_fused_conv_state_dict_from_block(block: RepVGGBlock) -> Dict[str, torch.
         conv_1x1_state_dict["weight"] = torch.nn.functional.pad(
             conv_1x1_state_dict["weight"], [1, 1, 1, 1]
         )
-        fused_block_conv_state_dict["weight"] = fused_block_conv_state_dict["weight"] + conv_1x1_state_dict["weight"]
-        fused_block_conv_state_dict["bias"] = fused_block_conv_state_dict["bias"] + conv_1x1_state_dict["bias"]
+        fused_block_conv_state_dict["weight"] += conv_1x1_state_dict["weight"]
+        fused_block_conv_state_dict["bias"] += conv_1x1_state_dict["bias"]
     if block.identity:
         # create our identity 3x3 conv kernel
         identify_conv = torch.nn.Conv2d(
@@ -134,8 +134,8 @@ def get_fused_conv_state_dict_from_block(block: RepVGGBlock) -> Dict[str, torch.
         identity_state_dict = get_fused_bn_to_conv_state_dict(
             identify_conv, block.identity
         )
-        fused_block_conv_state_dict["weight"] = fused_block_conv_state_dict["weight"] + identity_state_dict["weight"]
-        fused_block_conv_state_dict["bias"] = fused_block_conv_state_dict["bias"] + identity_state_dict["bias"]
+        fused_block_conv_state_dict["weight"] += identity_state_dict["weight"]
+        fused_block_conv_state_dict["bias"] += identity_state_dict["bias"]
 
     fused_conv_state_dict = {
         k: torch.nn.Parameter(v) for k, v in fused_block_conv_state_dict.items()
@@ -290,12 +290,12 @@ class AdaptiveFusion(torch.nn.Module):
         self.relu_7 = torch.nn.ReLU()
 
     def deploy(self):
-        self.rep1 = self.rep1.to_fast()
-        self.rep2 = self.rep2.to_fast()
-        self.rep3 = self.rep3.to_fast()
-        self.rep4 = self.rep4.to_fast()
-        self.rep5 = self.rep5.to_fast()
-        self.rep6 = self.rep6.to_fast()
+        self.rep1 = self.rep1.to_fast().to(self.device)
+        self.rep2 = self.rep2.to_fast().to(self.device)
+        self.rep3 = self.rep3.to_fast().to(self.device)
+        self.rep4 = self.rep4.to_fast().to(self.device)
+        self.rep5 = self.rep5.to_fast().to(self.device)
+        self.rep6 = self.rep6.to_fast().to(self.device)
 
     def forward(self, x_input):
 
@@ -359,8 +359,8 @@ class WeightCNN(torch.nn.Module):
         self.sigmoid = torch.nn.Sigmoid()
 
     def deploy(self):
-        self.rep1 = self.rep1.to_fast()
-        self.rep2 = self.rep2.to_fast()
+        self.rep1 = self.rep1.to_fast().to(self.device)
+        self.rep2 = self.rep2.to_fast().to(self.device)
 
 
     def forward(self, x_input):
