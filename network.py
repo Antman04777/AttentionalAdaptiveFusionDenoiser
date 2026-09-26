@@ -154,26 +154,58 @@ class AFF(torch.nn.Module):
 
         self.num_input_channels=num_input_channels
         self.compressed_channels = int(num_input_channels/r)
-        self.global_context = SqueezeExcite(device,4,num_input_channels)
-        self.conv1 = torch.nn.Conv1d(num_input_channels, self.compressed_channels, 1, bias=False)
-        self.relu1 = torch.nn.ReLU() 
-        self.conv2 = torch.nn.Conv1d(self.compressed_channels, 64, 1, bias=False)
+        #self.global_context = SqueezeExcite(device,4,num_input_channels)
+        self.avg_pool = torch.nn.AdaptiveAvgPool2d(1)
+        self.conv_g1 = torch.nn.Conv1d(num_input_channels, self.compressed_channels, 1, bias=False)
+        self.bn_g1 = torch.nn.BatchNorm1d(self.compressed_channels)
+        self.relu_g1 = torch.nn.ReLU() 
+        self.conv_g2 = torch.nn.Conv1d(self.compressed_channels, 64, 1, bias=False)
+        self.bn_g2 = torch.nn.BatchNorm1d(64)
+        
+        self.conv_l1 = torch.nn.Conv1d(num_input_channels, self.compressed_channels, 1, bias=False)
+        self.bn_l1 = torch.nn.BatchNorm1d(self.compressed_channels)
+        self.relu_l1 = torch.nn.ReLU() 
+        self.conv_l2 = torch.nn.Conv1d(self.compressed_channels, 64, 1, bias=False)
+        self.bn_l2 = torch.nn.BatchNorm1d(64)
+        
         self.sigmoid = torch.nn.Sigmoid()
 
     def forward(self, x, y):
 
         x_in = x + y
 
-        x_global = self.global_context(x_in)
+        #x_global = self.global_context(x_in)
+#
+        #b_in, c_in, h_in, w_in = x_in.shape
+        #x_in = x_in.reshape(b_in, c_in, h_in * w_in)
+        #x_local = self.conv1(x_in)
+        #x_local = self.relu1(x_local)
+        #x_local = self.conv2(x_local)
+        #x_local = x_local.reshape(b_in, c_in, h_in, w_in)
+#
+        #x_context = x_global + x_local
+        #x_context = self.sigmoid(x_context)
 
         b_in, c_in, h_in, w_in = x_in.shape
-        x_in = x_in.reshape(b_in, c_in, h_in * w_in)
-        x_local = self.conv1(x_in)
-        x_local = self.relu1(x_local)
-        x_local = self.conv2(x_local)
-        x_local = x_local.reshape(b_in, c_in, h_in, w_in)
 
-        x_context = x_global + x_local
+        #global
+        x_g = self.avg_pool(x_in)
+        x_g = x_g.reshape(b_in, c_in, 1)
+        x_g = self.conv_g1(x_g)
+        x_g = self.bn_g1(x_g)
+        x_g = self.relu_g1(x_g)
+        x_g = self.conv_g2(x_g)
+        x_g = self.bn_g2(x_g)
+
+        #local
+        x_in = x_in.reshape(b_in, c_in, h_in * w_in)
+        x_l = self.conv_l1(x_in)
+        x_l = self.bn_l1(x_l)
+        x_l = self.relu_l1(x_l)
+        x_l = self.conv_l2(x_l)
+        x_l = self.bn_l2(x_l)
+
+        x_context = x_g + x_l
         x_context = self.sigmoid(x_context)
 
         x_out = (x_context * x) + ((1-x_context) * y)
@@ -249,15 +281,15 @@ class AdaptiveFusion(torch.nn.Module):
         x_1 = self.squeeze_excite_layer1(x_1)  #res connection out
 
         x_2 = self.conv_layer_2(x_1)
-        x_2 = self.relu_2(x_2)
         x_2 = self.bn_2(x_2)
+        x_2 = self.relu_2(x_2)
 
         x_3 = self.rep3(x_2)
         x_3 = self.rep4(x_3)
 
         x_4 = self.conv_layer_3(x_3)
-        x_4 = self.relu_3(x_4) # residual connection output
         x_4 = self.bn_3(x_4)
+        x_4 = self.relu_3(x_4) # residual connection output
 
         x_5 = self.rep5(x_4)
         x_5 = self.rep6(x_5)
@@ -266,26 +298,26 @@ class AdaptiveFusion(torch.nn.Module):
         x_6 = self.conv_layer_4_t(x_5)
 
         x_7 = self.conv_layer_5(x_6)
-        x_7 = self.relu_4(x_7)
         x_7 = self.bn_4(x_7)
+        x_7 = self.relu_4(x_7)
 
         x_8 = self.aff(x_7, x_2)           #order of entries matter
         #x_8 = torch.cat((x_2, x_7), axis=1)
         x_8 = self.conv_layer_6(x_8)
-        x_8 = self.relu_5(x_8)
         x_8 = self.bn_5(x_8)
+        x_8 = self.relu_5(x_8)
         k_non_TA = x_8[:,0:49]              #sliced first 49 channels for non ta kernel map
 
         x_9 = self.conv_layer_7_t(x_8)
 
         x_10 = self.conv_layer_8(x_9)
-        x_10 = self.relu_6(x_10)
         x_10 = self.bn_6(x_10)
+        x_10 = self.relu_6(x_10)
 
         x_11_in = torch.cat((x_1, x_10), axis=1)
         x_11 = self.conv_layer_9(x_11_in)
-        x_11 = self.relu_7(x_11)
         x_11 = self.bn_7(x_11)
+        x_11 = self.relu_7(x_11)
         k_TA = x_11
 
         return k_non_TA, k_TA
