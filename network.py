@@ -147,6 +147,38 @@ class SqueezeExcite(torch.nn.Module):
         x_out = x_in * channel_weights.expand_as(x_in)
         return x_out
 
+class AFF(torch.nn.Module):
+    def __init__(self,device,r=4,num_input_channels=3):
+        super().__init__()
+
+        self.num_input_channels=num_input_channels
+        self.compressed_channels = int(num_input_channels/r)
+        self.global_context = SqueezeExcite(device,4,num_input_channels)
+        self.conv1 = torch.nn.Conv1d(num_input_channels, self.compressed_channels, 1, bias=False)
+        self.relu1 = torch.nn.ReLU() 
+        self.conv2 = torch.nn.Conv1d(self.compressed_channels, 64, 1, bias=False)
+        self.sigmoid = torch.nn.Sigmoid()
+
+    def forward(self, x, y):
+
+        x_in = x + y
+
+        x_global = self.global_context(x_in)
+
+        b_in, c_in, h_in, w_in = x_in.shape
+        x_in = x_in.reshape(b_in, c_in, h_in * w_in)
+        x_local = self.conv1(x_in)
+        x_local = self.relu1(x_local)
+        x_local = self.conv2(x_local)
+        x_local = x_local.reshape(b_in, c_in, h_in, w_in)
+
+        x_context = x_global + x_local
+        x_context = self.sigmoid(x_context)
+
+        x_out = (x_context * x) + ((1-x_context) * y)
+
+        return x_out
+    
 class AdaptiveFusion(torch.nn.Module):
     def __init__(self, device, num_input_channels=16):
         super().__init__()
