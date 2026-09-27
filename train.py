@@ -162,6 +162,9 @@ if __name__ == "__main__":
     model = RepVGG(device).to(device)
     optimizer = torch.optim.Adam(model.parameters(), learning_rate)
 
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"Total parameters: {total_params:,}")
+
     lower_bound = 0
     upper_bound = epochs
 

@@ -322,8 +322,10 @@ class RepVGG(torch.nn.Module):
         x_irradiance_TA = raw_inputs[:, 3:6]
         x_albedo = raw_inputs[:, 6:9]
 
-        x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA * x_albedo)
-        x_tone_mapped_TA_frame = utils.tone_mapping(x_irradiance_TA * x_albedo)
+        # x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA * x_albedo)
+        x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA)
+        # x_tone_mapped_TA_frame = utils.tone_mapping(x_irradiance_TA * x_albedo)
+        x_tone_mapped_TA_frame = utils.tone_mapping(x_irradiance_TA)
 
 
         # x_tone_mapped_TA_frame_copy = x_tone_mapped_TA_frame
