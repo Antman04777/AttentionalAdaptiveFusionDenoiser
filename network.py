@@ -529,7 +529,7 @@ class Net(torch.nn.Module):
         albedo = raw_inputs[:, 6:9]
 
         Non_TA_denoised, TA_denoised = self.block1(raw_inputs)
-        inputs = torch.cat((d_non_ta, d_ta, aux), axis=1)
+        inputs = torch.cat((Non_TA_denoised, TA_denoised, aux), axis=1)
         d_non_ta, d_ta = self.block2(inputs)
 
         TA_denoised_tone_mapped = utils.tone_mapping(TA_denoised)
