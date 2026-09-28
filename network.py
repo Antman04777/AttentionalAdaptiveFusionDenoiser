@@ -572,16 +572,16 @@ class RepVGG(torch.nn.Module):
         # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
         # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
         # final = torch.clamp(TA_denoised - weight, min=0.0) * upsampled_TA_denoised + (weight * Non_TA_denoised)
-        final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
+        new_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
 
 
-        input_toned = utils.tone_mapping(final_irradiance)
+        input_toned = utils.tone_mapping(new_irradiance)
         x_input_2 = torch.cat((input_toned,raw_inputs[:, 6:16]), axis=1)
         kernel = self.refine(x_input_2)
         
-
+        final_irradiance = torch.empty((B, 3, H_ta, W_ta), dtype=x_irradiance_TA.dtype, device=self.device)
         for i in range(3):
-            irr_channel = final_irradiance[:, i:(i+1)]
+            irr_channel = new_irradiance[:, i:(i+1)]
             
             #irradiance_TA denoising
             unfolded = torch.nn.functional.unfold(irr_channel, kernel_size=kernels_size, padding=3, stride=1)
