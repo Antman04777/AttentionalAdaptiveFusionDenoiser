@@ -213,7 +213,7 @@ class AFF(torch.nn.Module):
 
         return x_out
     
-class AdaptiveFusion(torch.nn.Module):
+class KernelPredictor(torch.nn.Module):
     def __init__(self, device, num_input_channels=16):
         super().__init__()
 
@@ -303,7 +303,7 @@ class AdaptiveFusion(torch.nn.Module):
         x_2 = self.relu_2(x_2)
 
         x_3 = self.rep3(x_2)
-        x_3 = self.rep4(x_3)
+        #x_3 = self.rep4(x_3)
 
         x_4 = self.conv_layer_3(x_3)
         x_4 = self.bn_3(x_4)
@@ -311,8 +311,8 @@ class AdaptiveFusion(torch.nn.Module):
         #x_4 = self.drop1(x_4) # residual connection output
 
         x_5 = self.rep5(x_4)
-        x_5 = self.rep6(x_5)
-        x_5 = self.squeeze_excite_layer2(x_5)
+        #x_5 = self.rep6(x_5)
+        #x_5 = self.squeeze_excite_layer2(x_5)
 
         x_6 = self.conv_layer_4_t(x_5)
 
@@ -374,7 +374,7 @@ class WeightCNN(torch.nn.Module):
 
         return x3
 
-class RepVGG(torch.nn.Module):
+class DenoiserBlock(torch.nn.Module):
     def __init__(self, device):
         super().__init__()
 
@@ -394,7 +394,7 @@ class RepVGG(torch.nn.Module):
         self.irradiance_final = None
         self.final = None
 
-        self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
+        self.kernel_pred_conv = KernelPredictor(device).to(device)
         self.weight_cnn = WeightCNN(device).to(device)
 
         self.downsampler = torch.nn.AvgPool2d(2, stride=2)
@@ -403,14 +403,14 @@ class RepVGG(torch.nn.Module):
         torch.autograd.set_detect_anomaly(True)
 
     def deploy(self):
-        self.adaptive_fusion_conv.deploy()
-        self.weight_cnn.deploy()
+        self.kernel_pred_conv.deploy()
+        #self.weight_cnn.deploy()
 
     # @profile
-    def forward(self, raw_inputs):
-        x_irradiance_non_TA = raw_inputs[:, 0:3]
-        x_irradiance_TA = raw_inputs[:, 3:6]
-        x_albedo = raw_inputs[:, 6:9]
+    def forward(self, inputs):
+        x_irradiance_non_TA = inputs[:, 0:3]
+        x_irradiance_TA = inputs[:, 3:6]
+        x_albedo = inputs[:, 6:9]
 
         #x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA * x_albedo)
         x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA)
@@ -423,9 +423,9 @@ class RepVGG(torch.nn.Module):
         # alpha, one_minus_alpha = self.attention_layer(x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, x_tone_mapped_TA_frame_copy)
 
         # x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.num_input_channels]), axis=1)
-        x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.adaptive_fusion_conv.num_input_channels]), axis=1)
+        x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, inputs[:, 6:self.kernel_pred_conv.num_input_channels]), axis=1)
 
-        kernel_non_TA, kernel_TA = self.adaptive_fusion_conv(x_input)
+        kernel_non_TA, kernel_TA = self.kernel_pred_conv(x_input)
         #y_TA = y_TA[:, :3, :, :]
         #y_TA = y_TA.permute((0, 2, 3, 1))
 
@@ -483,27 +483,78 @@ class RepVGG(torch.nn.Module):
 
         Non_TA_denoised = self.upsampler(Non_TA_denoised)
 
-        TA_denoised_tone_mapped = utils.tone_mapping(TA_denoised)
-        Non_TA_denoised_tone_mapped = utils.tone_mapping(Non_TA_denoised)
-
-        weight_input = torch.cat((Non_TA_denoised_tone_mapped, TA_denoised_tone_mapped), axis=1)
-
-        weight = self.weight_cnn(weight_input)
-
-        # print("min = ", torch.min(weight))
-        # print("max = ", torch.max(weight))
-
-        downsampled_TA_denoised = self.downsampler(TA_denoised)
-        upsampled_TA_denoised = self.upsampler(downsampled_TA_denoised)
-
-        # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
-        # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
-        # final = torch.clamp(TA_denoised - weight, min=0.0) * upsampled_TA_denoised + (weight * Non_TA_denoised)
-        final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
-        final = x_albedo * final_irradiance
-        # final = torch.clamp(TA_denoised - upsampled_TA_denoised, min=0.0) + torch.clamp(Non_TA_denoised, min=0.0)
-
-
-        return final.permute((0, 2, 3, 1))
+        return Non_TA_denoised, TA_denoised
+        #TA_denoised_tone_mapped = utils.tone_mapping(TA_denoised)
+        #Non_TA_denoised_tone_mapped = utils.tone_mapping(Non_TA_denoised)
+#
+        #weight_input = torch.cat((Non_TA_denoised_tone_mapped, TA_denoised_tone_mapped), axis=1)
+#
+        #weight = self.weight_cnn(weight_input)
+#
+        ## print("min = ", torch.min(weight))
+        ## print("max = ", torch.max(weight))
+#
+        #downsampled_TA_denoised = self.downsampler(TA_denoised)
+        #upsampled_TA_denoised = self.upsampler(downsampled_TA_denoised)
+#
+        ## final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
+        ## final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
+        ## final = torch.clamp(TA_denoised - weight, min=0.0) * upsampled_TA_denoised + (weight * Non_TA_denoised)
+        #final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
+        #final = x_albedo * final_irradiance
+        ## final = torch.clamp(TA_denoised - upsampled_TA_denoised, min=0.0) + torch.clamp(Non_TA_denoised, min=0.0)
+#
+#
+        #return final.permute((0, 2, 3, 1))
         # return TA_denoised.permute((0, 2, 3, 1))
         # return kernel_TA[:, 0:3].permute((0, 2, 3, 1))
+
+class Net(torch.nn.Module):
+    def __init__(self, device):
+        super().__init__()
+
+
+        self.block1 = DenoiserBlock(device)
+        self.block2 = DenoiserBlock(device)
+        self.weight_cnn = WeightCNN() 
+
+    def deploy(self):
+        self.block1.deploy()
+        self.block2.deploy
+        self.weight_cnn.deploy()
+
+    def forward(self, raw_inputs):
+
+        aux = raw_inputs[:, 6:16]
+        albedo = raw_inputs[:, 6:9]
+
+        Non_TA_denoised, TA_denoised = self.block1(raw_inputs)
+        inputs = torch.cat((d_non_ta, d_ta, aux), axis=1)
+        d_non_ta, d_ta = self.block2(inputs)
+
+        TA_denoised_tone_mapped = utils.tone_mapping(TA_denoised)
+        Non_TA_denoised_tone_mapped = utils.tone_mapping(Non_TA_denoised)
+        
+        weight_input = torch.cat((Non_TA_denoised_tone_mapped, TA_denoised_tone_mapped), axis=1)
+        
+        weight = self.weight_cnn(weight_input)
+        
+                # print("min = ", torch.min(weight))
+                # print("max = ", torch.max(weight))
+        
+        downsampled_TA_denoised = self.downsampler(TA_denoised)
+        upsampled_TA_denoised = self.upsampler(downsampled_TA_denoised)
+        
+                # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
+                # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
+                # final = torch.clamp(TA_denoised - weight, min=0.0) * upsampled_TA_denoised + (weight * Non_TA_denoised)
+        final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
+        final = albedo * final_irradiance
+                # final = torch.clamp(TA_denoised - upsampled_TA_denoised, min=0.0) + torch.clamp(Non_TA_denoised, min=0.0)
+        
+        
+        return final.permute((0, 2, 3, 1))
+
+
+
+    
