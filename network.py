@@ -343,6 +343,129 @@ class AdaptiveFusion(torch.nn.Module):
 
         return k_non_TA, k_TA
 
+class RepUNet(torch.nn.Module):
+    def __init__(self, device=None):
+        super().__init__()
+
+        self.device = device
+
+        self.rep1_noisy = RepVGGBlock(in_channels=6, out_channels=16).to(device)
+        self.rep2_noisy = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+        self.squeeze_excite_layer_1_noisy = SqueezeExcite(device, r=2, num_input_channels=16).to(device)
+
+        self.rep1_aux = RepVGGBlock(in_channels=10, out_channels=16).to(device)
+        self.rep2_aux = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+        self.squeeze_excite_layer_1_aux = SqueezeExcite(device, r=2, num_input_channels=16).to(device)
+
+        # downsample
+        self.rep3 = RepVGGBlock(in_channels=32, out_channels=32).to(device)
+        self.rep4 = RepVGGBlock(in_channels=32, out_channels=32).to(device)
+        # self.conv_down_1 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
+        self.relu_1 = torch.nn.ReLU()
+
+        # downsample
+        self.rep5 = RepVGGBlock(in_channels=64, out_channels=64).to(device)
+        self.rep6 = RepVGGBlock(in_channels=64, out_channels=64).to(device)
+        self.conv_down_2 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
+        self.relu_2 = torch.nn.ReLU()
+
+        # downsample
+        self.rep7 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
+        self.rep8 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
+        self.conv_down_3 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
+        self.relu_3 = torch.nn.ReLU()
+
+        self.repb = RepVGGBlock(in_channels=128, out_channels=128).to(device)
+
+        # upsample
+        self.conv_up_1 = torch.nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=2, stride=2, bias=False)
+        self.aff_1 = AFF(device, r=4, num_input_channels=128)
+        self.rep9 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
+        self.rep10 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
+
+        # upsample
+        self.conv_up_2 = torch.nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=2, stride=2, bias=False)
+        self.aff_2 = AFF(device, r=4, num_input_channels=64)
+        self.rep11 = RepVGGBlock(in_channels=64, out_channels=64).to(device)
+        self.rep12 = RepVGGBlock(in_channels=64, out_channels=64).to(device)
+
+        # upsample
+        self.conv_up_3 = torch.nn.ConvTranspose2d(in_channels=64, out_channels=49, kernel_size=2, stride=2, bias=False)
+        self.aff_3 = AFF(device, r=4, num_input_channels=32)
+        self.rep13 = RepVGGBlock(in_channels=49, out_channels=49).to(device)
+        self.rep14 = RepVGGBlock(in_channels=49, out_channels=49).to(device)
+
+
+    def deploy(self):
+        self.rep1_noisy = self.rep1_noisy.to_fast().to(self.device)
+        self.rep2_noisy = self.rep2_noisy.to_fast().to(self.device)
+        self.rep1_aux = self.rep1_aux.to_fast().to(self.device)
+        self.rep2_aux = self.rep2_aux.to_fast().to(self.device)
+        self.rep3 = self.rep3.to_fast().to(self.device)
+        self.rep4 = self.rep4.to_fast().to(self.device)
+        self.rep5 = self.rep5.to_fast().to(self.device)
+        self.rep6 = self.rep6.to_fast().to(self.device)
+        self.rep7 = self.rep7.to_fast().to(self.device)
+        self.rep8 = self.rep8.to_fast().to(self.device)
+        self.rep9 = self.rep9.to_fast().to(self.device)
+        self.rep10 = self.rep10.to_fast().to(self.device)
+        self.rep11 = self.rep11.to_fast().to(self.device)
+        self.rep12 = self.rep12.to_fast().to(self.device)
+        self.rep13 = self.rep13.to_fast().to(self.device)
+        self.rep14 = self.rep14.to_fast().to(self.device)
+        self.rep15 = self.rep15.to_fast().to(self.device)
+
+
+    def forward(self, input):
+        x_noisy = input[:, 0:6]
+        x_aux = input[:, 6:16]
+
+        x_1_noisy = self.rep1_noisy(x_noisy)
+        x_1_noisy = self.rep2_noisy(x_1_noisy)
+        x_1_noisy = self.squeeze_excite_layer_1_noisy(x_1_noisy)
+
+        x_1_aux = self.rep1_aux(x_aux)
+        x_1_aux = self.rep2_aux(x_1_aux)
+        x_1_aux = self.squeeze_excite_layer_1_aux(x_1_noisy)
+
+        x_embedded = torch.cat((x_1_noisy, x_1_aux), axis=1)
+
+        x_2 = self.rep3(x_embedded)
+        x_2 = self.rep4(x_2)
+        # x_2 = self.conv_down_1(x_2) # 64x64x64
+        x_2 = self.relu_1(x_2) # branch 1
+
+        x_3 = self.rep5(x_2)
+        x_3 = self.rep6(x_3)
+        x_3 = self.conv_down_2(x_3) # 128x32x32
+        x_3 = self.relu_2(x_3) # branch 2
+
+        x_4 = self.rep7(x_3)
+        x_4 = self.rep8(x_4)
+        x_4 = self.conv_down_3(x_4) # 256x16x16
+        x_4 = self.relu_3(x_4) # branch 3
+
+        # something in between?
+        x_bottleneck = self.repb(x_4)
+
+        x_5 = self.conv_up_1(x_4) # outputs 128 channels 128x32x32
+        x_5_att = self.aff_1(x_5, x_4)
+        x_5_att = self.rep9(x_5_att)
+        x_5_att = self.rep10(x_5_att)
+
+        x_6 = self.conv_up_2(x_5)
+        x_6_att = self.aff_2(x_6, x_3)
+        x_6_att = self.rep11(x_6_att)
+        x_6_att = self.rep12(x_6_att)
+        non_ta = x_6_att[:, 0:49]
+
+        x_7 = self.conv_up_3(x_6)
+        x_7_att = self.aff_3(x_7, x_2)
+        x_7_att = self.rep13(x_7_att)
+        x_7_att = self.rep14(x_7_att)
+        ta = x_7_att[:, 0:49]
+
+        return non_ta, ta
 
 class WeightCNN(torch.nn.Module):
     def __init__(self, device=None):
@@ -394,7 +517,8 @@ class RepVGG(torch.nn.Module):
         self.irradiance_final = None
         self.final = None
 
-        self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
+        # self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
+        self.main_module = RepUNet(device).to(device)
         self.weight_cnn = WeightCNN(device).to(device)
 
         self.downsampler = torch.nn.AvgPool2d(2, stride=2)
@@ -403,7 +527,8 @@ class RepVGG(torch.nn.Module):
         torch.autograd.set_detect_anomaly(True)
 
     def deploy(self):
-        self.adaptive_fusion_conv.deploy()
+        # self.adaptive_fusion_conv.deploy()
+        self.main_module.deploy()
         self.weight_cnn.deploy()
 
     # @profile
@@ -423,9 +548,10 @@ class RepVGG(torch.nn.Module):
         # alpha, one_minus_alpha = self.attention_layer(x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, x_tone_mapped_TA_frame_copy)
 
         # x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.num_input_channels]), axis=1)
-        x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.adaptive_fusion_conv.num_input_channels]), axis=1)
+        x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:16]), axis=1)
 
-        kernel_non_TA, kernel_TA = self.adaptive_fusion_conv(x_input)
+        # kernel_non_TA, kernel_TA = self.adaptive_fusion_conv(x_input)
+        kernel_non_TA, kernel_TA = self.main_module(x_input)
         #y_TA = y_TA[:, :3, :, :]
         #y_TA = y_TA.permute((0, 2, 3, 1))
 
