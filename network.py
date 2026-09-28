@@ -375,7 +375,7 @@ class WeightCNN(torch.nn.Module):
         return x3
 
 class DenoiserBlock(torch.nn.Module):
-    def __init__(self, device, reduce=False):
+    def __init__(self, device):
         super().__init__()
 
         self.device = device
