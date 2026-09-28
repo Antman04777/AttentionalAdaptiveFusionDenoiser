@@ -375,7 +375,7 @@ class WeightCNN(torch.nn.Module):
         return x3
 
 class DenoiserBlock(torch.nn.Module):
-    def __init__(self, device):
+    def __init__(self, device, reduce=False):
         super().__init__()
 
         self.device = device
@@ -394,7 +394,7 @@ class DenoiserBlock(torch.nn.Module):
         self.irradiance_final = None
         self.final = None
 
-        self.kernel_pred_conv = KernelPredictor(device).to(device)
+        self.kernel_pred_conv = KernelPredictor(device,reduce).to(device)
         #self.weight_cnn = WeightCNN(device).to(device)
 
         self.downsampler = torch.nn.AvgPool2d(2, stride=2)
