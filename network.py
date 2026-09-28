@@ -395,7 +395,7 @@ class DenoiserBlock(torch.nn.Module):
         self.final = None
 
         self.kernel_pred_conv = KernelPredictor(device).to(device)
-        self.weight_cnn = WeightCNN(device).to(device)
+        #self.weight_cnn = WeightCNN(device).to(device)
 
         self.downsampler = torch.nn.AvgPool2d(2, stride=2)
         self.upsampler = torch.nn.Upsample(scale_factor=2)
@@ -514,9 +514,11 @@ class Net(torch.nn.Module):
         super().__init__()
 
 
-        self.block1 = DenoiserBlock(device)
-        self.block2 = DenoiserBlock(device)
-        self.weight_cnn = WeightCNN() 
+        self.block1 = DenoiserBlock(device).to(device)
+        self.block2 = DenoiserBlock(device).to(device)
+        self.downsampler = torch.nn.AvgPool2d(2, stride=2).to(device)
+        self.upsampler = torch.nn.Upsample(scale_factor=2).to(device)
+        self.weight_cnn = WeightCNN(device).to(device) 
 
     def deploy(self):
         self.block1.deploy()
@@ -530,7 +532,7 @@ class Net(torch.nn.Module):
 
         Non_TA_denoised, TA_denoised = self.block1(raw_inputs)
         inputs = torch.cat((Non_TA_denoised, TA_denoised, aux), axis=1)
-        d_non_ta, d_ta = self.block2(inputs)
+        Non_TA_denoised, TA_denoised = self.block2(inputs)
 
         TA_denoised_tone_mapped = utils.tone_mapping(TA_denoised)
         Non_TA_denoised_tone_mapped = utils.tone_mapping(Non_TA_denoised)
