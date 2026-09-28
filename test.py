@@ -149,7 +149,7 @@ if __name__ == '__main__':
     
     checkpoint = torch.load(os.path.join(model_saving_dir, 'model.pt'), device)
 
-    deployed_model = network.RepVGG(device).to(device)
+    deployed_model = network.Net(device).to(device)
     deployed_model.load_state_dict(checkpoint['model_state_dict'])
     with torch.no_grad():
         deployed_model.deploy()
