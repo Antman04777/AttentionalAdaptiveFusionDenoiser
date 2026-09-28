@@ -212,7 +212,47 @@ class AFF(torch.nn.Module):
         x_out = (x_context * x) + ((1-x_context) * y)
 
         return x_out
-    
+
+class FeatureExtractor(torch.nn.Module):
+    def __init__(self, device, num_input_channels=16):
+        super().__init__()
+
+        self.device = device
+
+        self.num_input_channels = num_input_channels
+
+        self.rep1_noisy = RepVGGBlock(in_channels=6, out_channels=32).to(device)
+        self.rep2_noisy = RepVGGBlock(in_channels=32, out_channels=32).to(device)
+        self.squeeze_excite_layer1_noisy = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
+
+        self.rep1_aux = RepVGGBlock(in_channels=10, out_channels=32).to(device)
+        self.rep2_aux = RepVGGBlock(in_channels=32, out_channels=32).to(device)
+        self.squeeze_excite_layer1_aux = SqueezeExcite(device, r=4, num_input_channels=32).to(device) 
+
+
+    def deploy(self):
+        self.rep1_noisy = self.rep1_noisy.to_fast().to(self.device)
+        self.rep2_noisy = self.rep2_noisy.to_fast().to(self.device)
+        self.rep1_aux = self.rep1_aux.to_fast().to(self.device)
+        self.rep2_aux = self.rep2_aux.to_fast().to(self.device)
+
+
+    def forward(self, x_input):
+        x_input_noisy = x_input[:, 0:6]
+        x_input_aux = x_input[:, 6:16]
+
+        x_1_noisy = self.rep1_noisy(x_input_noisy)
+        x_1_noisy = self.rep2_noisy(x_1_noisy)
+        x_1_noisy = self.squeeze_excite_layer1_noisy(x_1_noisy)
+
+        x_1_aux = self.rep1_aux(x_input_aux)
+        x_1_aux = self.rep2_aux(x_1_aux)
+        x_1_aux = self.squeeze_excite_layer1_aux(x_1_aux)
+
+        return x_1_noisy, x_1_aux
+        
+
+
 class AdaptiveFusion(torch.nn.Module):
     def __init__(self, device, num_input_channels=16):
         super().__init__()
@@ -222,13 +262,13 @@ class AdaptiveFusion(torch.nn.Module):
         self.num_input_channels = num_input_channels
 
         # self.rep1 = RepBlock(device, in_ch=self.num_input_channels, out_ch=32, is_input=True, bn=True).to(device)
-        self.rep1_noisy = RepVGGBlock(in_channels=6, out_channels=32).to(device)
-        self.rep2_noisy = RepVGGBlock(in_channels=32, out_channels=32).to(device)
-        self.squeeze_excite_layer1_noisy = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
-
-        self.rep1_aux = RepVGGBlock(in_channels=10, out_channels=32).to(device)
-        self.rep2_aux = RepVGGBlock(in_channels=32, out_channels=32).to(device)
-        self.squeeze_excite_layer1_aux = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
+        #self.rep1_noisy = RepVGGBlock(in_channels=6, out_channels=32).to(device)
+        #self.rep2_noisy = RepVGGBlock(in_channels=32, out_channels=32).to(device)
+        #self.squeeze_excite_layer1_noisy = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
+#
+        #self.rep1_aux = RepVGGBlock(in_channels=10, out_channels=32).to(device)
+        #self.rep2_aux = RepVGGBlock(in_channels=32, out_channels=32).to(device)
+        #self.squeeze_excite_layer1_aux = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
 
         self.conv_layer_2 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn_2 = torch.nn.BatchNorm2d(64)
@@ -275,26 +315,26 @@ class AdaptiveFusion(torch.nn.Module):
         self.relu_7 = torch.nn.ReLU()
 
     def deploy(self):
-        self.rep1_noisy = self.rep1_noisy.to_fast().to(self.device)
-        self.rep2_noisy = self.rep2_noisy.to_fast().to(self.device)
-        self.rep1_aux = self.rep1_aux.to_fast().to(self.device)
-        self.rep2_aux = self.rep2_aux.to_fast().to(self.device)
+        #self.rep1_noisy = self.rep1_noisy.to_fast().to(self.device)
+        #self.rep2_noisy = self.rep2_noisy.to_fast().to(self.device)
+        #self.rep1_aux = self.rep1_aux.to_fast().to(self.device)
+        #self.rep2_aux = self.rep2_aux.to_fast().to(self.device)
         self.rep3 = self.rep3.to_fast().to(self.device)
         self.rep4 = self.rep4.to_fast().to(self.device)
         self.rep5 = self.rep5.to_fast().to(self.device)
         self.rep6 = self.rep6.to_fast().to(self.device)
 
-    def forward(self, x_input):
-        x_input_noisy = x_input[:, 0:6]
-        x_input_aux = x_input[:, 6:16]
-
-        x_1_noisy = self.rep1_noisy(x_input_noisy)
-        x_1_noisy = self.rep2_noisy(x_1_noisy)
-        x_1_noisy = self.squeeze_excite_layer1_noisy(x_1_noisy)
-
-        x_1_aux = self.rep1_aux(x_input_aux)
-        x_1_aux = self.rep2_aux(x_1_aux)
-        x_1_aux = self.squeeze_excite_layer1_aux(x_1_aux)
+    def forward(self, x_1_noisy,x_1_aux):
+        #x_input_noisy = x_input[:, 0:6]
+        #x_input_aux = x_input[:, 6:16]
+#
+        #x_1_noisy = self.rep1_noisy(x_input_noisy)
+        #x_1_noisy = self.rep2_noisy(x_1_noisy)
+        #x_1_noisy = self.squeeze_excite_layer1_noisy(x_1_noisy)
+#
+        #x_1_aux = self.rep1_aux(x_input_aux)
+        #x_1_aux = self.rep2_aux(x_1_aux)
+        #x_1_aux = self.squeeze_excite_layer1_aux(x_1_aux)
 
         x_embedded = torch.cat((x_1_noisy, x_1_aux), axis=1)  #res connection out
 
@@ -374,6 +414,33 @@ class WeightCNN(torch.nn.Module):
 
         return x3
 
+
+class Refine(torch.nn.Module):
+    def __init__(self,device):
+        super().__init__()
+
+        self.device = device
+
+        self.rep1 = RepVGGBlock(in_channels=16, out_channels=49).to(device)
+        self.rep2 = RepVGGBlock(in_channels=49, out_channels=49).to(device)
+        self.rep3 = RepVGGBlock(in_channels=49, out_channels=49).to(device)
+        self.rep4 = RepVGGBlock(in_channels=49, out_channels=98).to(device)
+
+    def deploy(self):
+        self.rep1 = self.rep1.to_fast().to(self.device)
+        self.rep2 = self.rep2.to_fast().to(self.device)
+        self.rep3 = self.rep3.to_fast().to(self.device)
+        self.rep4 = self.rep4.to_fast().to(self.device)
+
+    def forward(self, inputs):
+
+        x1 = self.rep1(inputs)
+        x2 = self.rep2(x1)
+        x3 = self.rep3(x2)
+        xf = self.rep4(x3)
+
+        return xf
+
 class RepVGG(torch.nn.Module):
     def __init__(self, device):
         super().__init__()
@@ -394,8 +461,10 @@ class RepVGG(torch.nn.Module):
         self.irradiance_final = None
         self.final = None
 
+        self.feature_extract = FeatureExtractor(device).to(device)
         self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
         self.weight_cnn = WeightCNN(device).to(device)
+        self.refine = Refine(device).to(device)
 
         self.downsampler = torch.nn.AvgPool2d(2, stride=2)
         self.upsampler = torch.nn.Upsample(scale_factor=2)
@@ -403,8 +472,10 @@ class RepVGG(torch.nn.Module):
         torch.autograd.set_detect_anomaly(True)
 
     def deploy(self):
+        self.feature_extract.deploy()
         self.adaptive_fusion_conv.deploy()
         self.weight_cnn.deploy()
+        self.refine.deploy()
 
     # @profile
     def forward(self, raw_inputs):
@@ -425,7 +496,8 @@ class RepVGG(torch.nn.Module):
         # x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.num_input_channels]), axis=1)
         x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.adaptive_fusion_conv.num_input_channels]), axis=1)
 
-        kernel_non_TA, kernel_TA = self.adaptive_fusion_conv(x_input)
+        x_noisy, x_aux = self.feature_extract(x_input)
+        kernel_non_TA, kernel_TA = self.adaptive_fusion_conv(x_noisy, x_aux)
         #y_TA = y_TA[:, :3, :, :]
         #y_TA = y_TA.permute((0, 2, 3, 1))
 
@@ -483,6 +555,7 @@ class RepVGG(torch.nn.Module):
 
         Non_TA_denoised = self.upsampler(Non_TA_denoised)
 
+
         TA_denoised_tone_mapped = utils.tone_mapping(TA_denoised)
         Non_TA_denoised_tone_mapped = utils.tone_mapping(Non_TA_denoised)
 
@@ -500,6 +573,27 @@ class RepVGG(torch.nn.Module):
         # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
         # final = torch.clamp(TA_denoised - weight, min=0.0) * upsampled_TA_denoised + (weight * Non_TA_denoised)
         final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
+
+
+        input_toned = utils.tone_mapping(final_irradiance)
+        x_input_2 = torch.cat((input_toned,raw_inputs[:, 6:16]), axis=1)
+        kernel = self.refine(x_input_2)
+        
+
+        for i in range(3):
+            irr_channel = final_irradiance[:, i:(i+1)]
+            
+            #irradiance_TA denoising
+            unfolded = torch.nn.functional.unfold(irr_channel, kernel_size=kernels_size, padding=3, stride=1)
+            kernel_unfolded_format = kernel.reshape(B, kernels_num_channels, H_ta * W_ta)
+            input_kernel_multipliaction = kernel_unfolded_format * unfolded
+            out_flat = input_kernel_multipliaction.sum(dim=1, keepdim=True)
+            out = out_flat.reshape(B, 1, H_ta, W_ta)
+            norm = kernel.sum(dim=1, keepdim=True)
+            out = out / (norm + 0.0001)
+
+            final_irradiance[:, i:(i+1)] = out
+
         final = x_albedo * final_irradiance
         # final = torch.clamp(TA_denoised - upsampled_TA_denoised, min=0.0) + torch.clamp(Non_TA_denoised, min=0.0)
 
