@@ -424,7 +424,7 @@ class Refine(torch.nn.Module):
         self.rep1 = RepVGGBlock(in_channels=13, out_channels=49).to(device)
         self.rep2 = RepVGGBlock(in_channels=49, out_channels=49).to(device)
         self.rep3 = RepVGGBlock(in_channels=49, out_channels=49).to(device)
-        self.rep4 = RepVGGBlock(in_channels=49, out_channels=98).to(device)
+        self.rep4 = RepVGGBlock(in_channels=49, out_channels=49).to(device)
 
     def deploy(self):
         self.rep1 = self.rep1.to_fast().to(self.device)
