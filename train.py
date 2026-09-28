@@ -14,6 +14,7 @@ from skimage.metrics import peak_signal_noise_ratio
 import argparse
 import sys
 import json
+import random
     
 def train(model, device, dataloader, optimizer, epoch, writer, loss_func='smape'):
     model.train()
@@ -105,6 +106,11 @@ def validate(model, device, dataloader, loss_func='smape'):
 
     return SSIM_mean, PSNR_mean
 
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+
 if __name__ == "__main__":
 
     torch.cuda.set_device(0)
@@ -112,6 +118,11 @@ if __name__ == "__main__":
     torch.backends.cudnn.benchmark = False 
     device = torch.device("cuda")
     device_name = torch.cuda.get_device_name(0)
+
+    # np.random.seed(42)
+    torch.manual_seed(42)
+    torch.cuda.manual_seed(42)
+    generator = torch.Generator().manual_seed(42)
 
     parser = argparse.ArgumentParser(prog='train')
     # parser.add_argument('--resume', type=str, help='<path_to_model.pt>')
@@ -147,7 +158,9 @@ if __name__ == "__main__":
 
     raw_data = RawDataReader(is_training=True, hold_out_scene=current_testing_scene_name)
     dataset_train = BMFRFinalDataset(raw_data, use_train=True)
-    dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
+    dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True, generator=generator, worker_init_fn=seed_worker)
+    # dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
+    # dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
     dataset_val = BMFRFinalDataset(raw_data, use_val=True)
     dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)

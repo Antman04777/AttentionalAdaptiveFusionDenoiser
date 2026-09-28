@@ -5,6 +5,7 @@ import pyexr
 from tqdm import tqdm
 from torch.utils.data import Dataset
 import torchvision.transforms.functional as tf
+from torchvision.transforms import v2
 # import json
 
 # from memory_profiler import profile
@@ -171,6 +172,8 @@ class BMFRFinalDataset(Dataset):
 
         self.augmentation_operations = [rotate90, rotate270, tf.hflip, tf.vflip]
 
+        self.distort_brightness = v2.ColorJitter(brightness=0.2)
+
     def transform(self, input, reference):
         if self.use_train or self.use_val:
             rand_x = np.random.randint(self.raw_data.IMG_HEIGHT - self.crop_size)
@@ -183,6 +186,9 @@ class BMFRFinalDataset(Dataset):
                 operation = np.random.choice(self.augmentation_operations)
                 input_cropped = operation(input_cropped)
                 reference_cropped = operation(reference_cropped)
+
+            input_cropped[0:3, :, :] = self.distort_brightness(input_cropped[0:3, :, :])
+            input_cropped[3:6, :, :] = self.distort_brightness(input_cropped[3:6, :, :])
                     
         elif self.use_test:
             input_cropped = tf.to_tensor(input.astype(np.float32))
