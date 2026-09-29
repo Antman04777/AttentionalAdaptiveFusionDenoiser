@@ -374,6 +374,131 @@ class WeightCNN(torch.nn.Module):
 
         return x3
 
+class Upsampler():
+    def __init__(self,device):
+        super().__init__()
+
+        self.device = device
+
+        #Information Exctraction:
+        #Odd conv blocks pass info to each other via res
+
+        self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = torch.nn.BatchNorm2d(64)
+        self.relu1 = torch.nn.ReLU()
+        self.conv2 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn2 = torch.nn.BatchNorm2d(64)
+        self.relu2 = torch.nn.ReLU()
+        self.conv3 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn3 = torch.nn.BatchNorm2d(64)
+
+        self.relu3 = torch.nn.ReLU()
+        self.conv4 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn4 = torch.nn.BatchNorm2d(64)
+        self.relu4 = torch.nn.ReLU()
+        self.conv5 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn5 = torch.nn.BatchNorm2d(64)
+
+        self.relu5 = torch.nn.ReLU()
+        self.conv6 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn6 = torch.nn.BatchNorm2d(64)
+        self.relu6 = torch.nn.ReLU()
+        self.conv7 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn7 = torch.nn.BatchNorm2d(64)
+
+        self.relu7 = torch.nn.ReLU()
+        self.conv8 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn8 = torch.nn.BatchNorm2d(64)
+        self.relu8 = torch.nn.ReLU()
+        self.conv9 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn9 = torch.nn.BatchNorm2d(64)
+
+        self.relu9 = torch.nn.ReLU()
+
+        #reconstruct
+        self.conv10 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.shuff1 = torch.nn.PixelShuffle(2)
+        self.conv11 = torch.nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.shuff2 = torch.nn.PixelShuffle(2)
+
+        self.conv12 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.shuff3 = torch.nn.PixelShuffle(2)
+        self.conv13 = torch.nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.shuff4 = torch.nn.PixelShuffle(2)
+
+        self.bn10 = torch.nn.BatchNorm2d(4)
+        self.relu10 = torch.nn.ReLU()
+
+        #refine
+        self.conv14 = torch.nn.Conv2d(in_channels=4, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn11 = torch.nn.BatchNorm2d(64)
+        self.relu11 = torch.nn.ReLU()
+        self.conv15 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn12 = torch.nn.BatchNorm2d(64)
+        self.relu12 = torch.nn.ReLU()
+        self.conv16 = torch.nn.Conv2d(in_channels=64, out_channels=3, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn13 = torch.nn.BatchNorm2d(3)
+
+    def forward(self, d_input):
+
+        x1 = self.conv1(d_input)   
+        x2 = self.bn1(x1)
+        x3 = self.relu1(x2)      #skip connect   
+        x4 = self.conv2(x3)
+        x4 = self.bn2(x4)
+        x4 = self.relu2(x4)
+        x4 = self.conv3(x4)
+
+        x5 = self.bn3(x1 + x4)      
+        x6 = self.relu3(x5)
+        x6 = self.conv4(x6)
+        x6 = self.bn4(x6)
+        x6 = self.relu4(x6)
+        x6 = self.conv5(x6)
+
+        x7 = self.bn5(x5 + x6)
+        x8 = self.relu5(x7)
+        x8 = self.conv6(x8)
+        x8 = self.bn6(x8)
+        x8 = self.relu6(x8)
+        x8 = self.conv7(x8)
+
+        x9 = self.conv8(x7 + x8)
+        x10 = self.relu7(x9)
+        x10 = self.conv9(x10)
+        x10 = self.bn7(x10)
+        x10 = self.relu8(x10)
+        x10 = self.conv10(x10)
+
+        x11 = self.bn8(x9 + x10)
+        x11 = self.relu9(x11)
+
+        x11 = self.conv11(x11)
+        x11 = self.shuff1(x11)
+        x11 = self.conv12(x11)
+        x11 = self.shuff2(x11)
+
+        x12 = self.conv13(x3)
+        x12 = self.shuff3(x12)
+        x12 = self.conv14(x12)
+        x12 = self.shuff4(x12)
+
+        x13 = self.bn9(x11 + x12)
+        x13 = self.relu10(x13)
+
+        x13 = self.conv14(x13)
+        x13 = self.bn10(x13)
+        x13 = self.relu11(x13)
+        x13 = self.conv15(x13)
+        x13 = self.bn11(x13)
+        x13 = self.relu12(x13)
+        x13 = self.conv16(x13)
+        xf = self.bn12(x13)
+
+        return xf
+
+
+
 class RepVGG(torch.nn.Module):
     def __init__(self, device):
         super().__init__()
@@ -398,7 +523,8 @@ class RepVGG(torch.nn.Module):
         self.weight_cnn = WeightCNN(device).to(device)
 
         self.downsampler = torch.nn.AvgPool2d(2, stride=2)
-        self.upsampler = torch.nn.Upsample(scale_factor=2)
+        #self.upsampler = torch.nn.Upsample(scale_factor=2)
+        self.upsampler = Upsampler(device).to(device)
 
         torch.autograd.set_detect_anomaly(True)
 
