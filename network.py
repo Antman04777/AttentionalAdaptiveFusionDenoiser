@@ -524,8 +524,8 @@ class RepVGG(torch.nn.Module):
         self.weight_cnn = WeightCNN(device).to(device)
 
         self.downsampler = torch.nn.AvgPool2d(2, stride=2)
-        #self.upsampler = torch.nn.Upsample(scale_factor=2)
-        self.upsampler = Upsampler(device).to(device)
+        self.upsampler = torch.nn.Upsample(scale_factor=2)
+        self.upsampler1 = Upsampler(device).to(device)
 
         torch.autograd.set_detect_anomaly(True)
 
@@ -608,7 +608,7 @@ class RepVGG(torch.nn.Module):
             # Non_TA_denoised = convolutional_ops.apply_kernel_maps_to_irradiance_maps(downsampled_irr_non_TA, kernel_non_TA)[:, :, 3:-3, 3:-3]
             # TA_denoised = convolutional_ops.apply_kernel_maps_to_irradiance_maps(x_irradiance_TA, kernel_TA)[:, :, 3:-3, 3:-3]
 
-        Non_TA_denoised = self.upsampler(Non_TA_denoised)
+        Non_TA_denoised = self.upsampler1(Non_TA_denoised)
         print(Non_TA_denoised.shape)
 
         TA_denoised_tone_mapped = utils.tone_mapping(TA_denoised)
