@@ -449,18 +449,21 @@ class RepUNet(torch.nn.Module):
         x_bottleneck = self.repb(x_4_out)
 
         x_5 = self.conv_up_1(x_bottleneck) # outputs 128 channels 128x32x32
-        x_5_att = self.aff_1(x_5, x_4)
+        # x_5_att = self.aff_1(x_5, x_4)
+        x_5_att = self.aff_1(x_4, x_5)
         x_5_att = self.rep9(x_5_att)
         x_5_att = self.rep10(x_5_att)
 
         x_6 = self.conv_up_2(x_5)
-        x_6_att = self.aff_2(x_6, x_3)
+        # x_6_att = self.aff_2(x_6, x_3)
+        x_6_att = self.aff_2(x_3, x_6)
         x_6_att = self.rep11(x_6_att)
         x_6_att = self.rep12(x_6_att)
         non_ta = x_6_att[:, 0:49]
 
         x_7 = self.conv_up_3(x_6)
-        x_7_att = self.aff_3(x_7, x_2)
+        # x_7_att = self.aff_3(x_7, x_2)
+        x_7_att = self.aff_3(x_2, x_7)
         x_7_att = self.rep13(x_7_att)
         x_7_att = self.rep14(x_7_att)
         ta = x_7_att[:, 0:49]
@@ -549,7 +552,8 @@ class Refinement(torch.nn.Module):
         x_bottleneck = self.repb(x_1_out)
 
         x_2 = self.up_1(x_bottleneck)
-        x_2 = self.aff_1(x_2, x_1)
+        # x_2 = self.aff_1(x_2, x_1)
+        x_2 = self.aff_1(x_1, x_2)
         x_2 = self.rep3(x_2)
         x_2 = self.rep4(x_2)
         x_2 = self.conv_layer2(x_2)
@@ -689,13 +693,13 @@ class RepVGG(torch.nn.Module):
         # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
         # final = torch.clamp(TA_denoised - weight, min=0.0) * upsampled_TA_denoised + (weight * Non_TA_denoised)
         final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
-        # final = x_albedo * final_irradiance
+        final = x_albedo * final_irradiance
         # final = torch.clamp(TA_denoised - upsampled_TA_denoised, min=0.0) + torch.clamp(Non_TA_denoised, min=0.0)
 
-        x_input_refine = torch.cat((final_irradiance, raw_inputs[:, 6:16]), axis=1)
-        final_refined = self.refinement(x_input_refine)
+        # x_input_refine = torch.cat((final_irradiance, raw_inputs[:, 6:16]), axis=1)
+        # final_refined = self.refinement(x_input_refine)
+        # final = x_albedo * final_refined
 
-        final = x_albedo * final_refined
 
         return final.permute((0, 2, 3, 1))
         # return TA_denoised.permute((0, 2, 3, 1))
