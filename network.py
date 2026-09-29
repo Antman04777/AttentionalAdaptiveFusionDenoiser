@@ -609,7 +609,6 @@ class RepVGG(torch.nn.Module):
             # TA_denoised = convolutional_ops.apply_kernel_maps_to_irradiance_maps(x_irradiance_TA, kernel_TA)[:, :, 3:-3, 3:-3]
 
         Non_TA_denoised = self.upsampler1(Non_TA_denoised)
-        print(Non_TA_denoised.shape)
 
         TA_denoised_tone_mapped = utils.tone_mapping(TA_denoised)
         Non_TA_denoised_tone_mapped = utils.tone_mapping(Non_TA_denoised)
