@@ -27,7 +27,7 @@ class RawDataReader:
 
         self.scene_names = ["classroom", "living-room", "san-miguel", "sponza-glossy", "sponza-moving-light", "sponza"]
         self.scenes_to_be_loaded = None
-        self.num_frames_per_scene = 6
+        self.num_frames_per_scene = 60
 
         self.is_training = is_training
         self.hold_out_scene = hold_out_scene
@@ -187,8 +187,8 @@ class BMFRFinalDataset(Dataset):
                 input_cropped = operation(input_cropped)
                 reference_cropped = operation(reference_cropped)
 
-            input_cropped[0:3, :, :] = self.distort_brightness(input_cropped[0:3, :, :])
-            input_cropped[3:6, :, :] = self.distort_brightness(input_cropped[3:6, :, :])
+            # input_cropped[0:3, :, :] = self.distort_brightness(input_cropped[0:3, :, :])
+            # input_cropped[3:6, :, :] = self.distort_brightness(input_cropped[3:6, :, :])
                     
         elif self.use_test:
             input_cropped = tf.to_tensor(input.astype(np.float32))

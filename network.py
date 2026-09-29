@@ -159,14 +159,14 @@ class AFF(torch.nn.Module):
         self.conv_g1 = torch.nn.Conv1d(num_input_channels, self.compressed_channels, 1, bias=False)
         self.bn_g1 = torch.nn.BatchNorm1d(self.compressed_channels)
         self.relu_g1 = torch.nn.ReLU() 
-        self.conv_g2 = torch.nn.Conv1d(self.compressed_channels, 64, 1, bias=False)
-        self.bn_g2 = torch.nn.BatchNorm1d(64)
+        self.conv_g2 = torch.nn.Conv1d(self.compressed_channels, num_input_channels, 1, bias=False)
+        self.bn_g2 = torch.nn.BatchNorm1d(num_input_channels)
         
         self.conv_l1 = torch.nn.Conv1d(num_input_channels, self.compressed_channels, 1, bias=False)
         self.bn_l1 = torch.nn.BatchNorm1d(self.compressed_channels)
         self.relu_l1 = torch.nn.ReLU() 
-        self.conv_l2 = torch.nn.Conv1d(self.compressed_channels, 64, 1, bias=False)
-        self.bn_l2 = torch.nn.BatchNorm1d(64)
+        self.conv_l2 = torch.nn.Conv1d(self.compressed_channels, num_input_channels, 1, bias=False)
+        self.bn_l2 = torch.nn.BatchNorm1d(num_input_channels)
         
         self.sigmoid = torch.nn.Sigmoid()
 
@@ -360,7 +360,7 @@ class RepUNet(torch.nn.Module):
         # downsample
         self.rep3 = RepVGGBlock(in_channels=32, out_channels=32).to(device)
         self.rep4 = RepVGGBlock(in_channels=32, out_channels=32).to(device)
-        # self.conv_down_1 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv_down_1 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
         self.relu_1 = torch.nn.ReLU()
 
         # downsample
@@ -372,10 +372,10 @@ class RepUNet(torch.nn.Module):
         # downsample
         self.rep7 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
         self.rep8 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
-        self.conv_down_3 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv_down_3 = torch.nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=2, padding=1, bias=False)
         self.relu_3 = torch.nn.ReLU()
 
-        self.repb = RepVGGBlock(in_channels=128, out_channels=128).to(device)
+        self.repb = RepVGGBlock(in_channels=256, out_channels=256).to(device)
 
         # upsample
         self.conv_up_1 = torch.nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=2, stride=2, bias=False)
@@ -390,9 +390,9 @@ class RepUNet(torch.nn.Module):
         self.rep12 = RepVGGBlock(in_channels=64, out_channels=64).to(device)
 
         # upsample
-        self.conv_up_3 = torch.nn.ConvTranspose2d(in_channels=64, out_channels=49, kernel_size=2, stride=2, bias=False)
+        self.conv_up_3 = torch.nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=2, stride=2, bias=False)
         self.aff_3 = AFF(device, r=4, num_input_channels=32)
-        self.rep13 = RepVGGBlock(in_channels=49, out_channels=49).to(device)
+        self.rep13 = RepVGGBlock(in_channels=32, out_channels=49).to(device)
         self.rep14 = RepVGGBlock(in_channels=49, out_channels=49).to(device)
 
 
@@ -407,13 +407,13 @@ class RepUNet(torch.nn.Module):
         self.rep6 = self.rep6.to_fast().to(self.device)
         self.rep7 = self.rep7.to_fast().to(self.device)
         self.rep8 = self.rep8.to_fast().to(self.device)
+        self.repb = self.repb.to_fast().to(self.device)
         self.rep9 = self.rep9.to_fast().to(self.device)
         self.rep10 = self.rep10.to_fast().to(self.device)
         self.rep11 = self.rep11.to_fast().to(self.device)
         self.rep12 = self.rep12.to_fast().to(self.device)
         self.rep13 = self.rep13.to_fast().to(self.device)
         self.rep14 = self.rep14.to_fast().to(self.device)
-        self.rep15 = self.rep15.to_fast().to(self.device)
 
 
     def forward(self, input):
@@ -432,23 +432,23 @@ class RepUNet(torch.nn.Module):
 
         x_2 = self.rep3(x_embedded)
         x_2 = self.rep4(x_2)
-        # x_2 = self.conv_down_1(x_2) # 64x64x64
-        x_2 = self.relu_1(x_2) # branch 1
+        x_2_out = self.conv_down_1(x_2) # 64x64x64
+        x_2_out = self.relu_1(x_2_out) # branch 1
 
-        x_3 = self.rep5(x_2)
+        x_3 = self.rep5(x_2_out)
         x_3 = self.rep6(x_3)
-        x_3 = self.conv_down_2(x_3) # 128x32x32
-        x_3 = self.relu_2(x_3) # branch 2
+        x_3_out = self.conv_down_2(x_3) # 128x32x32
+        x_3_out = self.relu_2(x_3_out) # branch 2
 
-        x_4 = self.rep7(x_3)
+        x_4 = self.rep7(x_3_out)
         x_4 = self.rep8(x_4)
-        x_4 = self.conv_down_3(x_4) # 256x16x16
-        x_4 = self.relu_3(x_4) # branch 3
+        x_4_out = self.conv_down_3(x_4) # 256x16x16
+        x_4_out = self.relu_3(x_4_out) # branch 3
 
         # something in between?
-        x_bottleneck = self.repb(x_4)
+        x_bottleneck = self.repb(x_4_out)
 
-        x_5 = self.conv_up_1(x_4) # outputs 128 channels 128x32x32
+        x_5 = self.conv_up_1(x_bottleneck) # outputs 128 channels 128x32x32
         x_5_att = self.aff_1(x_5, x_4)
         x_5_att = self.rep9(x_5_att)
         x_5_att = self.rep10(x_5_att)
@@ -478,12 +478,17 @@ class WeightCNN(torch.nn.Module):
         self.rep1 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
         self.rep2 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
 
-        self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
+        self.rep3 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+        self.rep4 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+
+        self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=1, kernel_size=1, stride=1, padding=0, bias=False)
         self.sigmoid = torch.nn.Sigmoid()
 
     def deploy(self):
         self.rep1 = self.rep1.to_fast().to(self.device)
         self.rep2 = self.rep2.to_fast().to(self.device)
+        self.rep3 = self.rep3.to_fast().to(self.device)
+        self.rep4 = self.rep4.to_fast().to(self.device)
 
 
     def forward(self, x_input):
@@ -491,7 +496,9 @@ class WeightCNN(torch.nn.Module):
 
         x1 = self.conv_layer1(x_input)
         x2 = self.rep1(x1)
-        x2 = self.rep1(x2)
+        x2 = self.rep2(x2)
+        x2 = self.rep3(x2)
+        x2 = self.rep4(x2)
         x3 = self.conv_layer2(x2)
         x3 = self.sigmoid(x3)
 
