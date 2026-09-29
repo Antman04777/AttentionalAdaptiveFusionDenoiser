@@ -426,11 +426,11 @@ class Upsampler(torch.nn.Module):
         self.conv13 = torch.nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.shuff4 = torch.nn.PixelShuffle(2)
 
-        self.bn10 = torch.nn.BatchNorm2d(4)
+        self.bn10 = torch.nn.BatchNorm2d(16)
         self.relu10 = torch.nn.ReLU()
 
         #refine
-        self.conv14 = torch.nn.Conv2d(in_channels=4, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv14 = torch.nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn11 = torch.nn.BatchNorm2d(64)
         self.relu11 = torch.nn.ReLU()
         self.conv15 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
