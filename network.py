@@ -426,18 +426,19 @@ class Upsampler(torch.nn.Module):
         self.conv13 = torch.nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.shuff4 = torch.nn.PixelShuffle(2)
 
-        self.bn10 = torch.nn.BatchNorm2d(4)
+        self.bn10 = torch.nn.BatchNorm2d(16)
         self.relu10 = torch.nn.ReLU()
 
         #refine
-        self.conv14 = torch.nn.Conv2d(in_channels=4, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv14 = torch.nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn11 = torch.nn.BatchNorm2d(64)
         self.relu11 = torch.nn.ReLU()
         self.conv15 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn12 = torch.nn.BatchNorm2d(64)
         self.relu12 = torch.nn.ReLU()
         self.conv16 = torch.nn.Conv2d(in_channels=64, out_channels=3, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn13 = torch.nn.BatchNorm2d(3)
+        # self.bn13 = torch.nn.BatchNorm2d(3)
+        self.relu13 = torch.nn.ReLU()
 
     def forward(self, d_input):
 
@@ -493,7 +494,7 @@ class Upsampler(torch.nn.Module):
         x13 = self.bn12(x13)
         x13 = self.relu12(x13)
         x13 = self.conv16(x13)
-        xf = self.bn13(x13)
+        xf = self.relu13(x13)
 
         return xf
 
@@ -608,6 +609,7 @@ class RepVGG(torch.nn.Module):
             # TA_denoised = convolutional_ops.apply_kernel_maps_to_irradiance_maps(x_irradiance_TA, kernel_TA)[:, :, 3:-3, 3:-3]
 
         Non_TA_denoised = self.upsampler(Non_TA_denoised)
+        print(Non_TA_denoised.shape)
 
         TA_denoised_tone_mapped = utils.tone_mapping(TA_denoised)
         Non_TA_denoised_tone_mapped = utils.tone_mapping(Non_TA_denoised)
