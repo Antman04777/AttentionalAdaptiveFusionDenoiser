@@ -374,7 +374,7 @@ class WeightCNN(torch.nn.Module):
 
         return x3
 
-class Upsampler():
+class Upsampler(torch.nn.Module):
     def __init__(self,device):
         super().__init__()
 
@@ -448,52 +448,52 @@ class Upsampler():
         x4 = self.bn2(x4)
         x4 = self.relu2(x4)
         x4 = self.conv3(x4)
+        x5 = self.bn3(x1 + x4) 
 
-        x5 = self.bn3(x1 + x4)      
         x6 = self.relu3(x5)
         x6 = self.conv4(x6)
         x6 = self.bn4(x6)
         x6 = self.relu4(x6)
         x6 = self.conv5(x6)
-
         x7 = self.bn5(x5 + x6)
+
         x8 = self.relu5(x7)
         x8 = self.conv6(x8)
         x8 = self.bn6(x8)
         x8 = self.relu6(x8)
         x8 = self.conv7(x8)
+        x9 = self.bn7(x7 + x8)
 
-        x9 = self.conv8(x7 + x8)
         x10 = self.relu7(x9)
-        x10 = self.conv9(x10)
-        x10 = self.bn7(x10)
+        x10 = self.conv8(x10)
+        x10 = self.bn8(x10)
         x10 = self.relu8(x10)
-        x10 = self.conv10(x10)
+        x10 = self.conv9(x10)
 
-        x11 = self.bn8(x9 + x10)
+        x11 = self.bn9(x9 + x10)
         x11 = self.relu9(x11)
 
-        x11 = self.conv11(x11)
+        x11 = self.conv10(x11)
         x11 = self.shuff1(x11)
-        x11 = self.conv12(x11)
+        x11 = self.conv11(x11)
         x11 = self.shuff2(x11)
 
-        x12 = self.conv13(x3)
+        x12 = self.conv12(x3)
         x12 = self.shuff3(x12)
-        x12 = self.conv14(x12)
+        x12 = self.conv13(x12)
         x12 = self.shuff4(x12)
 
-        x13 = self.bn9(x11 + x12)
+        x13 = self.bn10(x11 + x12)
         x13 = self.relu10(x13)
 
         x13 = self.conv14(x13)
-        x13 = self.bn10(x13)
+        x13 = self.bn11(x13)
         x13 = self.relu11(x13)
         x13 = self.conv15(x13)
-        x13 = self.bn11(x13)
+        x13 = self.bn12(x13)
         x13 = self.relu12(x13)
         x13 = self.conv16(x13)
-        xf = self.bn12(x13)
+        xf = self.bn13(x13)
 
         return xf
 
