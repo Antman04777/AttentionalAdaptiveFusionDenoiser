@@ -418,13 +418,13 @@ class Upsampler(torch.nn.Module):
         #reconstruct
         self.conv10 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.shuff1 = torch.nn.PixelShuffle(2)
-        self.conv11 = torch.nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.shuff2 = torch.nn.PixelShuffle(2)
+        #self.conv11 = torch.nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        #self.shuff2 = torch.nn.PixelShuffle(2)
 
         self.conv12 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.shuff3 = torch.nn.PixelShuffle(2)
-        self.conv13 = torch.nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.shuff4 = torch.nn.PixelShuffle(2)
+        #self.conv13 = torch.nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        #self.shuff4 = torch.nn.PixelShuffle(2)
 
         self.bn10 = torch.nn.BatchNorm2d(16)
         self.relu10 = torch.nn.ReLU()
@@ -476,13 +476,13 @@ class Upsampler(torch.nn.Module):
 
         x11 = self.conv10(x11)
         x11 = self.shuff1(x11)
-        x11 = self.conv11(x11)
-        x11 = self.shuff2(x11)
+#        x11 = self.conv11(x11)
+#        x11 = self.shuff2(x11)
 
         x12 = self.conv12(x3)
         x12 = self.shuff3(x12)
-        x12 = self.conv13(x12)
-        x12 = self.shuff4(x12)
+#        x12 = self.conv13(x12)
+#        x12 = self.shuff4(x12)
 
         x13 = self.bn10(x11 + x12)
         x13 = self.relu10(x13)
