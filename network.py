@@ -360,18 +360,21 @@ class RepUNet(torch.nn.Module):
         # downsample
         self.rep3 = RepVGGBlock(in_channels=32, out_channels=32).to(device)
         self.rep4 = RepVGGBlock(in_channels=32, out_channels=32).to(device)
+        self.squeeze_excite_layer_2 = SqueezeExcite(device, r=2, num_input_channels=32).to(device)
         self.conv_down_1 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
         self.relu_1 = torch.nn.ReLU()
 
         # downsample
         self.rep5 = RepVGGBlock(in_channels=64, out_channels=64).to(device)
         self.rep6 = RepVGGBlock(in_channels=64, out_channels=64).to(device)
+        self.squeeze_excite_layer_3 = SqueezeExcite(device, r=2, num_input_channels=64).to(device)
         self.conv_down_2 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
         self.relu_2 = torch.nn.ReLU()
 
         # downsample
         self.rep7 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
         self.rep8 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
+        self.squeeze_excite_layer_4 = SqueezeExcite(device, r=2, num_input_channels=128).to(device)
         self.conv_down_3 = torch.nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=2, padding=1, bias=False)
         self.relu_3 = torch.nn.ReLU()
 
@@ -432,17 +435,20 @@ class RepUNet(torch.nn.Module):
 
         x_2 = self.rep3(x_embedded)
         x_2 = self.rep4(x_2)
-        x_2_out = self.conv_down_1(x_2) # 64x64x64
+        x_2_out = self.squeeze_excite_layer_2(x_2)
+        x_2_out = self.conv_down_1(x_2_out) # 64x64x64
         x_2_out = self.relu_1(x_2_out) # branch 1
 
         x_3 = self.rep5(x_2_out)
         x_3 = self.rep6(x_3)
-        x_3_out = self.conv_down_2(x_3) # 128x32x32
+        x_3_out = self.squeeze_excite_layer_3(x_3)
+        x_3_out = self.conv_down_2(x_3_out) # 128x32x32
         x_3_out = self.relu_2(x_3_out) # branch 2
 
         x_4 = self.rep7(x_3_out)
         x_4 = self.rep8(x_4)
-        x_4_out = self.conv_down_3(x_4) # 256x16x16
+        x_4_out = self.squeeze_excite_layer_4(x_4)
+        x_4_out = self.conv_down_3(x_4_out) # 256x16x16
         x_4_out = self.relu_3(x_4_out) # branch 3
 
         # something in between?

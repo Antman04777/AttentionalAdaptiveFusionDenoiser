@@ -6,5 +6,5 @@
     "epochs": 300,
     "epochs_validate": 5,
     "batch_size": 16,
-    "previously_elapsed_epochs": 270
+    "previously_elapsed_epochs": 290
 }
