@@ -408,7 +408,7 @@ class WeightCNN(torch.nn.Module):
 
         x1 = self.conv_layer1(x_input)
         x2 = self.rep1(x1)
-        x2 = self.rep1(x2)
+        x2 = self.rep2(x2)
         x3 = self.conv_layer2(x2)
         x3 = self.sigmoid(x3)
 
