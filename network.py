@@ -638,7 +638,35 @@ class WeightCNN(torch.nn.Module):
 
         return x3
 
+class Refine(torch.nn.Module):
+    def __init__(self, device=None):
+        super().__init__()
 
+        self.device = device
+
+        self.conv_layer1 = torch.nn.Conv2d(in_channels=13, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
+
+        self.rep1 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+        self.rep2 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+
+        self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
+        self.sigmoid = torch.nn.Sigmoid()
+
+    def deploy(self):
+        self.rep1 = self.rep1.to_fast().to(self.device)
+        self.rep2 = self.rep2.to_fast().to(self.device)
+
+
+    def forward(self, x_input):
+        # two tone mapped irradiance maps concatenated
+
+        x1 = self.conv_layer1(x_input)
+        x2 = self.rep1(x1)
+        x2 = self.rep2(x2)
+        x3 = self.conv_layer2(x2)
+        x3 = self.sigmoid(x3)
+
+        return x3
 
 class RepVGG(torch.nn.Module):
     def __init__(self, device):
@@ -646,26 +674,10 @@ class RepVGG(torch.nn.Module):
 
         self.device = device
 
-        self.num_input_channels = 13
-
-        #debug
-        self.x_final_out = None
-        self.guide1 = None
-        self.guide2 = None
-        self.weight_map1 = None
-        self.grid1 = None
-        self.grid2 = None
-        self.irradiance_non_TA_denoised = None
-        self.irradiance_TA_denoised = None
-        self.irradiance_final = None
-        self.final = None
-
-        # self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
         self.main_module = RepUNet(device).to(device)
         self.weight_cnn = WeightCNN(device).to(device)
         self.super_res_upsampler = Upsampler(device).to(device)
-        # self.refinement = Refinement(device).to(device)
-
+        self.refinement = Refine(device).to(device)
 
         self.downsampler = torch.nn.AvgPool2d(2, stride=2)
         self.upsampler = torch.nn.Upsample(scale_factor=2)
@@ -673,41 +685,21 @@ class RepVGG(torch.nn.Module):
         torch.autograd.set_detect_anomaly(True)
 
     def deploy(self):
-        # self.adaptive_fusion_conv.deploy()
         self.main_module.deploy()
         self.weight_cnn.deploy()
-        # self.refinement.deploy()
+        self.refinement.deploy()
 
-    # @profile
     def forward(self, raw_inputs):
         x_irradiance_non_TA = raw_inputs[:, 0:3]
         x_irradiance_TA = raw_inputs[:, 3:6]
         x_albedo = raw_inputs[:, 6:9]
 
-        #x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA * x_albedo)
         x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA)
-        #x_tone_mapped_TA_frame = utils.tone_mapping(x_irradiance_TA * x_albedo)
         x_tone_mapped_TA_frame = utils.tone_mapping(x_irradiance_TA)
 
-
-        # x_tone_mapped_TA_frame_copy = x_tone_mapped_TA_frame
-
-        # alpha, one_minus_alpha = self.attention_layer(x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, x_tone_mapped_TA_frame_copy)
-
-        # x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.num_input_channels]), axis=1)
         x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:16]), axis=1)
 
-        # kernel_non_TA, kernel_TA = self.adaptive_fusion_conv(x_input)
         kernel_non_TA, kernel_TA = self.main_module(x_input)
-        #y_TA = y_TA[:, :3, :, :]
-        #y_TA = y_TA.permute((0, 2, 3, 1))
-
-        # x_albedo = x_albedo.permute((0, 2, 3, 1))
-        # alpha = alpha.permute((0, 2, 3, 1))
-        #return y_TA
-
-        # x_input_non_TA = torch.cat((x_tone_mapped_non_TA_frame, raw_inputs[:, 6:16]), axis=1)
-        # x_input_TA = torch.cat((x_tone_mapped_TA_frame, raw_inputs[:, 6:16]), axis=1)
 
         downsampled_irr_non_TA = self.downsampler(x_irradiance_non_TA)
 
@@ -764,24 +756,10 @@ class RepVGG(torch.nn.Module):
 
         weight = self.weight_cnn(weight_input)
 
-        # print("min = ", torch.min(weight))
-        # print("max = ", torch.max(weight))
-
         downsampled_TA_denoised = self.downsampler(TA_denoised)
         upsampled_TA_denoised = self.upsampler(downsampled_TA_denoised)
 
-        # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
-        # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
-        # final = torch.clamp(TA_denoised - weight, min=0.0) * upsampled_TA_denoised + (weight * Non_TA_denoised)
         final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
         final = x_albedo * final_irradiance
-        # final = torch.clamp(TA_denoised - upsampled_TA_denoised, min=0.0) + torch.clamp(Non_TA_denoised, min=0.0)
-
-        # x_input_refine = torch.cat((final_irradiance, raw_inputs[:, 6:16]), axis=1)
-        # final_refined = self.refinement(x_input_refine)
-        # final = x_albedo * final_refined
-
 
         return final.permute((0, 2, 3, 1))
-        # return TA_denoised.permute((0, 2, 3, 1))
-        # return kernel_TA[:, 0:3].permute((0, 2, 3, 1))
