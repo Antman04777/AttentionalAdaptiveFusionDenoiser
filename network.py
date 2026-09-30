@@ -510,13 +510,17 @@ class Refine(torch.nn.Module):
         self.rep1 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
         self.rep2 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
 
+        self.rep3 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+        self.rep4 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+
         self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
 #        self.sigmoid = torch.nn.Sigmoid()
 
     def deploy(self):
         self.rep1 = self.rep1.to_fast().to(self.device)
         self.rep2 = self.rep2.to_fast().to(self.device)
-
+        self.rep3 = self.rep3.to_fast().to(self.device)
+        self.rep4 = self.rep4.to_fast().to(self.device)
 
     def forward(self, x_input):
         # two tone mapped irradiance maps concatenated
@@ -524,6 +528,8 @@ class Refine(torch.nn.Module):
         x1 = self.conv_layer1(x_input)
         x2 = self.rep1(x1)
         x2 = self.rep2(x2)
+        x2 = self.rep3(x2)
+        x2 = self.rep4(x2)
         x3 = self.conv_layer2(x2)
 #        x3 = self.sigmoid(x3)
 
