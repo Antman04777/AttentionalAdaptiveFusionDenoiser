@@ -638,58 +638,6 @@ class WeightCNN(torch.nn.Module):
 
         return x3
 
-class Refinement(torch.nn.Module):
-    def __init__(self, device=None):
-        super().__init__()
-
-        self.device = device
-
-        # small unet
-        self.conv_layer1 = torch.nn.Conv2d(in_channels=13, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
-
-        self.rep1 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
-        self.rep2 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
-        self.down_1 = torch.nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=2, padding=1, bias=False)
-        self.relu_1 = torch.nn.ReLU()
-
-        self.repb = RepVGGBlock(in_channels=32, out_channels=32).to(device)
-
-        self.up_1 = torch.nn.ConvTranspose2d(in_channels=32, out_channels=16, kernel_size=2, stride=2, padding=0, bias=False)
-        self.aff_1 = AFF(device, r=4, num_input_channels=16).to(device)
-        self.rep3 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
-        self.rep4 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
-
-        self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=1, kernel_size=1, stride=1, padding=0, bias=False)
-        self.relu_2 = torch.nn.ReLU()
-
-    def deploy(self):
-        self.rep1 = self.rep1.to_fast().to(self.device)
-        self.rep2 = self.rep2.to_fast().to(self.device)
-
-        self.repb = self.repb.to_fast().to(self.device)
-
-        self.rep3 = self.rep3.to_fast().to(self.device)
-        self.rep4 = self.rep4.to_fast().to(self.device)
-
-    def forward(self, input):
-
-        x_1 = self.conv_layer1(input)
-        x_1 = self.rep1(x_1)
-        x_1 = self.rep2(x_1)
-        x_1_out = self.down_1(x_1)
-        x_1_out = self.relu_1(x_1_out)
-
-        x_bottleneck = self.repb(x_1_out)
-
-        x_2 = self.up_1(x_bottleneck)
-        # x_2 = self.aff_1(x_2, x_1)
-        x_2 = self.aff_1(x_1, x_2)
-        x_2 = self.rep3(x_2)
-        x_2 = self.rep4(x_2)
-        x_2 = self.conv_layer2(x_2)
-        x_2 = self.relu_2(x_2)
-
-        return x_2
 
 
 class RepVGG(torch.nn.Module):
