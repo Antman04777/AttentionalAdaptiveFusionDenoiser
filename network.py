@@ -499,7 +499,35 @@ class Upsampler(torch.nn.Module):
         return xf
 
 
+class Refine(torch.nn.Module):
+    def __init__(self, device=None):
+        super().__init__()
 
+        self.device = device
+
+        self.conv_layer1 = torch.nn.Conv2d(in_channels=13, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
+
+        self.rep1 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+        self.rep2 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+
+        self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
+        self.sigmoid = torch.nn.Sigmoid()
+
+    def deploy(self):
+        self.rep1 = self.rep1.to_fast().to(self.device)
+        self.rep2 = self.rep2.to_fast().to(self.device)
+
+
+    def forward(self, x_input):
+        # two tone mapped irradiance maps concatenated
+
+        x1 = self.conv_layer1(x_input)
+        x2 = self.rep1(x1)
+        x2 = self.rep2(x2)
+        x3 = self.conv_layer2(x2)
+        x3 = self.sigmoid(x3)
+
+        return x3
 class RepVGG(torch.nn.Module):
     def __init__(self, device):
         super().__init__()
@@ -526,6 +554,7 @@ class RepVGG(torch.nn.Module):
         self.downsampler = torch.nn.AvgPool2d(2, stride=2)
         self.upsampler = torch.nn.Upsample(scale_factor=2)
         self.upsampler1 = Upsampler(device).to(device)
+        #self.refine = Refine(device).to(device)
 
         torch.autograd.set_detect_anomaly(True)
 
@@ -537,6 +566,7 @@ class RepVGG(torch.nn.Module):
     def forward(self, raw_inputs):
         x_irradiance_non_TA = raw_inputs[:, 0:3]
         x_irradiance_TA = raw_inputs[:, 3:6]
+        x_aux = raw_inputs[:, 6:16]
         x_albedo = raw_inputs[:, 6:9]
 
         #x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA * x_albedo)
@@ -627,6 +657,13 @@ class RepVGG(torch.nn.Module):
         # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
         # final = torch.clamp(TA_denoised - weight, min=0.0) * upsampled_TA_denoised + (weight * Non_TA_denoised)
         final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
+
+        #Comment the above line and uncomment the next 5 lines and refine in constructor for refinement
+        #new_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
+        #t_new_irradiance = utils.tone_mapping(new_irradiance)
+        #r_input = torch.cat((t_new_irradiance,x_aux), axis=1)
+        #r_out = self.refine(r_input)
+        #final_irradiance = new_irradiance + r_out        
         final = x_albedo * final_irradiance
         # final = torch.clamp(TA_denoised - upsampled_TA_denoised, min=0.0) + torch.clamp(Non_TA_denoised, min=0.0)
 
