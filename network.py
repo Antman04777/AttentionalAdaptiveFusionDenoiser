@@ -638,60 +638,6 @@ class WeightCNN(torch.nn.Module):
 
         return x3
 
-class Refinement(torch.nn.Module):
-    def __init__(self, device=None):
-        super().__init__()
-
-        self.device = device
-
-        # small unet
-        self.conv_layer1 = torch.nn.Conv2d(in_channels=13, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
-
-        self.rep1 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
-        self.rep2 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
-        self.down_1 = torch.nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=2, padding=1, bias=False)
-        self.relu_1 = torch.nn.ReLU()
-
-        self.repb = RepVGGBlock(in_channels=32, out_channels=32).to(device)
-
-        self.up_1 = torch.nn.ConvTranspose2d(in_channels=32, out_channels=16, kernel_size=2, stride=2, padding=0, bias=False)
-        self.aff_1 = AFF(device, r=4, num_input_channels=16).to(device)
-        self.rep3 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
-        self.rep4 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
-
-        self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=1, kernel_size=1, stride=1, padding=0, bias=False)
-        self.relu_2 = torch.nn.ReLU()
-
-    def deploy(self):
-        self.rep1 = self.rep1.to_fast().to(self.device)
-        self.rep2 = self.rep2.to_fast().to(self.device)
-
-        self.repb = self.repb.to_fast().to(self.device)
-
-        self.rep3 = self.rep3.to_fast().to(self.device)
-        self.rep4 = self.rep4.to_fast().to(self.device)
-
-    def forward(self, input):
-
-        x_1 = self.conv_layer1(input)
-        x_1 = self.rep1(x_1)
-        x_1 = self.rep2(x_1)
-        x_1_out = self.down_1(x_1)
-        x_1_out = self.relu_1(x_1_out)
-
-        x_bottleneck = self.repb(x_1_out)
-
-        x_2 = self.up_1(x_bottleneck)
-        # x_2 = self.aff_1(x_2, x_1)
-        x_2 = self.aff_1(x_1, x_2)
-        x_2 = self.rep3(x_2)
-        x_2 = self.rep4(x_2)
-        x_2 = self.conv_layer2(x_2)
-        x_2 = self.relu_2(x_2)
-
-        return x_2
-
-
 class RepVGG(torch.nn.Module):
     def __init__(self, device):
         super().__init__()
@@ -715,7 +661,7 @@ class RepVGG(torch.nn.Module):
         # self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
         self.main_module = RepUNet(device).to(device)
         self.weight_cnn = WeightCNN(device).to(device)
-        self.super_res_upsampler = Upsampler(device).to(device)
+        # self.super_res_upsampler = Upsampler(device).to(device)
         # self.refinement = Refinement(device).to(device)
 
 
@@ -728,7 +674,6 @@ class RepVGG(torch.nn.Module):
         # self.adaptive_fusion_conv.deploy()
         self.main_module.deploy()
         self.weight_cnn.deploy()
-        # self.refinement.deploy()
 
     # @profile
     def forward(self, raw_inputs):
@@ -806,8 +751,8 @@ class RepVGG(torch.nn.Module):
             # Non_TA_denoised = convolutional_ops.apply_kernel_maps_to_irradiance_maps(downsampled_irr_non_TA, kernel_non_TA)[:, :, 3:-3, 3:-3]
             # TA_denoised = convolutional_ops.apply_kernel_maps_to_irradiance_maps(x_irradiance_TA, kernel_TA)[:, :, 3:-3, 3:-3]
 
-        # Non_TA_denoised = self.upsampler(Non_TA_denoised)
-        Non_TA_denoised = self.super_res_upsampler(Non_TA_denoised)
+        Non_TA_denoised = self.upsampler(Non_TA_denoised)
+        # Non_TA_denoised = self.super_res_upsampler(Non_TA_denoised)
 
         TA_denoised_tone_mapped = utils.tone_mapping(TA_denoised)
         Non_TA_denoised_tone_mapped = utils.tone_mapping(Non_TA_denoised)
@@ -835,5 +780,3 @@ class RepVGG(torch.nn.Module):
 
 
         return final.permute((0, 2, 3, 1))
-        # return TA_denoised.permute((0, 2, 3, 1))
-        # return kernel_TA[:, 0:3].permute((0, 2, 3, 1))
