@@ -650,7 +650,6 @@ class Refine(torch.nn.Module):
         self.rep2 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
 
         self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
-        self.sigmoid = torch.nn.Sigmoid()
 
     def deploy(self):
         self.rep1 = self.rep1.to_fast().to(self.device)
@@ -664,7 +663,6 @@ class Refine(torch.nn.Module):
         x2 = self.rep1(x1)
         x2 = self.rep2(x2)
         x3 = self.conv_layer2(x2)
-        x3 = self.sigmoid(x3)
 
         return x3
 
@@ -692,6 +690,7 @@ class RepVGG(torch.nn.Module):
     def forward(self, raw_inputs):
         x_irradiance_non_TA = raw_inputs[:, 0:3]
         x_irradiance_TA = raw_inputs[:, 3:6]
+        x_aux = raw_inputs[:, 6:16]
         x_albedo = raw_inputs[:, 6:9]
 
         x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA)
@@ -760,6 +759,12 @@ class RepVGG(torch.nn.Module):
         upsampled_TA_denoised = self.upsampler(downsampled_TA_denoised)
 
         final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
+
+        final_irradiance_tone_mapped = utils.tone_mapping(final_irradiance)
+        x_refine_input = torch.cat((final_irradiance_tone_mapped, x_aux), axis=1)
+        refinement_residual = self.refinement(x_refine_input)
+        final_irradiance = final_irradiance + refinement_residual
+
         final = x_albedo * final_irradiance
 
         return final.permute((0, 2, 3, 1))
