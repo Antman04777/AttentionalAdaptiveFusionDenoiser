@@ -657,8 +657,6 @@ class Refine(torch.nn.Module):
 
 
     def forward(self, x_input):
-        # two tone mapped irradiance maps concatenated
-
         x1 = self.conv_layer1(x_input)
         x2 = self.rep1(x1)
         x2 = self.rep2(x2)
