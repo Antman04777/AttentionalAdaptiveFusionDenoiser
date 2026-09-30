@@ -673,7 +673,7 @@ class RepVGG(torch.nn.Module):
         self.main_module = RepUNet(device).to(device)
         self.weight_cnn = WeightCNN(device).to(device)
         self.super_res_upsampler = Upsampler(device).to(device)
-        self.refinement = Refine(device).to(device)
+        # self.refinement = Refine(device).to(device)
 
         self.downsampler = torch.nn.AvgPool2d(2, stride=2)
         self.upsampler = torch.nn.Upsample(scale_factor=2)
@@ -683,7 +683,7 @@ class RepVGG(torch.nn.Module):
     def deploy(self):
         self.main_module.deploy()
         self.weight_cnn.deploy()
-        self.refinement.deploy()
+        # self.refinement.deploy()
 
     def forward(self, raw_inputs):
         x_irradiance_non_TA = raw_inputs[:, 0:3]
@@ -758,10 +758,10 @@ class RepVGG(torch.nn.Module):
 
         final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
 
-        final_irradiance_tone_mapped = utils.tone_mapping(final_irradiance)
-        x_refine_input = torch.cat((final_irradiance_tone_mapped, x_aux), axis=1)
-        refinement_residual = self.refinement(x_refine_input)
-        final_irradiance = final_irradiance + refinement_residual
+        # final_irradiance_tone_mapped = utils.tone_mapping(final_irradiance)
+        # x_refine_input = torch.cat((final_irradiance_tone_mapped, x_aux), axis=1)
+        # refinement_residual = self.refinement(x_refine_input)
+        # final_irradiance = final_irradiance + refinement_residual
 
         final = x_albedo * final_irradiance
 
