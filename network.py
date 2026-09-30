@@ -511,7 +511,7 @@ class Refine(torch.nn.Module):
         self.rep2 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
 
         self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
-        self.sigmoid = torch.nn.Sigmoid()
+#        self.sigmoid = torch.nn.Sigmoid()
 
     def deploy(self):
         self.rep1 = self.rep1.to_fast().to(self.device)
@@ -525,7 +525,7 @@ class Refine(torch.nn.Module):
         x2 = self.rep1(x1)
         x2 = self.rep2(x2)
         x3 = self.conv_layer2(x2)
-        x3 = self.sigmoid(x3)
+#        x3 = self.sigmoid(x3)
 
         return x3
 
