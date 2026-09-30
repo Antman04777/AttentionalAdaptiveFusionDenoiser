@@ -728,7 +728,7 @@ class RepVGG(torch.nn.Module):
         # self.adaptive_fusion_conv.deploy()
         self.main_module.deploy()
         self.weight_cnn.deploy()
-        self.refinement.deploy()
+        # self.refinement.deploy()
 
     # @profile
     def forward(self, raw_inputs):
