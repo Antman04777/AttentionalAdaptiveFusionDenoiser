@@ -497,37 +497,37 @@ class Upsampler(torch.nn.Module):
         xf = self.relu13(x13)
 
         return xf
-
-
-class Refine(torch.nn.Module):
-    def __init__(self, device=None):
-        super().__init__()
-
-        self.device = device
-
-        self.conv_layer1 = torch.nn.Conv2d(in_channels=13, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
-
-        self.rep1 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
-        self.rep2 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
-
-        self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
-        self.sigmoid = torch.nn.Sigmoid()
-
-    def deploy(self):
-        self.rep1 = self.rep1.to_fast().to(self.device)
-        self.rep2 = self.rep2.to_fast().to(self.device)
-
-
-    def forward(self, x_input):
-        # two tone mapped irradiance maps concatenated
-
-        x1 = self.conv_layer1(x_input)
-        x2 = self.rep1(x1)
-        x2 = self.rep2(x2)
-        x3 = self.conv_layer2(x2)
-        x3 = self.sigmoid(x3)
-
-        return x3
+#
+#
+#class Refine(torch.nn.Module):
+#    def __init__(self, device=None):
+#        super().__init__()
+#
+#        self.device = device
+#
+#        self.conv_layer1 = torch.nn.Conv2d(in_channels=13, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
+#
+#        self.rep1 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+#        self.rep2 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+#
+#        self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
+#        self.sigmoid = torch.nn.Sigmoid()
+#
+#    def deploy(self):
+#        self.rep1 = self.rep1.to_fast().to(self.device)
+#        self.rep2 = self.rep2.to_fast().to(self.device)
+#
+#
+#    def forward(self, x_input):
+#        # two tone mapped irradiance maps concatenated
+#
+#        x1 = self.conv_layer1(x_input)
+#        x2 = self.rep1(x1)
+#        x2 = self.rep2(x2)
+#        x3 = self.conv_layer2(x2)
+#        x3 = self.sigmoid(x3)
+#
+#        return x3
 
 class RepVGG(torch.nn.Module):
     def __init__(self, device):
