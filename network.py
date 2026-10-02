@@ -256,8 +256,8 @@ class AdaptiveFusion(torch.nn.Module):
         self.bn_4 = torch.nn.BatchNorm2d(64)
         self.relu_4 = torch.nn.ReLU()
 
-        self.aff_1 = AFF(device,r=4,num_input_channels=64)
-        self.aff_2 = AFF(device,r=4,num_input_channels=64)
+        self.aff_1 = AFF(device,r=4,num_input_channels=64).to(device)
+        self.aff_2 = AFF(device,r=4,num_input_channels=64).to(device)
 
         self.conv_layer_6 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_5 = torch.nn.BatchNorm2d(64)
