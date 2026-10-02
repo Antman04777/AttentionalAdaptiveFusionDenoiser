@@ -321,7 +321,7 @@ class AdaptiveFusion(torch.nn.Module):
         x_7 = self.relu_4(x_7)
         x_7 = self.drop2(x_7) 
 
-        x_8 = self.aff_1(x_7, x_2)           #order of entries matter
+        x_8 = self.aff_1(x_2, x_7)           #order of entries matter
         #x_8 = torch.cat((x_2, x_7), axis=1)
         x_8 = self.conv_layer_6(x_8)
         x_8 = self.bn_5(x_8)
@@ -335,7 +335,7 @@ class AdaptiveFusion(torch.nn.Module):
         x_10 = self.relu_6(x_10)
 
         # x_11_in = torch.cat((x_embedded, x_10), axis=1)
-        x_11_in = self.aff_2(x_10, x_embedded)
+        x_11_in = self.aff_2(x_embedded, x_10)
         x_11 = self.conv_layer_9(x_11_in)
         x_11 = self.bn_7(x_11)
         x_11 = self.relu_7(x_11)
@@ -368,7 +368,7 @@ class WeightCNN(torch.nn.Module):
 
         x1 = self.conv_layer1(x_input)
         x2 = self.rep1(x1)
-        x2 = self.rep1(x2)
+        x2 = self.rep2(x2)
         x3 = self.conv_layer2(x2)
         x3 = self.sigmoid(x3)
 
