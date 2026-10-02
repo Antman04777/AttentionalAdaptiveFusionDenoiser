@@ -241,7 +241,7 @@ class AdaptiveFusion(torch.nn.Module):
         self.conv_layer_3 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn_3 = torch.nn.BatchNorm2d(128)
         self.relu_3 = torch.nn.ReLU()
-        self.drop1 = torch.nn.Dropout2d(0.15)
+        # self.drop1 = torch.nn.Dropout2d(0.15)
 
         # self.rep3 = RepBlock(device, in_ch=128, out_ch=128, bn=True).to(device)
         self.rep5 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
@@ -262,7 +262,7 @@ class AdaptiveFusion(torch.nn.Module):
         self.conv_layer_6 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_5 = torch.nn.BatchNorm2d(64)
         self.relu_5 = torch.nn.ReLU()
-        self.drop2 = torch.nn.Dropout2d(0.15)
+        # self.drop2 = torch.nn.Dropout2d(0.15)
 
         self.conv_layer_7_t = torch.nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, bias=False)
 
