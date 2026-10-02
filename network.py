@@ -308,7 +308,7 @@ class AdaptiveFusion(torch.nn.Module):
         x_4 = self.conv_layer_3(x_3)
         x_4 = self.bn_3(x_4)
         x_4 = self.relu_3(x_4)
-        x_4 = self.drop1(x_4) # residual connection output
+        # x_4 = self.drop1(x_4) # residual connection output
 
         x_5 = self.rep5(x_4)
         x_5 = self.rep6(x_5)
@@ -319,7 +319,7 @@ class AdaptiveFusion(torch.nn.Module):
         x_7 = self.conv_layer_5(x_6)
         x_7 = self.bn_4(x_7)
         x_7 = self.relu_4(x_7)
-        x_7 = self.drop2(x_7) 
+        # x_7 = self.drop2(x_7) 
 
         x_8 = self.aff_1(x_2, x_7)           #order of entries matter
         #x_8 = torch.cat((x_2, x_7), axis=1)
