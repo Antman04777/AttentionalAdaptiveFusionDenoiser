@@ -276,10 +276,8 @@ class AdaptiveFusion(torch.nn.Module):
         self.relu_7 = torch.nn.ReLU()
 
     def deploy(self):
-        self.rep1_noisy = self.rep1_noisy.to_fast().to(self.device)
-        self.rep2_noisy = self.rep2_noisy.to_fast().to(self.device)
-        self.rep1_aux = self.rep1_aux.to_fast().to(self.device)
-        self.rep2_aux = self.rep2_aux.to_fast().to(self.device)
+        self.rep1 = self.rep1.to_fast().to(self.device)
+        self.rep2 = self.rep2.to_fast().to(self.device)
         self.rep3 = self.rep3.to_fast().to(self.device)
         self.rep4 = self.rep4.to_fast().to(self.device)
         self.rep5 = self.rep5.to_fast().to(self.device)
