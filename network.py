@@ -222,15 +222,18 @@ class AdaptiveFusion(torch.nn.Module):
         self.num_input_channels = num_input_channels
 
         # self.rep1 = RepBlock(device, in_ch=self.num_input_channels, out_ch=32, is_input=True, bn=True).to(device)
-        self.rep1_noisy = RepVGGBlock(in_channels=6, out_channels=32).to(device)
-        self.rep2_noisy = RepVGGBlock(in_channels=32, out_channels=32).to(device)
-        self.squeeze_excite_layer1_noisy = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
+        # self.rep1_noisy = RepVGGBlock(in_channels=6, out_channels=32).to(device)
+        # self.rep2_noisy = RepVGGBlock(in_channels=32, out_channels=32).to(device)
+        # self.squeeze_excite_layer1_noisy = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
 
-        self.rep1_aux = RepVGGBlock(in_channels=10, out_channels=32).to(device)
-        self.rep2_aux = RepVGGBlock(in_channels=32, out_channels=32).to(device)
-        self.squeeze_excite_layer1_aux = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
+        # self.rep1_aux = RepVGGBlock(in_channels=10, out_channels=32).to(device)
+        # self.rep2_aux = RepVGGBlock(in_channels=32, out_channels=32).to(device)
+        # self.squeeze_excite_layer1_aux = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
 
-        self.conv_layer_2 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
+        self.rep1 = RepVGGBlock(in_channels=16, out_channels=32).to(device)
+        self.rep2 = RepVGGBlock(in_channels=32, out_channels=32).to(device)
+
+        self.conv_layer_2 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn_2 = torch.nn.BatchNorm2d(64)
         self.relu_2 = torch.nn.ReLU()
 
@@ -241,14 +244,13 @@ class AdaptiveFusion(torch.nn.Module):
         self.conv_layer_3 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn_3 = torch.nn.BatchNorm2d(128)
         self.relu_3 = torch.nn.ReLU()
-        # self.drop1 = torch.nn.Dropout2d(0.15)
 
         # self.rep3 = RepBlock(device, in_ch=128, out_ch=128, bn=True).to(device)
         self.rep5 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
         self.rep6 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
 
         #for decoder
-        self.squeeze_excite_layer2 = SqueezeExcite(device, r=4, num_input_channels=128).to(device)
+        # self.squeeze_excite_layer2 = SqueezeExcite(device, r=4, num_input_channels=128).to(device)
 
         self.conv_layer_4_t = torch.nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=2, stride=2, bias=False)
 
@@ -256,13 +258,12 @@ class AdaptiveFusion(torch.nn.Module):
         self.bn_4 = torch.nn.BatchNorm2d(64)
         self.relu_4 = torch.nn.ReLU()
 
-        self.aff_1 = AFF(device,r=4,num_input_channels=64).to(device)
-        self.aff_2 = AFF(device,r=4,num_input_channels=64).to(device)
+        # self.aff_1 = AFF(device,r=4,num_input_channels=64).to(device)
+        # self.aff_2 = AFF(device,r=4,num_input_channels=64).to(device)
 
-        self.conv_layer_6 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer_6 = torch.nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_5 = torch.nn.BatchNorm2d(64)
         self.relu_5 = torch.nn.ReLU()
-        # self.drop2 = torch.nn.Dropout2d(0.15)
 
         self.conv_layer_7_t = torch.nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, bias=False)
 
@@ -270,7 +271,7 @@ class AdaptiveFusion(torch.nn.Module):
         self.bn_6 = torch.nn.BatchNorm2d(64)
         self.relu_6 = torch.nn.ReLU()
 
-        self.conv_layer_9 = torch.nn.Conv2d(in_channels=64, out_channels=49, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer_9 = torch.nn.Conv2d(in_channels=96, out_channels=49, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_7 = torch.nn.BatchNorm2d(49)
         self.relu_7 = torch.nn.ReLU()
 
@@ -285,20 +286,23 @@ class AdaptiveFusion(torch.nn.Module):
         self.rep6 = self.rep6.to_fast().to(self.device)
 
     def forward(self, x_input):
-        x_input_noisy = x_input[:, 0:6]
-        x_input_aux = x_input[:, 6:16]
+        # x_input_noisy = x_input[:, 0:6]
+        # x_input_aux = x_input[:, 6:16]
 
-        x_1_noisy = self.rep1_noisy(x_input_noisy)
-        x_1_noisy = self.rep2_noisy(x_1_noisy)
-        x_1_noisy = self.squeeze_excite_layer1_noisy(x_1_noisy)
+        # x_1_noisy = self.rep1_noisy(x_input_noisy)
+        # x_1_noisy = self.rep2_noisy(x_1_noisy)
+        # x_1_noisy = self.squeeze_excite_layer1_noisy(x_1_noisy)
 
-        x_1_aux = self.rep1_aux(x_input_aux)
-        x_1_aux = self.rep2_aux(x_1_aux)
-        x_1_aux = self.squeeze_excite_layer1_aux(x_1_aux)
+        # x_1_aux = self.rep1_aux(x_input_aux)
+        # x_1_aux = self.rep2_aux(x_1_aux)
+        # x_1_aux = self.squeeze_excite_layer1_aux(x_1_aux)
 
-        x_embedded = torch.cat((x_1_noisy, x_1_aux), axis=1)  #res connection out
+        # x_embedded = torch.cat((x_1_noisy, x_1_aux), axis=1)  #res connection out
 
-        x_2 = self.conv_layer_2(x_embedded)
+        x_1 = self.rep1(x_input)
+        x_1 = self.rep2(x_1)
+
+        x_2 = self.conv_layer_2(x_1)
         x_2 = self.bn_2(x_2)
         x_2 = self.relu_2(x_2)
 
@@ -308,21 +312,19 @@ class AdaptiveFusion(torch.nn.Module):
         x_4 = self.conv_layer_3(x_3)
         x_4 = self.bn_3(x_4)
         x_4 = self.relu_3(x_4)
-        # x_4 = self.drop1(x_4) # residual connection output
 
         x_5 = self.rep5(x_4)
         x_5 = self.rep6(x_5)
-        x_5 = self.squeeze_excite_layer2(x_5)
+        # x_5 = self.squeeze_excite_layer2(x_5)
 
         x_6 = self.conv_layer_4_t(x_5)
 
         x_7 = self.conv_layer_5(x_6)
         x_7 = self.bn_4(x_7)
         x_7 = self.relu_4(x_7)
-        # x_7 = self.drop2(x_7) 
 
-        x_8 = self.aff_1(x_2, x_7)           #order of entries matter
-        #x_8 = torch.cat((x_2, x_7), axis=1)
+        # x_8 = self.aff_1(x_2, x_7)           #order of entries matter
+        x_8 = torch.cat((x_2, x_7), axis=1)
         x_8 = self.conv_layer_6(x_8)
         x_8 = self.bn_5(x_8)
         x_8 = self.relu_5(x_8)
@@ -334,8 +336,8 @@ class AdaptiveFusion(torch.nn.Module):
         x_10 = self.bn_6(x_10)
         x_10 = self.relu_6(x_10)
 
-        # x_11_in = torch.cat((x_embedded, x_10), axis=1)
-        x_11_in = self.aff_2(x_embedded, x_10)
+        x_11_in = torch.cat((x_1, x_10), axis=1)
+        # x_11_in = self.aff_2(x_embedded, x_10)
         x_11 = self.conv_layer_9(x_11_in)
         x_11 = self.bn_7(x_11)
         x_11 = self.relu_7(x_11)
@@ -382,18 +384,6 @@ class RepVGG(torch.nn.Module):
 
         self.num_input_channels = 13
 
-        #debug
-        self.x_final_out = None
-        self.guide1 = None
-        self.guide2 = None
-        self.weight_map1 = None
-        self.grid1 = None
-        self.grid2 = None
-        self.irradiance_non_TA_denoised = None
-        self.irradiance_TA_denoised = None
-        self.irradiance_final = None
-        self.final = None
-
         self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
         self.weight_cnn = WeightCNN(device).to(device)
 
@@ -406,35 +396,18 @@ class RepVGG(torch.nn.Module):
         self.adaptive_fusion_conv.deploy()
         self.weight_cnn.deploy()
 
-    # @profile
     def forward(self, raw_inputs):
         x_irradiance_non_TA = raw_inputs[:, 0:3]
         x_irradiance_TA = raw_inputs[:, 3:6]
         x_albedo = raw_inputs[:, 6:9]
 
-        #x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA * x_albedo)
         x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA)
-        #x_tone_mapped_TA_frame = utils.tone_mapping(x_irradiance_TA * x_albedo)
         x_tone_mapped_TA_frame = utils.tone_mapping(x_irradiance_TA)
 
 
-        # x_tone_mapped_TA_frame_copy = x_tone_mapped_TA_frame
-
-        # alpha, one_minus_alpha = self.attention_layer(x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, x_tone_mapped_TA_frame_copy)
-
-        # x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.num_input_channels]), axis=1)
         x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.adaptive_fusion_conv.num_input_channels]), axis=1)
 
         kernel_non_TA, kernel_TA = self.adaptive_fusion_conv(x_input)
-        #y_TA = y_TA[:, :3, :, :]
-        #y_TA = y_TA.permute((0, 2, 3, 1))
-
-        # x_albedo = x_albedo.permute((0, 2, 3, 1))
-        # alpha = alpha.permute((0, 2, 3, 1))
-        #return y_TA
-
-        # x_input_non_TA = torch.cat((x_tone_mapped_non_TA_frame, raw_inputs[:, 6:16]), axis=1)
-        # x_input_TA = torch.cat((x_tone_mapped_TA_frame, raw_inputs[:, 6:16]), axis=1)
 
         downsampled_irr_non_TA = self.downsampler(x_irradiance_non_TA)
 
@@ -490,20 +463,10 @@ class RepVGG(torch.nn.Module):
 
         weight = self.weight_cnn(weight_input)
 
-        # print("min = ", torch.min(weight))
-        # print("max = ", torch.max(weight))
-
         downsampled_TA_denoised = self.downsampler(TA_denoised)
         upsampled_TA_denoised = self.upsampler(downsampled_TA_denoised)
 
-        # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
-        # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
-        # final = torch.clamp(TA_denoised - weight, min=0.0) * upsampled_TA_denoised + (weight * Non_TA_denoised)
         final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
         final = x_albedo * final_irradiance
-        # final = torch.clamp(TA_denoised - upsampled_TA_denoised, min=0.0) + torch.clamp(Non_TA_denoised, min=0.0)
-
 
         return final.permute((0, 2, 3, 1))
-        # return TA_denoised.permute((0, 2, 3, 1))
-        # return kernel_TA[:, 0:3].permute((0, 2, 3, 1))
