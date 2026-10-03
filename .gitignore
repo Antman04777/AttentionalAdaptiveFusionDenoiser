@@ -228,3 +228,4 @@ checkpoints/
 test/
 cuda-debugging/
 wskpn_results/
+super-res-snapshots/
