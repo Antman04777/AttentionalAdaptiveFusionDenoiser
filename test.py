@@ -151,8 +151,7 @@ if __name__ == '__main__':
 
     deployed_model = network.RepVGG(device).to(device)
     deployed_model.load_state_dict(checkpoint['model_state_dict'])
-    with torch.no_grad():
-        deployed_model.deploy()
+
 
     # debug hooks
     # deployed_model.adaptive_fusion_conv.rep1.relu_1.register_forward_hook(get_activation('relu_1'))

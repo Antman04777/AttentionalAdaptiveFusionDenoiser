@@ -95,34 +95,59 @@ class AdaptiveFusion(torch.nn.Module):
 
 
 class WeightCNN(torch.nn.Module):
-    def __init__(self, device=None):
+    def __init__(self, device=None, pretrained_model=None, state_dict=None, deployed=False):
         super().__init__()
 
         self.device = device
+        self.deployed = deployed
 
         self.conv_layer1 = torch.nn.Conv2d(in_channels=6, out_channels=16, kernel_size=1, stride=1, padding=0, bias=False)
+        self.relu1 = torch.nn.ReLU()
 
-        self.rep1 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
-        self.rep2 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+        self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu2 = torch.nn.ReLU()
 
-        self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_layer3 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu3 = torch.nn.ReLU()
+
+        self.conv_layer3 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu3 = torch.nn.ReLU()
+
+        self.conv_layer4 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu4 = torch.nn.ReLU()
+
+        self.conv_layer5 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu5 = torch.nn.ReLU()
+
+        self.conv_layer6 = torch.nn.Conv2d(in_channels=16, out_channels=1, kernel_size=1, stride=1, padding=1, bias=False)
+        
         self.sigmoid = torch.nn.Sigmoid()
-
-    def deploy(self):
-        self.rep1 = self.rep1.to_fast().to(self.device)
-        self.rep2 = self.rep2.to_fast().to(self.device)
-
+        
 
     def forward(self, x_input):
         # two tone mapped irradiance maps concatenated
+        
+        x_1 = self.conv_layer1(x_input)
+        x_1 = self.relu1(x_1)
 
-        x1 = self.conv_layer1(x_input)
-        x2 = self.rep1(x1)
-        x2 = self.rep2(x2)
-        x3 = self.conv_layer2(x2)
-        x3 = self.sigmoid(x3)
+        x_2 = self.conv_layer2(x_1)
+        x_2 = self.relu2(x_2)
 
-        return x3
+        x_2 = self.conv_layer3(x_2)
+
+        x_2 = self.relu3(x_1 + x_2)
+
+        x_3 = self.conv_layer4(x_2)
+        x_3 = self.relu4(x_3)
+
+        x_3 = self.conv_layer5(x_3)
+
+        x_3 = self.relu5(x_2 + x_3)
+
+        x_4 = self.conv_layer6(x_3)
+        x_4 = self.sigmoid(x_4)
+            
+        return x_4
 
 class RepVGG(torch.nn.Module):
     def __init__(self, device):
@@ -140,9 +165,6 @@ class RepVGG(torch.nn.Module):
 
         torch.autograd.set_detect_anomaly(True)
 
-    def deploy(self):
-        self.adaptive_fusion_conv.deploy()
-        self.weight_cnn.deploy()
 
     def forward(self, raw_inputs):
         x_irradiance_non_TA = raw_inputs[:, 0:3]
@@ -204,10 +226,12 @@ class RepVGG(torch.nn.Module):
 
         Non_TA_denoised = self.upsampler(Non_TA_denoised)
 
-        TA_denoised_tone_mapped = utils.tone_mapping(TA_denoised)
-        Non_TA_denoised_tone_mapped = utils.tone_mapping(Non_TA_denoised)
+        #TA_denoised_tone_mapped = utils.tone_mapping(TA_denoised)
+        #Non_TA_denoised_tone_mapped = utils.tone_mapping(Non_TA_denoised)
 
-        weight_input = torch.cat((Non_TA_denoised_tone_mapped, TA_denoised_tone_mapped), axis=1)
+        weight_input = torch.cat((Non_TA_denoised, TA_denoised), axis=1)
+
+        weight_input = utils.tone_mapping(weight_input)
 
         weight = self.weight_cnn(weight_input)
 
