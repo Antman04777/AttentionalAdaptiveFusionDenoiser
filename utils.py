@@ -4,13 +4,13 @@ from skimage.metrics import structural_similarity
 from skimage.metrics import peak_signal_noise_ratio
 import os
 import json
+import math
 
 def tone_mapping(image):
     if isinstance(image, np.ndarray):
         return np.clip(np.power(np.maximum(image, 0.0), 0.454545), 0.0, 1.0)
     elif isinstance(image, torch.Tensor):
         return torch.pow(torch.clamp(image, min=0.0001, max=1.0), 0.454545)
-
 
 def compute_metrics(reference_image, test_output_image):
     reference_image = tone_mapping(reference_image)
@@ -114,3 +114,21 @@ def load_test_parameters_from_json(path):
     test_scene = parameters['test_scene']
 
     return experiment, test_scene
+
+def distance(point1,point2):
+    return math.sqrt((point1[0]-point2[0])**2 + (point1[1]-point2[1])**2)
+
+def create_gaussian_low_pass_filter(D0, img_shape, device):
+    base = torch.zeros(1, img_shape[2], img_shape[3])
+    rows, cols = img_shape[2], img_shape[3]
+    center = (rows/2,cols/2)
+    for x in range(cols):
+        for y in range(rows):
+            base[0,y,x] = math.exp(((-distance((y,x),center)**2)/(2*(D0**2))))
+
+    base = base.unsqueeze(0)
+    base = base.expand(img_shape[0], -1, -1, -1)
+    base = base.to(device)
+    return base
+
+# def apply_fft_filter(spatial_image, filter):

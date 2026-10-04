@@ -398,9 +398,11 @@ class RepVGG(torch.nn.Module):
         self.weight_cnn = WeightCNN(device).to(device)
 
         self.downsampler = torch.nn.AvgPool2d(2, stride=2)
-        self.upsampler = torch.nn.Upsample(scale_factor=2)
+        self.upsampler = torch.nn.Upsample(scale_factor=2, mode='bilinear')
 
-        torch.autograd.set_detect_anomaly(True)
+        torch.autograd.set_detect_anomaly(True) # maybe remove at some point
+
+        self.fft_gaussian_low_pass_filter = None
 
     def deploy(self):
         self.adaptive_fusion_conv.deploy()
@@ -493,13 +495,29 @@ class RepVGG(torch.nn.Module):
         # print("min = ", torch.min(weight))
         # print("max = ", torch.max(weight))
 
-        downsampled_TA_denoised = self.downsampler(TA_denoised)
-        upsampled_TA_denoised = self.upsampler(downsampled_TA_denoised)
+        TA_denoised = torch.nn.functional.pad(TA_denoised, (5, 5, 5, 5))
+
+        TA_denoised_freq = torch.fft.rfft2(TA_denoised)
+        TA_denoised_freq = torch.fft.fftshift(TA_denoised_freq)
+
+        if self.fft_gaussian_low_pass_filter is None:
+            shape = (TA_denoised_freq.shape[0], 1, *TA_denoised_freq.shape[2:])
+            self.fft_gaussian_low_pass_filter = utils.create_gaussian_low_pass_filter(D0=30, img_shape=shape, device=self.device)
+        
+        TA_denoised_freq = TA_denoised_freq * self.fft_gaussian_low_pass_filter
+
+        TA_denoised_freq = torch.fft.ifftshift(TA_denoised_freq)
+        TA_denoised_low_passed = torch.fft.irfft2(TA_denoised_freq)
+        TA_denoised_low_passed = TA_denoised_low_passed[:, :, 5:-5, 5:-5]
+        TA_denoised = TA_denoised[:, :, 5:-5, 5:-5]
+        
+        #downsampled_TA_denoised = self.downsampler(TA_denoised)
+        #upsampled_TA_denoised = self.upsampler(downsampled_TA_denoised)
 
         # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
         # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
         # final = torch.clamp(TA_denoised - weight, min=0.0) * upsampled_TA_denoised + (weight * Non_TA_denoised)
-        final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
+        final_irradiance = torch.clamp(TA_denoised - weight * TA_denoised_low_passed, min=0.0) + (weight * Non_TA_denoised)
         final = x_albedo * final_irradiance
         # final = torch.clamp(TA_denoised - upsampled_TA_denoised, min=0.0) + torch.clamp(Non_TA_denoised, min=0.0)
 
