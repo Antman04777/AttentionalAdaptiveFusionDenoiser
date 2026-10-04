@@ -5,340 +5,90 @@ import utils
 from torchvision.ops import Conv2dNormActivation
 from typing import Dict
 
-class RepVGGFastBlock(torch.nn.Sequential):
-    def __init__(self, in_channels: int, out_channels: int, stride: int = 1):
-        super().__init__()
-        self.conv = torch.nn.Conv2d(
-            in_channels, out_channels, kernel_size=3, stride=stride, padding=1
-        )
-        self.relu = torch.nn.ReLU(inplace=True)
 
-class RepVGGBlock(torch.nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, stride: int = 1):
-        super().__init__()
-        self.block = Conv2dNormActivation(
-            in_channels,
-            out_channels,
-            kernel_size=3,
-            padding=1,
-            bias=False,
-            stride=stride,
-            activation_layer=None,
-            # the original model may also have groups > 1
-        )
-
-        self.shortcut = Conv2dNormActivation(
-            in_channels,
-            out_channels,
-            kernel_size=1,
-            stride=stride,
-            activation_layer=None,
-        )
-
-        self.identity = (
-            torch.nn.BatchNorm2d(out_channels) if in_channels == out_channels else None
-        )
-
-        self.relu = torch.nn.ReLU(inplace=True)
-
-    def forward(self, x):
-        res = x  # <- 2x memory
-        x = self.block(x)
-        x += self.shortcut(res)
-        if self.identity:
-            x += self.identity(res)
-        x = self.relu(x)  # <- 1x memory
-        return x
-
-    def to_fast(self) -> RepVGGFastBlock:
-        fused_conv_state_dict = get_fused_conv_state_dict_from_block(self)
-        fast_block = RepVGGFastBlock(
-            self.block[0].in_channels,
-            self.block[0].out_channels,
-            stride=self.block[0].stride,
-        )
-
-        fast_block.conv.load_state_dict(fused_conv_state_dict)
-
-        return fast_block
-
-def get_fused_bn_to_conv_state_dict(
-    conv: torch.nn.Conv2d, bn: torch.nn.BatchNorm2d
-) -> Dict[str, torch.Tensor]:
-    
-    bn_mean, bn_var, bn_gamma, bn_beta = (
-        bn.running_mean,
-        bn.running_var,
-        bn.weight,
-        bn.bias,
-    )
-    bn_std = (bn_var + bn.eps).sqrt()
-
-    conv_weight = torch.nn.Parameter((bn_gamma / bn_std).reshape(-1, 1, 1, 1) * conv.weight)
-
-    conv_bias = torch.nn.Parameter(bn_beta - bn_mean * bn_gamma / bn_std)
-
-    return {"weight": conv_weight, "bias": conv_bias}
-
-def get_fused_conv_state_dict_from_block(block: RepVGGBlock) -> Dict[str, torch.Tensor]:
-    fused_block_conv_state_dict = get_fused_bn_to_conv_state_dict(
-        block.block[0], block.block[1]
-    )
-
-    if block.shortcut:
-        # fuse the 1x1 shortcut
-        conv_1x1_state_dict = get_fused_bn_to_conv_state_dict(
-            block.shortcut[0], block.shortcut[1]
-        )
-        # we pad the 1x1 to a 3x3
-        conv_1x1_state_dict["weight"] = torch.nn.functional.pad(
-            conv_1x1_state_dict["weight"], [1, 1, 1, 1]
-        )
-        fused_block_conv_state_dict["weight"] += conv_1x1_state_dict["weight"]
-        fused_block_conv_state_dict["bias"] += conv_1x1_state_dict["bias"]
-    if block.identity:
-        # create our identity 3x3 conv kernel
-        identify_conv = torch.nn.Conv2d(
-            block.block[0].in_channels,
-            block.block[0].in_channels,
-            kernel_size=3,
-            bias=True,
-            padding=1,
-        ).to(block.block[0].weight.device)
-        # set them to zero!
-        identify_conv.weight.zero_()
-        # set the middle element to zero for the right channel
-        in_channels = identify_conv.in_channels
-        for i in range(identify_conv.in_channels):
-            identify_conv.weight[i, i % in_channels, 1, 1] = 1
-        # fuse the 3x3 identity
-        identity_state_dict = get_fused_bn_to_conv_state_dict(
-            identify_conv, block.identity
-        )
-        fused_block_conv_state_dict["weight"] += identity_state_dict["weight"]
-        fused_block_conv_state_dict["bias"] += identity_state_dict["bias"]
-
-    fused_conv_state_dict = {
-        k: torch.nn.Parameter(v) for k, v in fused_block_conv_state_dict.items()
-    }
-
-    return fused_conv_state_dict
-
-class SqueezeExcite(torch.nn.Module):
-    def __init__(self, device, r=3, num_input_channels=3):
-        super().__init__()
-
-        self.num_input_channels = num_input_channels
-        self.r = r
-        self.channel_compressed = int(num_input_channels / r)
-
-        self.avg_pool = torch.nn.AdaptiveAvgPool2d(1)
-        self.fully_connect = torch.nn.Sequential(
-            torch.nn.Linear(num_input_channels, self.channel_compressed,bias=False),
-            torch.nn.ReLU(),
-            torch.nn.Linear(self.channel_compressed, num_input_channels, bias = False),
-            torch.nn.Sigmoid()
-        )
-
-    def forward(self, x_in):
-        b, c, _, _ = x_in.shape
-        embedding = self.avg_pool(x_in).view(b, c)
-        channel_weights = self.fully_connect(embedding).view(b, c, 1, 1)
-        x_out = x_in * channel_weights.expand_as(x_in)
-        return x_out
-
-
-class AFF(torch.nn.Module):
-    def __init__(self,device,r=4,num_input_channels=3):
-        super().__init__()
-
-        self.num_input_channels=num_input_channels
-        self.compressed_channels = int(num_input_channels/r)
-        #self.global_context = SqueezeExcite(device,4,num_input_channels)
-        self.avg_pool = torch.nn.AdaptiveAvgPool2d(1)
-        self.conv_g1 = torch.nn.Conv1d(num_input_channels, self.compressed_channels, 1, bias=False)
-        self.bn_g1 = torch.nn.BatchNorm1d(self.compressed_channels)
-        self.relu_g1 = torch.nn.ReLU() 
-        self.conv_g2 = torch.nn.Conv1d(self.compressed_channels, 64, 1, bias=False)
-        self.bn_g2 = torch.nn.BatchNorm1d(64)
-        
-        self.conv_l1 = torch.nn.Conv1d(num_input_channels, self.compressed_channels, 1, bias=False)
-        self.bn_l1 = torch.nn.BatchNorm1d(self.compressed_channels)
-        self.relu_l1 = torch.nn.ReLU() 
-        self.conv_l2 = torch.nn.Conv1d(self.compressed_channels, 64, 1, bias=False)
-        self.bn_l2 = torch.nn.BatchNorm1d(64)
-        
-        self.sigmoid = torch.nn.Sigmoid()
-
-    def forward(self, x, y):
-
-        x_in = x + y
-
-        #x_global = self.global_context(x_in)
-#
-        #b_in, c_in, h_in, w_in = x_in.shape
-        #x_in = x_in.reshape(b_in, c_in, h_in * w_in)
-        #x_local = self.conv1(x_in)
-        #x_local = self.relu1(x_local)
-        #x_local = self.conv2(x_local)
-        #x_local = x_local.reshape(b_in, c_in, h_in, w_in)
-#
-        #x_context = x_global + x_local
-        #x_context = self.sigmoid(x_context)
-
-        b_in, c_in, h_in, w_in = x_in.shape
-
-        #global
-        x_g = self.avg_pool(x_in)
-        x_g = x_g.reshape(b_in, c_in, 1)
-        x_g = self.conv_g1(x_g)
-        x_g = self.bn_g1(x_g)
-        x_g = self.relu_g1(x_g)
-        x_g = self.conv_g2(x_g)
-        x_g = self.bn_g2(x_g)
-
-        #local
-        x_in = x_in.reshape(b_in, c_in, h_in * w_in)
-        x_l = self.conv_l1(x_in)
-        x_l = self.bn_l1(x_l)
-        x_l = self.relu_l1(x_l)
-        x_l = self.conv_l2(x_l)
-        x_l = self.bn_l2(x_l)
-
-        x_context = x_g + x_l
-        x_context = self.sigmoid(x_context)
-        x_context = x_context.reshape(b_in, c_in, h_in, w_in)
-
-        x_out = (x_context * x) + ((1-x_context) * y)
-
-        return x_out
-    
 class AdaptiveFusion(torch.nn.Module):
     def __init__(self, device, num_input_channels=16):
         super().__init__()
 
+        
         self.device = device
 
         self.num_input_channels = num_input_channels
 
-        # self.rep1 = RepBlock(device, in_ch=self.num_input_channels, out_ch=32, is_input=True, bn=True).to(device)
-        # self.rep1_noisy = RepVGGBlock(in_channels=6, out_channels=32).to(device)
-        # self.rep2_noisy = RepVGGBlock(in_channels=32, out_channels=32).to(device)
-        # self.squeeze_excite_layer1_noisy = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
+        #self.attention_layer = AttentionModule(device, r=4, num_input_channels=64).to(device)
 
-        # self.rep1_aux = RepVGGBlock(in_channels=10, out_channels=32).to(device)
-        # self.rep2_aux = RepVGGBlock(in_channels=32, out_channels=32).to(device)
-        # self.squeeze_excite_layer1_aux = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
+        self.conv_layer_1 = torch.nn.Conv2d(in_channels=self.num_input_channels, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu_1 = torch.nn.ReLU()
 
-        self.rep1 = RepVGGBlock(in_channels=16, out_channels=32).to(device)
-        self.rep2 = RepVGGBlock(in_channels=32, out_channels=32).to(device)
-
-        self.conv_layer_2 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
-        self.bn_2 = torch.nn.BatchNorm2d(64)
+        self.conv_layer_2 = torch.nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=1, bias=False)
         self.relu_2 = torch.nn.ReLU()
 
-        # self.rep2 = RepBlock(device, in_ch=64, out_ch=64, bn=True).to(device)
-        self.rep3 = RepVGGBlock(in_channels=64, out_channels=64).to(device)
-        self.rep4 = RepVGGBlock(in_channels=64, out_channels=64).to(device)
-
-        self.conv_layer_3 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
-        self.bn_3 = torch.nn.BatchNorm2d(128)
+        self.conv_layer_3 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
         self.relu_3 = torch.nn.ReLU()
 
-        # self.rep3 = RepBlock(device, in_ch=128, out_ch=128, bn=True).to(device)
-        self.rep5 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
-        self.rep6 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
-
-        #for decoder
-        # self.squeeze_excite_layer2 = SqueezeExcite(device, r=4, num_input_channels=128).to(device)
-
-        self.conv_layer_4_t = torch.nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=2, stride=2, bias=False)
-
-        self.conv_layer_5 = torch.nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn_4 = torch.nn.BatchNorm2d(64)
+        self.conv_layer_4 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
         self.relu_4 = torch.nn.ReLU()
 
-        # self.aff_1 = AFF(device,r=4,num_input_channels=64).to(device)
-        # self.aff_2 = AFF(device,r=4,num_input_channels=64).to(device)
-
-        self.conv_layer_6 = torch.nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn_5 = torch.nn.BatchNorm2d(64)
+        self.conv_layer_5 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False)
         self.relu_5 = torch.nn.ReLU()
 
-        self.conv_layer_7_t = torch.nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, bias=False)
+        self.conv_layer_6_t = torch.nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=2, stride=2, bias=False)
 
-        self.conv_layer_8 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn_6 = torch.nn.BatchNorm2d(64)
+        self.conv_layer_7 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False)
         self.relu_6 = torch.nn.ReLU()
 
-        self.conv_layer_9 = torch.nn.Conv2d(in_channels=96, out_channels=49, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn_7 = torch.nn.BatchNorm2d(49)
+        self.conv_layer_8 = torch.nn.Conv2d(in_channels=192, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.relu_7 = torch.nn.ReLU()
 
-    def deploy(self):
-        self.rep1 = self.rep1.to_fast().to(self.device)
-        self.rep2 = self.rep2.to_fast().to(self.device)
-        self.rep3 = self.rep3.to_fast().to(self.device)
-        self.rep4 = self.rep4.to_fast().to(self.device)
-        self.rep5 = self.rep5.to_fast().to(self.device)
-        self.rep6 = self.rep6.to_fast().to(self.device)
+        self.conv_layer_9_t = torch.nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, bias=False)
+
+        self.conv_layer_10 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu_8 = torch.nn.ReLU()
+
+        self.conv_layer_11 = torch.nn.Conv2d(in_channels=96, out_channels=49, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu_9 = torch.nn.ReLU()
 
     def forward(self, x_input):
-        # x_input_noisy = x_input[:, 0:6]
-        # x_input_aux = x_input[:, 6:16]
 
-        # x_1_noisy = self.rep1_noisy(x_input_noisy)
-        # x_1_noisy = self.rep2_noisy(x_1_noisy)
-        # x_1_noisy = self.squeeze_excite_layer1_noisy(x_1_noisy)
-
-        # x_1_aux = self.rep1_aux(x_input_aux)
-        # x_1_aux = self.rep2_aux(x_1_aux)
-        # x_1_aux = self.squeeze_excite_layer1_aux(x_1_aux)
-
-        # x_embedded = torch.cat((x_1_noisy, x_1_aux), axis=1)  #res connection out
-
-        x_1 = self.rep1(x_input)
-        x_1 = self.rep2(x_1)
+        x_1 = self.conv_layer_1(x_input)
+        x_1 = self.relu_1(x_1)
 
         x_2 = self.conv_layer_2(x_1)
-        x_2 = self.bn_2(x_2)
-        x_2 = self.relu_2(x_2)
+        x_2 = self.relu_2(x_2) # residual connection output
 
-        x_3 = self.rep3(x_2)
-        x_3 = self.rep4(x_3)
+        x_3 = self.conv_layer_3(x_2)
+        x_3 = self.relu_3(x_3) # residual connection output
 
-        x_4 = self.conv_layer_3(x_3)
-        x_4 = self.bn_3(x_4)
-        x_4 = self.relu_3(x_4)
+        x_4 = self.conv_layer_4(x_3)
+        x_4 = self.relu_4(x_4)
 
-        x_5 = self.rep5(x_4)
-        x_5 = self.rep6(x_5)
-        # x_5 = self.squeeze_excite_layer2(x_5)
+        x_5 = self.conv_layer_5(x_4)
+        x_5 = self.relu_5(x_5)
 
-        x_6 = self.conv_layer_4_t(x_5)
+        x_6 = self.conv_layer_6_t(x_5)
 
-        x_7 = self.conv_layer_5(x_6)
-        x_7 = self.bn_4(x_7)
-        x_7 = self.relu_4(x_7)
+        x_7 = self.conv_layer_7(x_6)
+        x_7 = self.relu_6(x_7)
 
-        # x_8 = self.aff_1(x_2, x_7)           #order of entries matter
-        x_8 = torch.cat((x_2, x_7), axis=1)
-        x_8 = self.conv_layer_6(x_8)
-        x_8 = self.bn_5(x_8)
-        x_8 = self.relu_5(x_8)
+        # x_8_in = torch.add_(x_3, x_8_new)
+
+        #alpha, one_minus_alpha = self.attention_layer(x_3, x_8_new)
+
+        #x_8_in = alpha * x_3 + one_minus_alpha * x_8_new
+
+        x_8_in = torch.cat((x_3, x_7), axis=1)
+        x_8 = self.conv_layer_8(x_8_in)
+        x_8 = self.relu_7(x_8)
         k_non_TA = x_8[:,0:49]              #sliced first 49 channels for non ta kernel map
 
-        x_9 = self.conv_layer_7_t(x_8)
+        x_9 = self.conv_layer_9_t(x_8)
 
-        x_10 = self.conv_layer_8(x_9)
-        x_10 = self.bn_6(x_10)
-        x_10 = self.relu_6(x_10)
+        x_10 = self.conv_layer_10(x_9)
 
-        x_11_in = torch.cat((x_1, x_10), axis=1)
-        # x_11_in = self.aff_2(x_embedded, x_10)
-        x_11 = self.conv_layer_9(x_11_in)
-        x_11 = self.bn_7(x_11)
-        x_11 = self.relu_7(x_11)
+        # x_11_in = torch.add_(x_2, x_10)
+        x_11_in = torch.cat((x_2, x_10), axis=1)
+        x_11 = self.conv_layer_11(x_11_in)
+        x_11 = self.relu_9(x_11)
         k_TA = x_11
 
         return k_non_TA, k_TA
