@@ -211,7 +211,7 @@ class WeightCNN(torch.nn.Module):
         self.conv_layer5 = torch.nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=False)
         self.relu5 = torch.nn.ReLU()
 
-        self.conv_layer6 = torch.nn.Conv2d(in_channels=16, out_channels=1, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv_layer6 = torch.nn.Conv2d(in_channels=16, out_channels=1, kernel_size=1, stride=1, padding=1, bias=False)
         
         self.sigmoid = torch.nn.Sigmoid()
         
