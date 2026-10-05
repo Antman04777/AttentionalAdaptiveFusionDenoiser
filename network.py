@@ -392,7 +392,7 @@ class RepVGG(torch.nn.Module):
         self.weight_cnn = WeightCNN(device).to(device)
 
         self.downsampler = torch.nn.AvgPool2d(2, stride=2)
-        self.upsampler = torch.nn.Upsample(scale_factor=2)
+        self.upsampler = torch.nn.Upsample(scale_factor=2, mode='bilinear')
 
         torch.autograd.set_detect_anomaly(True)
 
