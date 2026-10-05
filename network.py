@@ -354,13 +354,17 @@ class WeightCNN(torch.nn.Module):
 
         self.rep1 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
         self.rep2 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+        self.rep3 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
+        self.rep4 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
 
-        self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=3, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_layer2 = torch.nn.Conv2d(in_channels=16, out_channels=1, kernel_size=1, stride=1, padding=0, bias=False)
         self.sigmoid = torch.nn.Sigmoid()
 
     def deploy(self):
         self.rep1 = self.rep1.to_fast().to(self.device)
         self.rep2 = self.rep2.to_fast().to(self.device)
+        self.rep3 = self.rep3.to_fast().to(self.device)
+        self.rep4 = self.rep4.to_fast().to(self.device)
 
 
     def forward(self, x_input):
@@ -369,6 +373,8 @@ class WeightCNN(torch.nn.Module):
         x1 = self.conv_layer1(x_input)
         x2 = self.rep1(x1)
         x2 = self.rep2(x2)
+        x2 = self.rep3(x2)
+        x2 = self.rep4(x2)
         x3 = self.conv_layer2(x2)
         x3 = self.sigmoid(x3)
 
@@ -381,18 +387,6 @@ class RepVGG(torch.nn.Module):
         self.device = device
 
         self.num_input_channels = 13
-
-        #debug
-        self.x_final_out = None
-        self.guide1 = None
-        self.guide2 = None
-        self.weight_map1 = None
-        self.grid1 = None
-        self.grid2 = None
-        self.irradiance_non_TA_denoised = None
-        self.irradiance_TA_denoised = None
-        self.irradiance_final = None
-        self.final = None
 
         self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
         self.weight_cnn = WeightCNN(device).to(device)
@@ -501,7 +495,7 @@ class RepVGG(torch.nn.Module):
         # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
         # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
         # final = torch.clamp(TA_denoised - weight, min=0.0) * upsampled_TA_denoised + (weight * Non_TA_denoised)
-        final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
+        final_irradiance = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
         final = x_albedo * final_irradiance
         # final = torch.clamp(TA_denoised - upsampled_TA_denoised, min=0.0) + torch.clamp(Non_TA_denoised, min=0.0)
 
