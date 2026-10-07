@@ -9,10 +9,11 @@ scene_inputs_dir = os.path.join('dataset', scene, 'inputs')
 experiment_name = 'Fixed+Rep+AFF+Aux'
 results_dir = os.path.join('results', experiment_name, scene)
 crop_size = 128
-frame_num = 39 #0-59
-save_dir = os.path.join('saved_crops', experiment_name, scene, f'{frame_num}')
-top_left_x = 570
-top_left_y = 370
+frame_num = 28 #0-59
+top_left_x = 768
+top_left_y = 282
+coord = f'({top_left_x},{top_left_y})'
+save_dir = os.path.join('saved_crops', experiment_name, scene, f'{frame_num}', coord)
 
 for dir in [save_dir]:
     if not os.path.exists(dir):
@@ -58,13 +59,13 @@ reference = pyexr.read(reference_path)[low_y:up_y,low_x:up_x,:3]
 shading_normal = pyexr.read(shading_normal_path)[low_y:up_y,low_x:up_x,:3]
 world_position = pyexr.read(world_position_path)[low_y:up_y,low_x:up_x,:3]
 
-pyexr.write(os.path.join(save_dir, 'result.exr'), result)
-pyexr.write(os.path.join(save_dir, 'albedo.exr'), albedo)
-pyexr.write(os.path.join(save_dir, 'non_ta.exr'), non_ta)
-pyexr.write(os.path.join(save_dir, 'ta.exr'), ta)
-pyexr.write(os.path.join(save_dir, 'depth.exr'), depth)
-pyexr.write(os.path.join(save_dir, 'reference.exr'), reference)
-pyexr.write(os.path.join(save_dir, 'shading_normal.exr'), shading_normal)
-pyexr.write(os.path.join(save_dir, 'world_position.exr'), world_position)
+pyexr.write(os.path.join(save_dir, f'result.exr'), result)
+pyexr.write(os.path.join(save_dir, f'albedo.exr'), albedo)
+pyexr.write(os.path.join(save_dir, f'non_ta.exr'), non_ta)
+pyexr.write(os.path.join(save_dir, f'ta.exr'), ta)
+pyexr.write(os.path.join(save_dir, f'depth.exr'), depth)
+pyexr.write(os.path.join(save_dir, f'reference.exr'), reference)
+pyexr.write(os.path.join(save_dir, f'shading_normal.exr'), shading_normal)
+pyexr.write(os.path.join(save_dir, f'world_position.exr'), world_position)
 
 print('Success!')
