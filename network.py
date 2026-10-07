@@ -200,8 +200,8 @@ class RepVGG(torch.nn.Module):
             TA_input_kernel_multipliaction = kernel_TA_unfolded_format * TA_unfolded
             TA_out_flat = TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
             TA_out = TA_out_flat.reshape(B, 1, H_ta, W_ta)
-            TA_norm = kernel_TA.sum(dim=1, keepdim=True)
-            TA_out = TA_out / (TA_norm + 0.0001)
+            #TA_norm = kernel_TA.sum(dim=1, keepdim=True)
+            #TA_out = TA_out / (TA_norm + 0.0001)
 
             TA_denoised[:, i:(i+1)] = TA_out
 
@@ -211,8 +211,8 @@ class RepVGG(torch.nn.Module):
             Non_TA_input_kernel_multipliaction = kernel_non_TA_unfolded_format * non_TA_unfolded
             Non_TA_out_flat = Non_TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
             Non_TA_out = Non_TA_out_flat.reshape(B, 1, H_non_ta, W_non_ta)
-            Non_TA_norm = kernel_non_TA.sum(dim=1, keepdim=True)
-            Non_TA_out = Non_TA_out / (Non_TA_norm + 0.0001)
+            #Non_TA_norm = kernel_non_TA.sum(dim=1, keepdim=True)
+            #Non_TA_out = Non_TA_out / (Non_TA_norm + 0.0001)
 
             Non_TA_denoised[:, i:(i+1)] = Non_TA_out
         # else:
@@ -238,7 +238,7 @@ class RepVGG(torch.nn.Module):
         downsampled_TA_denoised = self.downsampler(TA_denoised)
         upsampled_TA_denoised = self.upsampler(downsampled_TA_denoised)
 
-        final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
+        final_irradiance = (TA_denoised - weight * upsampled_TA_denoised) + (weight * Non_TA_denoised)
         final = x_albedo * final_irradiance
 
         return final.permute((0, 2, 3, 1))
