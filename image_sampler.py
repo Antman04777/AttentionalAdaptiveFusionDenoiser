@@ -31,6 +31,10 @@ if top_left_y < 0 or top_left_y > (720 - crop_size):
     print(f'Invalid top left y coord provided!')
     sys.exit(-1)
 
+if frame_num >= 59 or frame_num < 0:
+    print(f'Invalid frame number provided!')
+    sys.exit(-1)
+
 result_path = os.path.join(results_dir, f'{frame_num}.exr')
 albedo_path = os.path.join(scene_inputs_dir, f'albedo{frame_num}.exr')
 non_ta_path = os.path.join(scene_inputs_dir, f'color{frame_num}.exr')
