@@ -214,7 +214,7 @@ class AFF(torch.nn.Module):
         return x_out
     
 class AdaptiveFusion(torch.nn.Module):
-    def __init__(self, device, num_input_channels=16):
+    def __init__(self, device, num_input_channels=13):
         super().__init__()
 
         self.device = device
@@ -226,7 +226,7 @@ class AdaptiveFusion(torch.nn.Module):
         self.rep2_noisy = RepVGGBlock(in_channels=32, out_channels=32).to(device)
         self.squeeze_excite_layer1_noisy = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
 
-        self.rep1_aux = RepVGGBlock(in_channels=10, out_channels=32).to(device)
+        self.rep1_aux = RepVGGBlock(in_channels=7, out_channels=32).to(device)
         self.rep2_aux = RepVGGBlock(in_channels=32, out_channels=32).to(device)
         self.squeeze_excite_layer1_aux = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
 
@@ -286,7 +286,7 @@ class AdaptiveFusion(torch.nn.Module):
 
     def forward(self, x_input):
         x_input_noisy = x_input[:, 0:6]
-        x_input_aux = x_input[:, 6:16]
+        x_input_aux = x_input[:, 6:13]
 
         x_1_noisy = self.rep1_noisy(x_input_noisy)
         x_1_noisy = self.rep2_noisy(x_1_noisy)
