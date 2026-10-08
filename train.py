@@ -208,7 +208,7 @@ if __name__ == "__main__":
             writer.add_scalar("SSIM-val", ssim_val, epoch)
             writer.add_scalar("PSNR-val", psnr_val, epoch)
 
-            if epoch > 100:
+            if epoch >= 100:
                 ssim_test, psnr_test = validate(model, device, dataloader_test, epoch=epoch, writer=writer, loss_func=loss_function, test_set_val=True)
                 writer.add_scalar("SSIM-test", ssim_test, epoch)
                 writer.add_scalar("PSNR-test", psnr_test, epoch)
