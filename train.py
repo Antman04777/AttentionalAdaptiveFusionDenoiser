@@ -1,5 +1,5 @@
 from dataloader import RawDataReader, BMFRFinalDataset, DatasetPreloader
-from network import RepVGG
+from network import AttentionalAFNet
 # import pyexr
 import os
 import numpy as np
@@ -179,7 +179,7 @@ if __name__ == "__main__":
         if not os.path.exists(dir):
             os.makedirs(dir)
 
-    model = RepVGG(device).to(device)
+    model = AttentionalAFNet(device).to(device)
     optimizer = torch.optim.Adam(model.parameters(), learning_rate)
 
     lower_bound = 0

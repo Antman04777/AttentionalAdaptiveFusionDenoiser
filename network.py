@@ -213,7 +213,7 @@ class AFF(torch.nn.Module):
 
         return x_out
     
-class AdaptiveFusion(torch.nn.Module):
+class KernelPredictorCNN(torch.nn.Module):
     def __init__(self, device, num_input_channels=13):
         super().__init__()
 
@@ -378,7 +378,7 @@ class WeightCNN(torch.nn.Module):
 
         return x3
 
-class RepVGG(torch.nn.Module):
+class AttentionalAFNet(torch.nn.Module):
     def __init__(self, device):
         super().__init__()
 
@@ -386,7 +386,7 @@ class RepVGG(torch.nn.Module):
 
         self.num_input_channels = 13
 
-        self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
+        self.kernel_predictor_cnn = KernelPredictorCNN(device).to(device)
         self.weight_cnn = WeightCNN(device).to(device)
 
         self.downsampler = torch.nn.AvgPool2d(2, stride=2)
@@ -395,7 +395,7 @@ class RepVGG(torch.nn.Module):
         torch.autograd.set_detect_anomaly(True)
 
     def deploy(self):
-        self.adaptive_fusion_conv.deploy()
+        self.kernel_predictor_cnn.deploy()
         self.weight_cnn.deploy()
 
     def forward(self, raw_inputs):
@@ -406,11 +406,11 @@ class RepVGG(torch.nn.Module):
         x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA)
         x_tone_mapped_TA_frame = utils.tone_mapping(x_irradiance_TA)
 
-        x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.adaptive_fusion_conv.num_input_channels]), axis=1)
+        x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.kernel_predictor_cnn.num_input_channels]), axis=1)
 
         # print('input shape: ', x_input.shape)
 
-        kernel_non_TA, kernel_TA = self.adaptive_fusion_conv(x_input)
+        kernel_non_TA, kernel_TA = self.kernel_predictor_cnn(x_input)
 
         downsampled_irr_non_TA = self.downsampler(x_irradiance_non_TA)
 
