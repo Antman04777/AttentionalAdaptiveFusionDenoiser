@@ -31,7 +31,9 @@ After the dataset is prepared run:
 ```bash
 python data_preprocess.py
 ```
-In order to generate the temporally accumulated irradiance maps and depth maps (this is a one and done execution)
+in order to generate the temporally accumulated irradiance maps and depth maps (this is a one and done execution)
+
+---
 
 The checkpoints of our model for each scene lie within the checkpoints directory, in order to test them, simply, specify the scene you would like to denoise in the test_parameters.json file, next to the 'test_scene' key
 
@@ -42,7 +44,9 @@ An example of this would look like:
     "test_scene": "san-miguel"
 }
 ```
-(Since the checkpoints are provided in this project, you do not need to change the experiment name from the example, unless you have trained your own experiment)
+(since the checkpoints are provided in this project, you do not need to change the experiment name from the example, unless you have trained your own experiment)
+
+---
 
 Next, simply enable your virtual environment with the necessary installed pip packages and run:
 ```bash
@@ -52,6 +56,8 @@ python test.py --parameters test_parameters.json
 Once the inference is done, you may view the results within the 'results' directory under the project root, navigate to the directory named after the experiment provided in the test_parameters.json and then the directory named after the scene which you ran inference on (eg. san-miguel).
 
 The images are saved as .exr files, it is encouraged that you use an exr viewer such as mrViewer (https://sourceforge.net/projects/mrviewer/)
+
+---
 
 Should you wish to train your own experiment, simply adjust the parameters within the train_parameters.json
 
@@ -79,3 +85,4 @@ If you would like to resume training (useful for training on clusters where wall
 python train.py --parameters train_parameters.json --resume
 ```
 Run this using the parameters present in train_parameters.json prior to your stopped training (do not modify this json file if you wish to resume training)
+---
