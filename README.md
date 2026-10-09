@@ -31,4 +31,12 @@ python data_preprocess.py
 ```
 In order to generate the temporally accumulated irradiance maps and depth maps
 
+The checkpoints of our model for each scene lie within the checkpoints directory, in order to test them, simply, specify the scene you would like to denoise in the test_parameters.json file, next to the 'test_scene' key
 
+An example of this would look like:
+```json
+{
+    "experiment": "Rep+AFF+Aux+NoWorld",
+    "test_scene": "san-miguel"
+}
+```
