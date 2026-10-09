@@ -40,6 +40,7 @@ An example of this would look like:
     "test_scene": "san-miguel"
 }
 ```
+(Since the checkpoints are provided in this project, you do not need to change the experiment name from the example, unless you have trained your own experiment)
 
 Next, simply enable your virtual environment with the necessary installed pip packages and run:
 ```bash
