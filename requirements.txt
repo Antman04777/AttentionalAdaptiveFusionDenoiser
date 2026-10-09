@@ -1,6 +1,0 @@
-torch
-pyexr
-numpy
-torchvision
-tqdm
-scikit-image
