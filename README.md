@@ -16,8 +16,8 @@ We utilise the BMFR dataset in this paper which can be found at: https://etsin.f
 
 ## Instructions
 
-Extract both parts of the BMFR dataset into a directory called 'dataset' within the project root directory (within the dataset directory you should see directories named after all the BMFR scenes)
-The scenes are:
+Extract both parts of the BMFR dataset into a directory called 'dataset' within the project root directory (within the dataset directory you should see directories named after all the BMFR scenes),
+the scenes are:
   - classroom
   - living-room
   - san-miguel
