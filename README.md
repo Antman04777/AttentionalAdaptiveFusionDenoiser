@@ -25,11 +25,13 @@ The scenes are:
   - sponza-glossy
   - sponza-moving-light
 
+<details>
 After the dataset is prepared run:
 ```bash
 python data_preprocess.py
 ```
 In order to generate the temporally accumulated irradiance maps and depth maps (this is a one and done execution)
+</details>
 
 The checkpoints of our model for each scene lie within the checkpoints directory, in order to test them, simply, specify the scene you would like to denoise in the test_parameters.json file, next to the 'test_scene' key
 
