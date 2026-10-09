@@ -85,4 +85,3 @@ If you would like to resume training (useful for training on clusters where wall
 python train.py --parameters train_parameters.json --resume
 ```
 Run this using the parameters present in train_parameters.json prior to your stopped training (do not modify this json file if you wish to resume training)
----
