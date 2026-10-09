@@ -25,6 +25,8 @@ The scenes are:
   - sponza-glossy
   - sponza-moving-light
 
+---
+
 After the dataset is prepared run:
 ```bash
 python data_preprocess.py
