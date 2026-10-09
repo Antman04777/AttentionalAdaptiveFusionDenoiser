@@ -1,8 +1,4 @@
 {
-    "experiment": "official-lr4-epoch-400-batchsize-20-ssta-4-srta-4-ssnta-16-srnta-16-l1_loss",
-    "test_scene": "sponza",
-    "ss_non_ta": 16,
-    "sr_non_ta": 16,
-    "ss_ta": 4,
-    "sr_ta": 4
+    "experiment": "new-model-pleeeeeease",
+    "test_scene": "san-miguel"
 }

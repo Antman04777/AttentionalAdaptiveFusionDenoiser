@@ -1,5 +1,5 @@
 from dataloader import RawDataReader, BMFRFinalDataset, DatasetPreloader
-from network import RepVGG
+from network import AttentionalAFNet
 # import pyexr
 import os
 import numpy as np
@@ -14,6 +14,7 @@ from skimage.metrics import peak_signal_noise_ratio
 import argparse
 import sys
 import json
+import random
     
 def train(model, device, dataloader, optimizer, epoch, writer, loss_func='smape'):
     model.train()
@@ -56,7 +57,7 @@ def train(model, device, dataloader, optimizer, epoch, writer, loss_func='smape'
     print(mean_loss)
 
 
-def validate(model, device, dataloader, loss_func='smape'):
+def validate(model, device, dataloader, epoch, writer, loss_func='smape', test_set_val=False):
     model.eval()
     SSIMs = []
     PSNRs = []
@@ -89,7 +90,7 @@ def validate(model, device, dataloader, loss_func='smape'):
             for i in range(output.shape[0]):
                 if np.sum(reference[i]) == 0.0:
                     continue
-                SSIM, PSNR = utils.compute_metrics(reference[i], output[i])
+                SSIM, PSNR, _, _ = utils.compute_metrics(reference[i], output[i])
                 SSIMs.append(SSIM)
                 PSNRs.append(PSNR)
 
@@ -101,9 +102,17 @@ def validate(model, device, dataloader, loss_func='smape'):
     print("mean PSNR: ", PSNR_mean)
 
     mean_val_loss = np.mean(val_losses)
-    writer.add_scalar("Loss/total_valiadtion", mean_val_loss, epoch)
+    if test_set_val:
+        writer.add_scalar("Loss/total_test", mean_val_loss, epoch)
+    else:
+        writer.add_scalar("Loss/total_validation", mean_val_loss, epoch)
 
     return SSIM_mean, PSNR_mean
+
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
 if __name__ == "__main__":
 
@@ -112,6 +121,11 @@ if __name__ == "__main__":
     torch.backends.cudnn.benchmark = False 
     device = torch.device("cuda")
     device_name = torch.cuda.get_device_name(0)
+
+    # np.random.seed(42)
+    torch.manual_seed(42)
+    torch.cuda.manual_seed(42)
+    generator = torch.Generator().manual_seed(42)
 
     parser = argparse.ArgumentParser(prog='train')
     # parser.add_argument('--resume', type=str, help='<path_to_model.pt>')
@@ -143,15 +157,20 @@ if __name__ == "__main__":
     #batch_size = 20     #og 40
 
     experiment, current_testing_scene_name, learning_rate, loss_function, \
-    epochs, epochs_validate, batch_size, previously_elapsed_epochs, \
-    ss_non_ta, sr_non_ta, ss_ta, sr_ta = utils.load_train_parameters_from_json(parameters_path)
+    epochs, epochs_validate, batch_size, previously_elapsed_epochs = utils.load_train_parameters_from_json(parameters_path)
 
     raw_data = RawDataReader(is_training=True, hold_out_scene=current_testing_scene_name)
     dataset_train = BMFRFinalDataset(raw_data, use_train=True)
-    dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
+    dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True, generator=generator, worker_init_fn=seed_worker)
+    # dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
+    # dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
     dataset_val = BMFRFinalDataset(raw_data, use_val=True)
     dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
+
+    raw_data_test = RawDataReader(is_training=False, hold_out_scene=current_testing_scene_name)
+    dataset_test = BMFRFinalDataset(raw_data_test, use_test=True)
+    dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
 
     tensorboard_saving_dir = os.path.join("runs", experiment, current_testing_scene_name)
     model_saving_dir = os.path.join("checkpoints", experiment, current_testing_scene_name)
@@ -160,7 +179,7 @@ if __name__ == "__main__":
         if not os.path.exists(dir):
             os.makedirs(dir)
 
-    model = RepVGG(device, ss_non_ta=ss_non_ta, sr_non_ta=sr_non_ta, ss_ta=ss_ta, sr_ta=sr_ta).to(device)
+    model = AttentionalAFNet(device).to(device)
     optimizer = torch.optim.Adam(model.parameters(), learning_rate)
 
     lower_bound = 0
@@ -175,8 +194,9 @@ if __name__ == "__main__":
         lower_bound = previously_elapsed_epochs + 1
     else:
         writer = SummaryWriter(tensorboard_saving_dir)
-        
-    utils.record_training_parameters(learning_rate, epochs, epochs_validate, batch_size, current_testing_scene_name, experiment, device_name, model.ss_ta, model.sr_ta, model.ss_non_ta, model.sr_non_ta, loss_function, model_saving_dir)
+
+    # model = torch.compile(model)
+    utils.record_training_parameters(learning_rate, epochs, epochs_validate, batch_size, current_testing_scene_name, experiment, device_name, loss_function, model_saving_dir)
 
     for epoch in range(lower_bound, upper_bound):
         print(f'Epoch: {epoch}')
@@ -184,11 +204,19 @@ if __name__ == "__main__":
         train(model, device, dataloader_train, optimizer, epoch, writer, loss_func=loss_function)
         
         if (epoch + 1) % epochs_validate == 0:
-            ssim_val, psnr_val = validate(model, device, dataloader_val, loss_func=loss_function)
+            ssim_val, psnr_val = validate(model, device, dataloader_val, epoch=epoch, writer=writer, loss_func=loss_function)
             writer.add_scalar("SSIM-val", ssim_val, epoch)
             writer.add_scalar("PSNR-val", psnr_val, epoch)
+
+            if epoch >= 100:
+                ssim_test, psnr_test = validate(model, device, dataloader_test, epoch=epoch, writer=writer, loss_func=loss_function, test_set_val=True)
+                writer.add_scalar("SSIM-test", ssim_test, epoch)
+                writer.add_scalar("PSNR-test", psnr_test, epoch)
             
             torch.save({'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, os.path.join(model_saving_dir, "model.pt"))
+
+            if epoch + 1 >= 100:
+                torch.save({'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict()}, os.path.join(model_saving_dir, f"model-epoch-{epoch+1}.pt"))
 
         with open(parameters_path, 'r+') as f:
             parameters_json = json.load(f)
