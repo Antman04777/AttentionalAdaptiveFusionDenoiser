@@ -29,3 +29,6 @@ After the dataset is prepared run:
 ```bash
 python data_preprocess.py
 ```
+In order to generate the temporally accumulated irradiance maps and depth maps
+
+
