@@ -190,6 +190,12 @@ class RepVGG(torch.nn.Module):
         TA_denoised = torch.empty((B, 3, H_ta, W_ta), dtype=x_irradiance_TA.dtype, device=self.device)
         Non_TA_denoised = torch.empty((B, 3, H_non_ta, W_non_ta), dtype=x_irradiance_non_TA.dtype, device=self.device)
 
+        kernel_TA = torch.exp(kernel_TA)
+        kernel_TA = kernel_TA / kernel_TA.sum(dim=1, keepdim=True)
+
+        kernel_non_TA = torch.exp(kernel_non_TA)
+        kernel_non_TA = kernel_non_TA / kernel_non_TA.sum(dim=1, keepdim=True)
+
         for i in range(3):
             TA_irr_channel = x_irradiance_TA[:, i:(i+1)]
             non_TA_irr_channel = downsampled_irr_non_TA[:, i:(i+1)]
@@ -200,8 +206,6 @@ class RepVGG(torch.nn.Module):
             TA_input_kernel_multipliaction = kernel_TA_unfolded_format * TA_unfolded
             TA_out_flat = TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
             TA_out = TA_out_flat.reshape(B, 1, H_ta, W_ta)
-            #TA_norm = kernel_TA.sum(dim=1, keepdim=True)
-            #TA_out = TA_out / (TA_norm + 0.0001)
 
             TA_denoised[:, i:(i+1)] = TA_out
 
@@ -211,8 +215,6 @@ class RepVGG(torch.nn.Module):
             Non_TA_input_kernel_multipliaction = kernel_non_TA_unfolded_format * non_TA_unfolded
             Non_TA_out_flat = Non_TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
             Non_TA_out = Non_TA_out_flat.reshape(B, 1, H_non_ta, W_non_ta)
-            #Non_TA_norm = kernel_non_TA.sum(dim=1, keepdim=True)
-            #Non_TA_out = Non_TA_out / (Non_TA_norm + 0.0001)
 
             Non_TA_denoised[:, i:(i+1)] = Non_TA_out
         # else:
