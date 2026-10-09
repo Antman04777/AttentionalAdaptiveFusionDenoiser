@@ -227,3 +227,5 @@ runs/
 checkpoints/
 test/
 cuda-debugging/
+super-res-snapshots/
+saved_crops/
