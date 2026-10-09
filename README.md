@@ -42,6 +42,6 @@ An example of this would look like:
 ```
 
 Next, simply enable your virtual environment with the installed pip packages and run:
-'''bash
+```bash
 python test.py --parameters test_parameters.json
 ```
