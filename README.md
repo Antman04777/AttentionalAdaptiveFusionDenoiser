@@ -45,3 +45,7 @@ Next, simply enable your virtual environment with the installed pip packages and
 ```bash
 python test.py --parameters test_parameters.json
 ```
+
+Once the inference is done, you may view the results within the 'results' directory under the project root, navigate to the directory named after the experiment provided in the test_parameters.json and then the directory named after the scene which you ran inference on (eg. san-miguel).
+
+The images are saved as .exr files, it is encouraged that you use an exr viewer such as mrViewer (https://sourceforge.net/projects/mrviewer/)
