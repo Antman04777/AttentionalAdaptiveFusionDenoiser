@@ -40,3 +40,8 @@ An example of this would look like:
     "test_scene": "san-miguel"
 }
 ```
+
+Next, simply enable your virtual environment with the installed pip packages and run:
+'''bash
+python test.py --parameters test_parameters.json
+```
