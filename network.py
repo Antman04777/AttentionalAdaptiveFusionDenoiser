@@ -7,7 +7,7 @@ from typing import Dict
 
 
 class AdaptiveFusion(torch.nn.Module):
-    def __init__(self, device, num_input_channels=16):
+    def __init__(self, device, num_input_channels=13):
         super().__init__()
 
         
@@ -149,7 +149,7 @@ class WeightCNN(torch.nn.Module):
             
         return x_4
 
-class RepVGG(torch.nn.Module):
+class AttentionalAFNet(torch.nn.Module):
     def __init__(self, device):
         super().__init__()
 
