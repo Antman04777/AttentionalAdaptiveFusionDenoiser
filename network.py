@@ -379,7 +379,7 @@ class WeightCNN(torch.nn.Module):
 
         return x3
 
-class RepVGG(torch.nn.Module):
+class AttentionalAFNet(torch.nn.Module):
     def __init__(self, device):
         super().__init__()
 
