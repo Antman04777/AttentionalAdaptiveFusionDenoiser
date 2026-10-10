@@ -21,7 +21,8 @@ class RawDataReader:
         self.IMG_HEIGHT = 720
         self.IMG_WIDTH = 1280
 
-        self.NUM_INPUT_CHANNELS = 16
+        # self.NUM_INPUT_CHANNELS = 16
+        self.NUM_INPUT_CHANNELS = 13
         self.NUM_REFERENCE_CHANNELS = 3
 
         self.scene_names = ["classroom", "living-room", "san-miguel", "sponza-glossy", "sponza-moving-light", "sponza"]
@@ -58,7 +59,7 @@ class RawDataReader:
 
         normal_file_names = [os.path.join(folder_name, scene, "inputs", "shading_normal"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
 
-        world_position_file_names = [os.path.join(folder_name, scene, "inputs", "world_position"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
+        # world_position_file_names = [os.path.join(folder_name, scene, "inputs", "world_position"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
 
         depth_file_names = [os.path.join(folder_name, scene, "inputs", "depth"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
 
@@ -85,7 +86,7 @@ class RawDataReader:
             normal_image = normal_image*0.5 + 0.5
             # np.multiply(normal_image, 0.5, out=normal_image)
 
-            world_position_image = pyexr.read(world_position_file_names[i])
+            # world_position_image = pyexr.read(world_position_file_names[i])
 
             depth_image = pyexr.read(depth_file_names[i])[:,:, 0:1]
             depth_image = (depth_image - np.min(depth_image)) / (np.max(depth_image) - np.min(depth_image))
@@ -98,7 +99,7 @@ class RawDataReader:
                                     irradiance_TA_image,
                                     albedo_image,
                                     normal_image,
-                                    world_position_image,
+                                    # world_position_image,
                                     depth_image], 
                                     axis=2)
             
