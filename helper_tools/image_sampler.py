@@ -5,15 +5,16 @@ import sys
 from PIL import Image
 from utils import tone_mapping
 
-scene = 'san-miguel'
+scene = 'sponza-moving-light'
 scene_accum_dir = os.path.join('dataset', scene, 'acc_colors')
 scene_inputs_dir = os.path.join('dataset', scene, 'inputs')
-experiment_name = 'Fixed+Rep+AFF+Aux'
+experiment_name = 'Rep+AFF+Aux+NoWorld'
 results_dir = os.path.join('results', experiment_name, scene)
 crop_size = 128
-frame_num = 28 #0-59
-top_left_x = 768
-top_left_y = 282
+frame_num = 50 #0-59
+top_left_x = 858
+top_left_y = 463
+top_left_y = 720 - top_left_y
 coord = f'({top_left_x},{top_left_y})'
 save_dir = os.path.join('saved_crops', experiment_name, scene, f'{frame_num}', coord)
 
