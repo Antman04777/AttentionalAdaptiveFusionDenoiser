@@ -240,7 +240,7 @@ class AttentionalAFNet(torch.nn.Module):
         downsampled_TA_denoised = self.downsampler(TA_denoised)
         upsampled_TA_denoised = self.upsampler(downsampled_TA_denoised)
 
-        final_irradiance = (TA_denoised - weight * upsampled_TA_denoised) + (weight * Non_TA_denoised)
+        final_irradiance = torch.clamp((TA_denoised - weight * upsampled_TA_denoised),min=0.0) + (weight * Non_TA_denoised)
         final = x_albedo * final_irradiance
 
         return final.permute((0, 2, 3, 1))
