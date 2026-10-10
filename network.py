@@ -354,7 +354,6 @@ class WeightCNN(torch.nn.Module):
 
         self.rep1 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
         self.rep2 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
-
         self.rep3 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
         self.rep4 = RepVGGBlock(in_channels=16, out_channels=16).to(device)
 
@@ -369,7 +368,6 @@ class WeightCNN(torch.nn.Module):
 
 
     def forward(self, x_input):
-        # two tone mapped irradiance maps concatenated
 
         x1 = self.conv_layer1(x_input)
         x2 = self.rep1(x1)
@@ -386,8 +384,6 @@ class RepVGG(torch.nn.Module):
         super().__init__()
 
         self.device = device
-
-        self.num_input_channels = 13
 
         self.adaptive_fusion_conv = AdaptiveFusion(device).to(device)
         self.weight_cnn = WeightCNN(device).to(device)
