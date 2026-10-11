@@ -4,7 +4,7 @@ import copy
 
 experiment = 'Fixed+Rep+AFF+Aux'
 scene = 'san-miguel'
-model_state_dict = torch.load(os.path.join('checkpoints', experiment, scene, 'model.pt'))
+model_state_dict = torch.load(os.path.join('..', 'checkpoints', experiment, scene, 'model.pt'))
 # new_model_state_dict = model_state_dict.copy()
 new_model_state_dict = copy.deepcopy(model_state_dict)
 
@@ -17,4 +17,4 @@ for k,v in model_state_dict['model_state_dict'].items():
 for k,v in new_model_state_dict['model_state_dict'].items():
     print(k)
 
-torch.save({'model_state_dict': new_model_state_dict['model_state_dict'], 'optimizer_state_dict': new_model_state_dict['optimizer_state_dict']}, os.path.join(os.path.join('checkpoints', experiment, scene), "model_modified.pt"))
+torch.save({'model_state_dict': new_model_state_dict['model_state_dict'], 'optimizer_state_dict': new_model_state_dict['optimizer_state_dict']}, os.path.join(os.path.join('..', 'checkpoints', experiment, scene), "model_modified.pt"))
