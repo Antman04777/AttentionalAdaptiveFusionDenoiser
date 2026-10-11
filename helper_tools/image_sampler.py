@@ -11,6 +11,7 @@ scene_inputs_dir = os.path.join('dataset', scene, 'inputs')
 experiment_name = 'Fixed+Rep+AFF+Aux'
 # experiment_name = 'Rep+AFF+Aux+NoWorld'
 results_dir = os.path.join('results', experiment_name, scene)
+not_our_results_dir = os.path.join('wskpn_results', scene)
 crop_size = 128
 frame_num = 50 #0-59
 top_left_x = 858
@@ -23,7 +24,7 @@ for dir in [save_dir]:
     if not os.path.exists(dir):
         os.makedirs(dir)
 
-for dir in [scene_accum_dir, scene_inputs_dir, results_dir]:
+for dir in [scene_accum_dir, scene_inputs_dir, results_dir, not_our_results_dir]:
     if not os.path.exists(dir):
         print(f'Vital directory: {dir} does not exist!')
         sys.exit(-1)
@@ -69,6 +70,16 @@ albedo = tone_mapping(albedo) * 255
 ta = tone_mapping(ta) * 255
 reference = tone_mapping(reference) * 255
 
+# other papers' results
+wskpn = Image.open(os.path.join(not_our_results_dir, 'Ours.png'))
+wskpn = np.asarray(wskpn)
+bmfr = Image.open(os.path.join(not_our_results_dir, 'BMFR.png'))
+bmfr = np.asarray(bmfr)
+nbgd = Image.open(os.path.join(not_our_results_dir, 'NBGD.png'))
+nbgd = np.asarray(nbgd)
+svgf = Image.open(os.path.join(not_our_results_dir, 'SVGF.png'))
+svgf = np.asarray(svgf)
+
 result = result.astype(np.uint8)
 albedo = albedo.astype(np.uint8)
 non_ta = non_ta.astype(np.uint8)
@@ -81,10 +92,20 @@ non_ta_png = Image.fromarray(non_ta)
 ta_png = Image.fromarray(ta)
 reference_png = Image.fromarray(reference)
 
+wskpn_png = Image.fromarray(wskpn[low_y:up_y,low_x:up_x,:3])
+bmfr_png = Image.fromarray(bmfr[low_y:up_y,low_x:up_x,:3])
+nbgd_png = Image.fromarray(nbgd[low_y:up_y,low_x:up_x,:3])
+svgf_png = Image.fromarray(svgf[low_y:up_y,low_x:up_x,:3])
+
 # save as png
-result_png.save(os.path.join(save_dir, f'result.png'))
+result_png.save(os.path.join(save_dir, f'our_result.png'))
 non_ta_png.save(os.path.join(save_dir, f'non_ta.png'))
 ta_png.save(os.path.join(save_dir, f'ta.png'))
 reference_png.save(os.path.join(save_dir, f'reference.png'))
+
+wskpn_png.save(os.path.join(save_dir, f'wskpn.png'))
+bmfr_png.save(os.path.join(save_dir, f'bmfr.png'))
+nbgd_png.save(os.path.join(save_dir, f'nbgd.png'))
+svgf_png.save(os.path.join(save_dir, f'svgf.png'))
 
 print('Success!')
