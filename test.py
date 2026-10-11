@@ -25,7 +25,7 @@ def test(model, device, dataloader, save_dir=''):
             # references = references.to(device, non_blocking = True).half()
 
             #
-            with torch.autocast(device_type="cuda"):
+            with torch.autocast(device_type="cuda", dtype=torch.float32):
                 outputs = model(inputs).detach()
             # with torch.autocast(device_type='cuda', dtype=torch.float16):
                 # outputs = model(inputs).detach()
@@ -175,7 +175,7 @@ if __name__ == '__main__':
     #
 
     # deployed_model = deployed_model.half()
-    deployed_model = torch.compile(deployed_model) # torch compile is in our favour now? lol
+    # deployed_model = torch.compile(deployed_model) # torch compile is in our favour now? lol
 
     SSIM_mean, PSNR_mean = test(deployed_model, device, test_dataloader, test_saving_dir)
 
