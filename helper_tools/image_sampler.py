@@ -18,9 +18,9 @@ rep_results_dir = os.path.join('results', rep_only_experiment_name, scene)
 not_our_results_dir = os.path.join('wskpn_results', scene)
 
 crop_size = 128
-frame_num = 45 #0-59
-top_left_x = 995
-top_left_y = 0
+frame_num = 34 #0-59
+top_left_x = 932
+top_left_y = 571
 top_left_y = 720 - top_left_y
 coord = f'({top_left_x},{top_left_y})'
 save_dir = os.path.join('saved_crops', our_experiment_name, scene, f'{frame_num}', coord)
@@ -101,6 +101,8 @@ for result_dir in [ours_results_dir, adfn_results_dir, rep_results_dir]:
         result_png.save(os.path.join(save_dir, f'ours.png'))
     elif result_dir == adfn_results_dir:
         result_png.save(os.path.join(save_dir, f'adfn.png'))
+    else:
+        result_png.save(os.path.join(save_dir, f'rep_only.png'))
 
 # other papers' results
 wskpn = Image.open(os.path.join(not_our_results_dir, 'Ours.png'))
