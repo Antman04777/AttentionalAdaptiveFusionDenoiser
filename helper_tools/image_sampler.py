@@ -10,15 +10,17 @@ scene_accum_dir = os.path.join('dataset', scene, 'acc_colors')
 scene_inputs_dir = os.path.join('dataset', scene, 'inputs')
 our_experiment_name = 'Fixed+Rep+AFF+Aux'
 adfn_experiment_name = 'AD'
+rep_only_experiment_name = 'Rep+Only'
 
 ours_results_dir = os.path.join('results', our_experiment_name, scene)
 adfn_results_dir = os.path.join('results', adfn_experiment_name, scene)
+rep_results_dir = os.path.join('results', rep_only_experiment_name, scene)
 not_our_results_dir = os.path.join('wskpn_results', scene)
 
 crop_size = 128
-frame_num = 50 #0-59
-top_left_x = 858
-top_left_y = 463
+frame_num = 45 #0-59
+top_left_x = 995
+top_left_y = 0
 top_left_y = 720 - top_left_y
 coord = f'({top_left_x},{top_left_y})'
 save_dir = os.path.join('saved_crops', our_experiment_name, scene, f'{frame_num}', coord)
@@ -27,7 +29,7 @@ for dir in [save_dir]:
     if not os.path.exists(dir):
         os.makedirs(dir)
 
-for dir in [scene_accum_dir, scene_inputs_dir, ours_results_dir, adfn_results_dir, not_our_results_dir]:
+for dir in [scene_accum_dir, scene_inputs_dir, ours_results_dir, adfn_results_dir, not_our_results_dir, rep_results_dir]:
     if not os.path.exists(dir):
         print(f'Vital directory: {dir} does not exist!')
         sys.exit(-1)
@@ -81,7 +83,7 @@ non_ta_png.save(os.path.join(save_dir, f'non_ta.png'))
 ta_png.save(os.path.join(save_dir, f'ta.png'))
 reference_png.save(os.path.join(save_dir, f'reference.png'))
 
-for result_dir in [ours_results_dir, adfn_results_dir]:
+for result_dir in [ours_results_dir, adfn_results_dir, rep_results_dir]:
     result_path = os.path.join(result_dir, f'{frame_num}.exr')
     
     result = pyexr.read(result_path)[low_y:up_y,low_x:up_x,:3]
