@@ -5,7 +5,7 @@ import sys
 from PIL import Image
 from utils import tone_mapping
 
-scene = 'sponza-moving-light'
+scene = 'classroom'
 scene_accum_dir = os.path.join('dataset', scene, 'acc_colors')
 scene_inputs_dir = os.path.join('dataset', scene, 'inputs')
 our_experiment_name = 'Fixed+Rep+AFF+Aux'
@@ -18,9 +18,9 @@ rep_results_dir = os.path.join('results', rep_only_experiment_name, scene)
 not_our_results_dir = os.path.join('wskpn_results', scene)
 
 crop_size = 128
-frame_num = 34 #0-59
-top_left_x = 932
-top_left_y = 571
+frame_num = 51 #0-59
+top_left_x = 780
+top_left_y = 655
 top_left_y = 720 - top_left_y
 coord = f'({top_left_x},{top_left_y})'
 save_dir = os.path.join('saved_crops', our_experiment_name, scene, f'{frame_num}', coord)
