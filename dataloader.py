@@ -5,7 +5,6 @@ import pyexr
 from tqdm import tqdm
 from torch.utils.data import Dataset
 import torchvision.transforms.functional as tf
-# import json
 
 # from memory_profiler import profile
 
@@ -51,17 +50,11 @@ class RawDataReader:
         folder_name = os.path.join("dataset")
 
         irradiance_TA_file_names = [os.path.join(folder_name, scene, "acc_colors", "color"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
-
         irradiance_non_TA_file_names = [os.path.join(folder_name, scene, "inputs", "color"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
-
         albedo_file_names = [os.path.join(folder_name, scene, "inputs", "albedo"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
-
         normal_file_names = [os.path.join(folder_name, scene, "inputs", "shading_normal"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
-
         world_position_file_names = [os.path.join(folder_name, scene, "inputs", "world_position"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
-
         depth_file_names = [os.path.join(folder_name, scene, "inputs", "depth"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
-
         reference_file_names = [os.path.join(folder_name, scene, "inputs", "reference"+str(i)+".exr") for scene in self.scenes_to_be_loaded for i in range (self.num_frames_per_scene)]
 
         self.train_inputs = []
@@ -83,16 +76,11 @@ class RawDataReader:
 
             normal_image=pyexr.read(normal_file_names[i])
             normal_image = normal_image*0.5 + 0.5
-            # np.multiply(normal_image, 0.5, out=normal_image)
 
             world_position_image = pyexr.read(world_position_file_names[i])
 
             depth_image = pyexr.read(depth_file_names[i])[:,:, 0:1]
             depth_image = (depth_image - np.min(depth_image)) / (np.max(depth_image) - np.min(depth_image))
-            # min_depth = np.min(depth_image)
-            # np.subtract(depth_image, min_depth, out=depth_image)
-            # depth_denom = np.max(depth_image) - np.min(depth_image)
-            # np.divide(depth_image, depth_denom, out=depth_image)
 
             inputs = np.concatenate([irradiance_non_TA_image,
                                     irradiance_TA_image,
@@ -107,18 +95,10 @@ class RawDataReader:
                     self.validation_inputs.append(inputs)
                     self.validation_references.append(reference_image)
                     continue
-                #with open('memmap_dataset/train_inputs.npy', mode='ab') as f:
-                #    inputs.tofile(f)
-                #with open('memmap_dataset/train_references.npy', mode='ab') as f:
-                #    reference_image.tofile(f)
                 self.train_inputs.append(inputs)
                 self.train_references.append(reference_image)
 
             else:
-                #with open('memmap_dataset/test_inputs.npy', mode='ab') as f:
-                #    inputs.tofile(f)
-                #with open('memmap_dataset/test_references.npy', mode='ab') as f:
-                #    reference_image.tofile(f)
                 self.test_inputs.append(inputs)
                 self.test_references.append(reference_image)
 
@@ -127,31 +107,6 @@ class RawDataReader:
         total_memory = (final_memory - initial_memory) / (1024 * 1024)
 
         print("total data memory: ", total_memory)
-
-    # @profile
-    def load_memmap(self):
-
-        self.train_inputs = np.memmap('memmap_dataset/train_inputs.npy', dtype=np.float32, mode='r', shape=self.train_input_shape)
-        self.train_references = np.memmap('memmap_dataset/train_references.npy', dtype=np.float32, mode='r', shape=self.train_reference_shape)
-        self.test_inputs = np.memmap('memmap_dataset/test_inputs.npy', dtype=np.float32, mode='r', shape=self.test_input_shape)
-        self.test_references = np.memmap('memmap_dataset/test_references.npy', dtype=np.float32, mode='r', shape=self.test_reference_shape)
-
-        self.train_inputs = self.train_inputs.__array__()
-        self.train_references = self.train_references.__array__()
-        self.test_inputs =  self.test_inputs.__array__()
-        self.test_references =  self.test_references.__array__()
-
-        # print('Memmap loaded')
-
-        # pyexr.write(os.path.join("test", "test_image"+str(0)+".exr"), self.train_inputs[299, :, :, 0:3])
-        # pyexr.write(os.path.join("test", "test_image"+str(1)+".exr"), self.train_inputs[299, :, :, 3:6])
-        # pyexr.write(os.path.join("test", "test_image"+str(2)+".exr"), self.train_inputs[299, :, :, 6:9])
-        # pyexr.write(os.path.join("test", "test_image"+str(3)+".exr"), self.train_inputs[299, :, :, 9:12])
-        # pyexr.write(os.path.join("test", "test_image"+str(4)+".exr"), self.train_inputs[299, :, :, 12:15])
-        # pyexr.write(os.path.join("test", "test_image"+str(5)+".exr"), self.train_inputs[299, :, :, 15:16])
-# 
-        # pyexr.write(os.path.join("test", "test_image"+str(6)+".exr"), self.train_references[299, :, :, 0:3])
-
 
 class BMFRFinalDataset(Dataset):
     def __init__(self, raw_data=None, use_train=False, use_val = False, use_test=False, crops_per_training_frame=80, crops_per_validation_frame=20, crop_size=128):
@@ -200,17 +155,12 @@ class BMFRFinalDataset(Dataset):
             train_in = self.raw_data.train_inputs[frame_index]
             train_ref = self.raw_data.train_references[frame_index]
             ret = self.transform(train_in, train_ref)
-            # del train_in, train_ref
+
             return ret
-            # return tf.to_tensor(self.raw_data.train_inputs[frame_index]), tf.to_tensor(self.raw_data.train_references[frame_index])
+        
         elif self.use_val:
             frame_index = index // self.crops_per_validation_frame
-            # return self.crop(self.raw_data.train_inputs[frame_index], self.raw_data.train_references[frame_index])
             return self.transform(self.raw_data.validation_inputs[frame_index], self.raw_data.validation_references[frame_index])
-    
-
-    
-    # @profile
     
     '''
     def __getitems__(self, indices):

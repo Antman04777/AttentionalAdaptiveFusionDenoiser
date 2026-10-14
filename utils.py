@@ -16,18 +16,10 @@ def compute_metrics(reference_image, test_output_image):
     reference_image = tone_mapping(reference_image)
     test_output_image = tone_mapping(test_output_image)
 
-    max_1 = np.max(reference_image)
-    max_2 = np.max(test_output_image)
-    upper = max(max_1, max_2)
-
-    min_1 = np.min(reference_image)
-    min_2 = np.min(test_output_image)
-    lower = min(min_1, min_2)
-
     criterion_SMAPE = SMAPEloss()
     criterion_RMSE = torch.nn.MSELoss()
 
-    SSIM = structural_similarity(reference_image, test_output_image, channel_axis = -1, data_range=2.0)
+    SSIM = structural_similarity(reference_image, test_output_image, channel_axis = -1, data_range=2.0) # to match wskpn
     PSNR = peak_signal_noise_ratio(reference_image, test_output_image)
     
     SMAPE = float(criterion_SMAPE(torch.tensor(test_output_image), torch.tensor(reference_image)).item())
@@ -44,10 +36,7 @@ class SMAPEloss(torch.nn.Module):
 
     def forward(self, outputs, references):
         denominator = outputs
-        # print("min ref = ", torch.min(references))
-        # print("max ref = ", torch.max(references))
-        # print("min out = ", torch.min(outputs))
-        # print("max out = ", torch.max(outputs))
+
         loss = torch.mean(torch.abs(outputs - references) / (denominator.abs() + references.abs() + self.eps))
         return loss
 

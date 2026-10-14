@@ -24,7 +24,6 @@ class RepVGGBlock(torch.nn.Module):
             bias=False,
             stride=stride,
             activation_layer=None,
-            # the original model may also have groups > 1
         )
 
         self.shortcut = Conv2dNormActivation(
@@ -42,12 +41,12 @@ class RepVGGBlock(torch.nn.Module):
         self.relu = torch.nn.ReLU(inplace=True)
 
     def forward(self, x):
-        res = x  # <- 2x memory
+        res = x
         x = self.block(x)
         x += self.shortcut(res)
         if self.identity:
             x += self.identity(res)
-        x = self.relu(x)  # <- 1x memory
+        x = self.relu(x)
         return x
 
     def to_fast(self) -> RepVGGFastBlock:
@@ -86,18 +85,16 @@ def get_fused_conv_state_dict_from_block(block: RepVGGBlock) -> Dict[str, torch.
     )
 
     if block.shortcut:
-        # fuse the 1x1 shortcut
         conv_1x1_state_dict = get_fused_bn_to_conv_state_dict(
             block.shortcut[0], block.shortcut[1]
         )
-        # we pad the 1x1 to a 3x3
+
         conv_1x1_state_dict["weight"] = torch.nn.functional.pad(
             conv_1x1_state_dict["weight"], [1, 1, 1, 1]
         )
         fused_block_conv_state_dict["weight"] += conv_1x1_state_dict["weight"]
         fused_block_conv_state_dict["bias"] += conv_1x1_state_dict["bias"]
     if block.identity:
-        # create our identity 3x3 conv kernel
         identify_conv = torch.nn.Conv2d(
             block.block[0].in_channels,
             block.block[0].in_channels,
@@ -105,13 +102,13 @@ def get_fused_conv_state_dict_from_block(block: RepVGGBlock) -> Dict[str, torch.
             bias=True,
             padding=1,
         ).to(block.block[0].weight.device)
-        # set them to zero!
+
         identify_conv.weight.zero_()
-        # set the middle element to zero for the right channel
+
         in_channels = identify_conv.in_channels
         for i in range(identify_conv.in_channels):
             identify_conv.weight[i, i % in_channels, 1, 1] = 1
-        # fuse the 3x3 identity
+
         identity_state_dict = get_fused_bn_to_conv_state_dict(
             identify_conv, block.identity
         )
@@ -125,7 +122,7 @@ def get_fused_conv_state_dict_from_block(block: RepVGGBlock) -> Dict[str, torch.
     return fused_conv_state_dict
 
 class SqueezeExcite(torch.nn.Module):
-    def __init__(self, device, r=3, num_input_channels=3):
+    def __init__(self, r=3, num_input_channels=3):
         super().__init__()
 
         self.num_input_channels = num_input_channels
@@ -149,12 +146,11 @@ class SqueezeExcite(torch.nn.Module):
 
 
 class AFF(torch.nn.Module):
-    def __init__(self,device,r=4,num_input_channels=3):
+    def __init__(self,r=4,num_input_channels=3):
         super().__init__()
 
         self.num_input_channels=num_input_channels
         self.compressed_channels = int(num_input_channels/r)
-        #self.global_context = SqueezeExcite(device,4,num_input_channels)
         self.avg_pool = torch.nn.AdaptiveAvgPool2d(1)
         self.conv_g1 = torch.nn.Conv1d(num_input_channels, self.compressed_channels, 1, bias=False)
         self.bn_g1 = torch.nn.BatchNorm1d(self.compressed_channels)
@@ -173,18 +169,6 @@ class AFF(torch.nn.Module):
     def forward(self, x, y):
 
         x_in = x + y
-
-        #x_global = self.global_context(x_in)
-#
-        #b_in, c_in, h_in, w_in = x_in.shape
-        #x_in = x_in.reshape(b_in, c_in, h_in * w_in)
-        #x_local = self.conv1(x_in)
-        #x_local = self.relu1(x_local)
-        #x_local = self.conv2(x_local)
-        #x_local = x_local.reshape(b_in, c_in, h_in, w_in)
-#
-        #x_context = x_global + x_local
-        #x_context = self.sigmoid(x_context)
 
         b_in, c_in, h_in, w_in = x_in.shape
 
@@ -221,7 +205,6 @@ class KernelPredictorCNN(torch.nn.Module):
 
         self.num_input_channels = num_input_channels
 
-        # self.rep1 = RepBlock(device, in_ch=self.num_input_channels, out_ch=32, is_input=True, bn=True).to(device)
         self.rep1_noisy = RepVGGBlock(in_channels=6, out_channels=32).to(device)
         self.rep2_noisy = RepVGGBlock(in_channels=32, out_channels=32).to(device)
         self.squeeze_excite_layer1_noisy = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
@@ -234,16 +217,13 @@ class KernelPredictorCNN(torch.nn.Module):
         self.bn_2 = torch.nn.BatchNorm2d(64)
         self.relu_2 = torch.nn.ReLU()
 
-        # self.rep2 = RepBlock(device, in_ch=64, out_ch=64, bn=True).to(device)
         self.rep3 = RepVGGBlock(in_channels=64, out_channels=64).to(device)
         self.rep4 = RepVGGBlock(in_channels=64, out_channels=64).to(device)
 
         self.conv_layer_3 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn_3 = torch.nn.BatchNorm2d(128)
         self.relu_3 = torch.nn.ReLU()
-        # self.drop1 = torch.nn.Dropout2d(0.15)
 
-        # self.rep3 = RepBlock(device, in_ch=128, out_ch=128, bn=True).to(device)
         self.rep5 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
         self.rep6 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
 
@@ -262,7 +242,6 @@ class KernelPredictorCNN(torch.nn.Module):
         self.conv_layer_6 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_5 = torch.nn.BatchNorm2d(64)
         self.relu_5 = torch.nn.ReLU()
-        # self.drop2 = torch.nn.Dropout2d(0.15)
 
         self.conv_layer_7_t = torch.nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, bias=False)
 
@@ -308,7 +287,6 @@ class KernelPredictorCNN(torch.nn.Module):
         x_4 = self.conv_layer_3(x_3)
         x_4 = self.bn_3(x_4)
         x_4 = self.relu_3(x_4)
-        # x_4 = self.drop1(x_4) # residual connection output
 
         x_5 = self.rep5(x_4)
         x_5 = self.rep6(x_5)
@@ -319,10 +297,8 @@ class KernelPredictorCNN(torch.nn.Module):
         x_7 = self.conv_layer_5(x_6)
         x_7 = self.bn_4(x_7)
         x_7 = self.relu_4(x_7)
-        # x_7 = self.drop2(x_7) 
 
         x_8 = self.aff_1(x_2, x_7)           #order of entries matter
-        #x_8 = torch.cat((x_2, x_7), axis=1)
         x_8 = self.conv_layer_6(x_8)
         x_8 = self.bn_5(x_8)
         x_8 = self.relu_5(x_8)
@@ -334,7 +310,6 @@ class KernelPredictorCNN(torch.nn.Module):
         x_10 = self.bn_6(x_10)
         x_10 = self.relu_6(x_10)
 
-        # x_11_in = torch.cat((x_embedded, x_10), axis=1)
         x_11_in = self.aff_2(x_embedded, x_10)
         x_11 = self.conv_layer_9(x_11_in)
         x_11 = self.bn_7(x_11)
@@ -364,7 +339,6 @@ class WeightCNN(torch.nn.Module):
 
 
     def forward(self, x_input):
-        # two tone mapped irradiance maps concatenated
 
         x1 = self.conv_layer1(x_input)
         x2 = self.rep1(x1)
@@ -382,59 +356,27 @@ class AttentionalAFNet(torch.nn.Module):
 
         self.num_input_channels = 13
 
-        #debug
-        self.x_final_out = None
-        self.guide1 = None
-        self.guide2 = None
-        self.weight_map1 = None
-        self.grid1 = None
-        self.grid2 = None
-        self.irradiance_non_TA_denoised = None
-        self.irradiance_TA_denoised = None
-        self.irradiance_final = None
-        self.final = None
-
         self.kernel_predictor_cnn = KernelPredictorCNN(device).to(device)
         self.weight_cnn = WeightCNN(device).to(device)
 
         self.downsampler = torch.nn.AvgPool2d(2, stride=2)
         self.upsampler = torch.nn.Upsample(scale_factor=2)
 
-        torch.autograd.set_detect_anomaly(True)
-
     def deploy(self):
         self.kernel_predictor_cnn.deploy()
         self.weight_cnn.deploy()
 
-    # @profile
     def forward(self, raw_inputs):
         x_irradiance_non_TA = raw_inputs[:, 0:3]
         x_irradiance_TA = raw_inputs[:, 3:6]
         x_albedo = raw_inputs[:, 6:9]
 
-        #x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA * x_albedo)
         x_tone_mapped_non_TA_frame = utils.tone_mapping(x_irradiance_non_TA)
-        #x_tone_mapped_TA_frame = utils.tone_mapping(x_irradiance_TA * x_albedo)
         x_tone_mapped_TA_frame = utils.tone_mapping(x_irradiance_TA)
 
-
-        # x_tone_mapped_TA_frame_copy = x_tone_mapped_TA_frame
-
-        # alpha, one_minus_alpha = self.attention_layer(x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, x_tone_mapped_TA_frame_copy)
-
-        # x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.num_input_channels]), axis=1)
         x_input = torch.cat((x_tone_mapped_non_TA_frame, x_tone_mapped_TA_frame, raw_inputs[:, 6:self.kernel_predictor_cnn.num_input_channels]), axis=1)
 
         kernel_non_TA, kernel_TA = self.kernel_predictor_cnn(x_input)
-        #y_TA = y_TA[:, :3, :, :]
-        #y_TA = y_TA.permute((0, 2, 3, 1))
-
-        # x_albedo = x_albedo.permute((0, 2, 3, 1))
-        # alpha = alpha.permute((0, 2, 3, 1))
-        #return y_TA
-
-        # x_input_non_TA = torch.cat((x_tone_mapped_non_TA_frame, raw_inputs[:, 6:16]), axis=1)
-        # x_input_TA = torch.cat((x_tone_mapped_TA_frame, raw_inputs[:, 6:16]), axis=1)
 
         downsampled_irr_non_TA = self.downsampler(x_irradiance_non_TA)
 
@@ -490,20 +432,10 @@ class AttentionalAFNet(torch.nn.Module):
 
         weight = self.weight_cnn(weight_input)
 
-        # print("min = ", torch.min(weight))
-        # print("max = ", torch.max(weight))
-
         downsampled_TA_denoised = self.downsampler(TA_denoised)
         upsampled_TA_denoised = self.upsampler(downsampled_TA_denoised)
 
-        # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
-        # final = TA_denoised - weight * upsampled_TA_denoised + (weight * Non_TA_denoised)
-        # final = torch.clamp(TA_denoised - weight, min=0.0) * upsampled_TA_denoised + (weight * Non_TA_denoised)
         final_irradiance = torch.clamp(TA_denoised - weight * upsampled_TA_denoised, min=0.0) + (weight * Non_TA_denoised)
         final = x_albedo * final_irradiance
-        # final = torch.clamp(TA_denoised - upsampled_TA_denoised, min=0.0) + torch.clamp(Non_TA_denoised, min=0.0)
-
 
         return final.permute((0, 2, 3, 1))
-        # return TA_denoised.permute((0, 2, 3, 1))
-        # return kernel_TA[:, 0:3].permute((0, 2, 3, 1))

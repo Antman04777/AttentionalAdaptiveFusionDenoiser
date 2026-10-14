@@ -16,21 +16,13 @@ def test(model, device, dataloader, save_dir=''):
     SMAPEs = []
     RMSEs = []
 
-    # with torch.no_grad():
     with torch.inference_mode():
         for test_img_idx, (inputs, references) in enumerate(dataloader):
             inputs = inputs.to(device, non_blocking=True)
-            # inputs = inputs.to(device, non_blocking=True).half()
             references = references.to(device, non_blocking = True)
-            # references = references.to(device, non_blocking = True).half()
 
-            #
             with torch.autocast(device_type="cuda"):
                 outputs = model(inputs).detach()
-            # with torch.autocast(device_type='cuda', dtype=torch.float16):
-                # outputs = model(inputs).detach()
-            #
-
 
             output = outputs.cpu().numpy()[0]
             reference = references.cpu().numpy()[0].transpose((1, 2, 0))
@@ -42,13 +34,6 @@ def test(model, device, dataloader, save_dir=''):
             RMSEs.append(RMSE)
 
             pyexr.write(os.path.join(save_dir, str(test_img_idx)+".exr"), output)
-
-    # irr_non_ta_denoised = model.irradiance_non_TA_denoised.cpu().numpy()[0]
-    # irr_ta_denoised = model.irradiance_TA_denoised.cpu().numpy()[0]
-    # irr_final = model.irradiance_final.cpu().numpy()[0]
-    # pyexr.write(os.path.join(save_dir, 'irr_non_ta_denoised.exr'), irr_non_ta_denoised)
-    # pyexr.write(os.path.join(save_dir, 'irr_ta_denoised.exr'), irr_ta_denoised)
-    # pyexr.write(os.path.join(save_dir, 'irr_final.exr'), irr_final)
 
     print("Test: ")
     SSIM_mean = np.mean(SSIMs)
@@ -73,31 +58,21 @@ def time_inference(model, device, dataloader, steps=60):
 
     cache_tensor = torch.empty(int(6 * (1024 ** 2)), dtype=torch.int8, device=device) # for the V100 GPU
 
-    # dummy_tensor = torch.zeros((5, 16, 720, 1920)).to(device).half()
-    # warm_up_reps = 2
-
-    # with torch.no_grad():
     with torch.inference_mode():
-        # for i in range(warm_up_reps):
-            # _ = model(dummy_tensor)
         for test_img_idx, (inputs, references) in enumerate(dataloader):
             cache_tensor.zero_() # perform cache flush for more accurate measurement
 
             inputs = inputs.to(device, non_blocking=True)
-            # inputs = inputs.to(device, non_blocking=True).half()
             references = references.to(device, non_blocking = True)
-            # references = references.to(device, non_blocking = True).half()
 
             start_events[test_img_idx].record()
-            # outputs = model(inputs).detach()
+
             with torch.autocast(device_type="cuda"):
                 _ = model(inputs)
-            # with torch.autocast(device_type='cuda', dtype=torch.float16):
-                # outputs = model(inputs).detach()
+
             end_events[test_img_idx].record()
             torch.cuda.synchronize()
 
-        # torch.cuda.synchronize()
         times = [s.elapsed_time(e) for s, e in zip(start_events, end_events)]
         average_inference_time = statistics.mean(times)
 
@@ -110,11 +85,9 @@ def get_activation(name):
     return hook
 
 if __name__ == '__main__':
-    # torch.manual_seed(2809)
     torch.cuda.set_device(0)
     torch.backends.cudnn.deterministic = True 
     torch.backends.cudnn.benchmark = False 
-    # torch.backends.cudnn.benchmark = True
     device = torch.device("cuda")
     device_name = torch.cuda.get_device_name(0)
 
@@ -154,29 +127,7 @@ if __name__ == '__main__':
     with torch.no_grad():
         deployed_model.deploy()
 
-    # debug hooks
-    # deployed_model.adaptive_fusion_conv.rep1.relu_1.register_forward_hook(get_activation('relu_1'))
-    # deployed_model.adaptive_fusion_conv.rep2.relu_2.register_forward_hook(get_activation('relu_2'))
-    # deployed_model.adaptive_fusion_conv.rep2.relu_1.register_forward_hook(get_activation('relu_3'))
-    # deployed_model.adaptive_fusion_conv.rep2.relu_2.register_forward_hook(get_activation('relu_4'))
-    # deployed_model.adaptive_fusion_conv.rep3.relu_1.register_forward_hook(get_activation('relu_5'))
-    # deployed_model.adaptive_fusion_conv.rep3.relu_2.register_forward_hook(get_activation('relu_6'))
-    # deployed_model.adaptive_fusion_conv.relu_4.register_forward_hook(get_activation('relu_7'))
-    # deployed_model.adaptive_fusion_conv.relu_5.register_forward_hook(get_activation('relu_8'))
-    # deployed_model.adaptive_fusion_conv.relu_6.register_forward_hook(get_activation('relu_9'))
-    # deployed_model.adaptive_fusion_conv.relu_7.register_forward_hook(get_activation('relu_10'))
-    # deployed_model.weight_cnn.rep1.relu_1.register_forward_hook(get_activation('relu_11'))
-    # deployed_model.weight_cnn.rep1.relu_2.register_forward_hook(get_activation('relu_12'))
-    # deployed_model.adaptive_fusion_conv.relu_4.register_forward_hook(get_activation('relu_4'))
-    # deployed_model.adaptive_fusion_conv.relu_5.register_forward_hook(get_activation('relu_5'))
-    # deployed_model.adaptive_fusion_conv.relu_6.register_forward_hook(get_activation('relu_6'))
-    # deployed_model.adaptive_fusion_conv.relu_new_7.register_forward_hook(get_activation('relu_new_7'))
-    # deployed_model.adaptive_fusion_conv.relu_8.register_forward_hook(get_activation('relu_7'))
-    # deployed_model.adaptive_fusion_conv.relu_9.register_forward_hook(get_activation('relu_8'))
-    #
-
-    # deployed_model = deployed_model.half()
-    deployed_model = torch.compile(deployed_model) # torch compile is in our favour now? lol
+    deployed_model = torch.compile(deployed_model)
 
     SSIM_mean, PSNR_mean = test(deployed_model, device, test_dataloader, test_saving_dir)
 
@@ -185,5 +136,3 @@ if __name__ == '__main__':
     print(f'Average inference time = {average_inference_time}')
 
     utils.record_test_results(test_scene, experiment, device_name, PSNR_mean, SSIM_mean, average_inference_time, test_saving_dir)
-
-    # print(activation)

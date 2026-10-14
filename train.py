@@ -31,11 +31,8 @@ def train(model, device, dataloader, optimizer, epoch, writer, loss_func='smape'
 
     preloader = DatasetPreloader(loader=dataloader, device=device)
 
-    #Each iteration acts on a different batch
-    # for (inputs, references) in dataloader:
     for (inputs, references) in preloader:
         optimizer.zero_grad()
-        # optimizer.zero_grad(set_to_none=True)
 
         references = references.transpose(1, 3)
         references = references.transpose(1, 2)
@@ -114,16 +111,11 @@ if __name__ == "__main__":
     device_name = torch.cuda.get_device_name(0)
 
     parser = argparse.ArgumentParser(prog='train')
-    # parser.add_argument('--resume', type=str, help='<path_to_model.pt>')
-    # parser.add_argument('--resume', action=argparse.BooleanOptionalAction, help='<path_to_model.pt>')
     parser.add_argument('--resume', action='store_true', help='<path_to_model.pt>')
     parser.add_argument('--parameters', type=str, help='<path_to_parameters.json>')
 
     args = parser.parse_args()
-    # resuming_training = True if args.resume is not None else False
     resuming_training = args.resume
-    # if resuming_training:
-        # saved_model_path = args.resume
 
     if args.parameters is None:
         parser.print_help()
@@ -134,13 +126,6 @@ if __name__ == "__main__":
         sys.exit(1)
 
     parameters_path = args.parameters
-
-    #experiment = "official-lr4-epoch-400-batchsize-20-ssta-4-srta-4-ssnta-16-srnta-16-l1_loss"
-    #current_testing_scene_name = "sponza"
-    #learning_rate = 1e-4  #og 1e-3
-    #epochs = 400
-    #epoch_validate = 25
-    #batch_size = 20     #og 40
 
     experiment, current_testing_scene_name, learning_rate, loss_function, \
     epochs, epochs_validate, batch_size, previously_elapsed_epochs = utils.load_train_parameters_from_json(parameters_path)
@@ -166,7 +151,6 @@ if __name__ == "__main__":
     upper_bound = epochs
 
     if resuming_training:
-        # checkpoint = torch.load(args.resume, device)
         checkpoint = torch.load(os.path.join(model_saving_dir, 'model.pt'))
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -175,7 +159,6 @@ if __name__ == "__main__":
     else:
         writer = SummaryWriter(tensorboard_saving_dir)
 
-    # model = torch.compile(model)
     utils.record_training_parameters(learning_rate, epochs, epochs_validate, batch_size, current_testing_scene_name, experiment, device_name, loss_function, model_saving_dir)
 
     for epoch in range(lower_bound, upper_bound):
