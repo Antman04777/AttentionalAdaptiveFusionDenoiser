@@ -1,10 +1,10 @@
 {
-    "experiment": "new-model-pleeeeeease",
+    "experiment": "your_experiment",
     "current_testing_scene_name": "san-miguel",
     "learning_rate": 0.001,
     "loss_function": "smape",
     "epochs": 300,
-    "epochs_validate": 5,
+    "epochs_validate": 25,
     "batch_size": 16,
-    "previously_elapsed_epochs": 76
+    "previously_elapsed_epochs": 0
 }
