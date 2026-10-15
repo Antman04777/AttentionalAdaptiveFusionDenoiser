@@ -1,9 +1,9 @@
 {
-    "experiment": "your_experiment",
+    "experiment": "new-experiment",
     "current_testing_scene_name": "san-miguel",
     "learning_rate": 0.001,
     "loss_function": "smape",
-    "epochs": 300,
+    "epochs": 400,
     "epochs_validate": 25,
     "batch_size": 16,
     "previously_elapsed_epochs": 0

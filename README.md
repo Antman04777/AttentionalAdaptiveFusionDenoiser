@@ -40,7 +40,7 @@ The checkpoints of our model for each scene lie within the checkpoints directory
 An example of this would look like:
 ```json
 {
-    "experiment": "Rep+AFF+Aux+NoWorld",
+    "experiment": "Attentional-AD",
     "test_scene": "san-miguel"
 }
 ```
