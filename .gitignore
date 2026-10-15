@@ -224,7 +224,6 @@ testing_data/
 build/
 results/
 runs/
-checkpoints/
 test/
 cuda-debugging/
 wskpn_results/
