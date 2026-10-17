@@ -1,6 +1,5 @@
 from dataloader import RawDataReader, BMFRFinalDataset, DatasetPreloader
 from network import RepVGG
-# import pyexr
 import os
 import numpy as np
 
@@ -8,8 +7,6 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 import utils
-from skimage.metrics import structural_similarity
-from skimage.metrics import peak_signal_noise_ratio
 
 import argparse
 import sys
