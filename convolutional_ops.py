@@ -4,8 +4,6 @@ torch.ops.load_library("build/libconvolutional_ops.so")
 
 print("libconvolutional_ops.so loaded")
 
-# apply_kernel_maps_to_irradiance_maps_launcher = torch.ops.my_ops.apply_kernel_maps_to_irradiance_maps_wrapper
-
 @torch.library.custom_op("convolution_ops::apply_kernel_maps_to_irradiance_maps_wrapper", mutates_args=())
 def apply_kernel_maps_to_irradiance_maps(input_irradiance: torch.Tensor, kernel_maps: torch.Tensor) -> torch.Tensor:
     return torch.ops.my_ops.apply_kernel_maps_to_irradiance_maps_wrapper(input_irradiance, kernel_maps)
