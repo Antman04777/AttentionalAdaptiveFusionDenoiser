@@ -7,6 +7,7 @@ We utilise the BMFR dataset in this paper which can be found at: https://etsin.f
 ## Prerequisites
 (The software along with versions we used)
 
+  - python v3.12
   - numpy v2.4.6
   - pytorch v2.6.0
   - torchvision v0.25.0
