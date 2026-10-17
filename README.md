@@ -12,7 +12,6 @@ We utilise the BMFR dataset in this paper which can be found at: https://etsin.f
   - pyexr v0.5.0
   - scikit-image v0.26.0
   - tqdm v4.67.3
-  - psutil v7.2.2
 
 ## Instructions
 
