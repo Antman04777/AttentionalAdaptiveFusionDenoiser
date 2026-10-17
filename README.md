@@ -94,7 +94,7 @@ Run this using the parameters present in train_parameters.json prior to your sto
 
 ## CUDA code build instructions (optional):
 
-Should you wish to use the CUDA implementation of the kernel application during inference, set the deployed and use_cuda_unfolding arguments to true in the AttentionalAFNet constructor
+Should you wish to use the CUDA implementation of the kernel application during inference, set the use_cuda_unfolding arguments to true in the AttentionalAFNet constructor in test.py
 
 In order to use the custom CUDA kernels you will need to build them:
 
