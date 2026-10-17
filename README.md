@@ -73,13 +73,15 @@ And example of this would look like:
     "experiment": "new-experiment",
     "current_testing_scene_name": "san-miguel",
     "learning_rate": 0.001,
-    "loss_function": "smape",
+    "loss_function": "smape"
     "epochs": 400,
     "epochs_validate": 25,
     "batch_size": 16,
     "previously_elapsed_epochs": 0
 }
 ```
+
+(the only available loss functions are smape and l1)
 
 run:
 ```bash
