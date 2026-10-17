@@ -18,7 +18,7 @@ We utilise the BMFR dataset in this paper which can be found at: https://etsin.f
 
 ## Instructions
 
-(These instructions are for Linux and all instructions should be executed in an environment containing the aforementioned prerequisites)
+(These instructions are for Linux and all instructions should be executed in a Python environment containing the aforementioned prerequisites)
 
 Extract both parts of the BMFR dataset into the 'dataset' directory within the project root directory
 
