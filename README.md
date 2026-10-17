@@ -7,17 +7,21 @@ We utilise the BMFR dataset in this paper which can be found at: https://etsin.f
 ## Prerequisites
 (The software along with versions we used)
 
+  - python v3.12
+  - numpy v2.4.6
   - pytorch v2.6.0
+  - torchvision v0.25.0
   - cuda v12.4
   - pyexr v0.5.0
   - scikit-image v0.26.0
   - tqdm v4.67.3
-  - psutil v7.2.2
 
 ## Instructions
 
-Extract both parts of the BMFR dataset into a directory called 'dataset' within the project root directory (within the dataset directory you should see directories named after all the BMFR scenes),
-the scenes are:
+Extract both parts of the BMFR dataset into the 'dataset' directory within the project root directory
+
+the directories present in 'dataset' after extraction should be as follows:
+  - cameras
   - classroom
   - living-room
   - san-miguel
