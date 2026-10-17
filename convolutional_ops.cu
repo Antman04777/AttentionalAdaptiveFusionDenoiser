@@ -153,7 +153,7 @@ __global__ void apply_kernel_maps_to_irradiance_maps
     {
         int flat_idx = b * C * H * W + i * H * W + kernel_center_h * W + kernel_center_w;
         // output[b][i][kernel_center_h][kernel_center_w] = (weighted_color_sum[i] / weight_sum);
-        output[flat_idx] = weighted_color_sum[i] / (weight_sum + __float2half(0.000001f));
+        output[flat_idx] = weighted_color_sum[i] / (weight_sum + __float2half(0.0001f));
     }
 }
 

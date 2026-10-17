@@ -1,6 +1,6 @@
 import torch
 # import bilateral_ops
-# import convolutional_ops
+import convolutional_ops
 import utils
 from torchvision.ops import Conv2dNormActivation
 from typing import Dict
@@ -207,11 +207,11 @@ class KernelPredictorCNN(torch.nn.Module):
 
         self.rep1_noisy = RepVGGBlock(in_channels=6, out_channels=32).to(device)
         self.rep2_noisy = RepVGGBlock(in_channels=32, out_channels=32).to(device)
-        self.squeeze_excite_layer1_noisy = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
+        self.squeeze_excite_layer1_noisy = SqueezeExcite(r=4, num_input_channels=32).to(device)
 
         self.rep1_aux = RepVGGBlock(in_channels=10, out_channels=32).to(device)
         self.rep2_aux = RepVGGBlock(in_channels=32, out_channels=32).to(device)
-        self.squeeze_excite_layer1_aux = SqueezeExcite(device, r=4, num_input_channels=32).to(device)
+        self.squeeze_excite_layer1_aux = SqueezeExcite(r=4, num_input_channels=32).to(device)
 
         self.conv_layer_2 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn_2 = torch.nn.BatchNorm2d(64)
@@ -228,7 +228,7 @@ class KernelPredictorCNN(torch.nn.Module):
         self.rep6 = RepVGGBlock(in_channels=128, out_channels=128).to(device)
 
         #for decoder
-        self.squeeze_excite_layer2 = SqueezeExcite(device, r=4, num_input_channels=128).to(device)
+        self.squeeze_excite_layer2 = SqueezeExcite(r=4, num_input_channels=128).to(device)
 
         self.conv_layer_4_t = torch.nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=2, stride=2, bias=False)
 
@@ -236,8 +236,8 @@ class KernelPredictorCNN(torch.nn.Module):
         self.bn_4 = torch.nn.BatchNorm2d(64)
         self.relu_4 = torch.nn.ReLU()
 
-        self.aff_1 = AFF(device,r=4,num_input_channels=64).to(device)
-        self.aff_2 = AFF(device,r=4,num_input_channels=64).to(device)
+        self.aff_2 = AFF(r=4,num_input_channels=64).to(device)
+        self.aff_1 = AFF(r=4,num_input_channels=64).to(device)
 
         self.conv_layer_6 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_5 = torch.nn.BatchNorm2d(64)
@@ -389,39 +389,40 @@ class AttentionalAFNet(torch.nn.Module):
         TA_denoised = torch.empty((B, 3, H_ta, W_ta), dtype=x_irradiance_TA.dtype, device=self.device)
         Non_TA_denoised = torch.empty((B, 3, H_non_ta, W_non_ta), dtype=x_irradiance_non_TA.dtype, device=self.device)
 
-        for i in range(3):
-            TA_irr_channel = x_irradiance_TA[:, i:(i+1)]
-            non_TA_irr_channel = downsampled_irr_non_TA[:, i:(i+1)]
-
-            #irradiance_TA denoising
-            TA_unfolded = torch.nn.functional.unfold(TA_irr_channel, kernel_size=kernels_size, padding=3, stride=1)
-            kernel_TA_unfolded_format = kernel_TA.reshape(B, kernels_num_channels, H_ta * W_ta)
-            TA_input_kernel_multipliaction = kernel_TA_unfolded_format * TA_unfolded
-            TA_out_flat = TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
-            TA_out = TA_out_flat.reshape(B, 1, H_ta, W_ta)
-            TA_norm = kernel_TA.sum(dim=1, keepdim=True)
-            TA_out = TA_out / (TA_norm + 0.0001)
-
-            TA_denoised[:, i:(i+1)] = TA_out
-
-            #irradiance_non_TA denoising
-            non_TA_unfolded = torch.nn.functional.unfold(non_TA_irr_channel, kernel_size=kernels_size, padding=3, stride=1)
-            kernel_non_TA_unfolded_format = kernel_non_TA.reshape(B, kernels_num_channels, H_non_ta * W_non_ta)
-            Non_TA_input_kernel_multipliaction = kernel_non_TA_unfolded_format * non_TA_unfolded
-            Non_TA_out_flat = Non_TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
-            Non_TA_out = Non_TA_out_flat.reshape(B, 1, H_non_ta, W_non_ta)
-            Non_TA_norm = kernel_non_TA.sum(dim=1, keepdim=True)
-            Non_TA_out = Non_TA_out / (Non_TA_norm + 0.0001)
-
-            Non_TA_denoised[:, i:(i+1)] = Non_TA_out
+#        for i in range(3):
+#            TA_irr_channel = x_irradiance_TA[:, i:(i+1)]
+#            non_TA_irr_channel = downsampled_irr_non_TA[:, i:(i+1)]
+#
+#            #irradiance_TA denoising
+#            TA_unfolded = torch.nn.functional.unfold(TA_irr_channel, kernel_size=kernels_size, padding=3, stride=1)
+#            kernel_TA_unfolded_format = kernel_TA.reshape(B, kernels_num_channels, H_ta * W_ta)
+#            TA_input_kernel_multipliaction = kernel_TA_unfolded_format * TA_unfolded
+#            TA_out_flat = TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
+#            TA_out = TA_out_flat.reshape(B, 1, H_ta, W_ta)
+#            TA_norm = kernel_TA.sum(dim=1, keepdim=True)
+#            TA_out = TA_out / (TA_norm + 0.0001)
+#
+#            TA_denoised[:, i:(i+1)] = TA_out
+#
+#            #irradiance_non_TA denoising
+#            non_TA_unfolded = torch.nn.functional.unfold(non_TA_irr_channel, kernel_size=kernels_size, padding=3, stride=1)
+#            kernel_non_TA_unfolded_format = kernel_non_TA.reshape(B, kernels_num_channels, H_non_ta * W_non_ta)
+#            Non_TA_input_kernel_multipliaction = kernel_non_TA_unfolded_format * non_TA_unfolded
+#            Non_TA_out_flat = Non_TA_input_kernel_multipliaction.sum(dim=1, keepdim=True)
+#            Non_TA_out = Non_TA_out_flat.reshape(B, 1, H_non_ta, W_non_ta)
+#            Non_TA_norm = kernel_non_TA.sum(dim=1, keepdim=True)
+#            Non_TA_out = Non_TA_out / (Non_TA_norm + 0.0001)
+#
+#            Non_TA_denoised[:, i:(i+1)] = Non_TA_out
         # else:
             # custom cuda kernels
-            # downsampled_irr_non_TA = torch.nn.functional.pad(downsampled_irr_non_TA, (3, 3, 3, 3))
-            # x_irradiance_TA = torch.nn.functional.pad(x_irradiance_TA, (3, 3, 3, 3))
-            # kernel_non_TA = torch.nn.functional.pad(kernel_non_TA, (3, 3, 3, 3))
-            # kernel_TA = torch.nn.functional.pad(kernel_TA, (3, 3, 3, 3))
-            # Non_TA_denoised = convolutional_ops.apply_kernel_maps_to_irradiance_maps(downsampled_irr_non_TA, kernel_non_TA)[:, :, 3:-3, 3:-3]
-            # TA_denoised = convolutional_ops.apply_kernel_maps_to_irradiance_maps(x_irradiance_TA, kernel_TA)[:, :, 3:-3, 3:-3]
+        downsampled_irr_non_TA = torch.nn.functional.pad(downsampled_irr_non_TA, (3, 3, 3, 3))
+        x_irradiance_TA = torch.nn.functional.pad(x_irradiance_TA, (3, 3, 3, 3))
+        kernel_non_TA = torch.nn.functional.pad(kernel_non_TA, (3, 3, 3, 3))
+        kernel_TA = torch.nn.functional.pad(kernel_TA, (3, 3, 3, 3))
+
+        Non_TA_denoised = convolutional_ops.apply_kernel_maps_to_irradiance_maps(downsampled_irr_non_TA.half(), kernel_non_TA)[:, :, 3:-3, 3:-3]
+        TA_denoised = convolutional_ops.apply_kernel_maps_to_irradiance_maps(x_irradiance_TA.half(), kernel_TA)[:, :, 3:-3, 3:-3]
 
         Non_TA_denoised = self.upsampler(Non_TA_denoised)
 
