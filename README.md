@@ -35,7 +35,7 @@ After the dataset is prepared run:
 ```bash
 python data_preprocess.py
 ```
-in order to generate the temporally accumulated irradiance maps and depth maps (this is a one and done execution)
+from the project root directory in order to generate the temporally accumulated irradiance maps and depth maps (this is a one and done execution)
 
 ---
 
