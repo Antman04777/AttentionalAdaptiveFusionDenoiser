@@ -91,3 +91,20 @@ If you would like to resume training (useful for training on clusters where wall
 python train.py --parameters train_parameters.json --resume
 ```
 Run this using the parameters present in train_parameters.json prior to your stopped training (do not modify this json file if you wish to resume training)
+
+## CUDA code build instructions (optional):
+
+Should you wish to use the CUDA implementation of the kernel application during inference, set the deployed and use_cuda_unfolding arguments to true in the AttentionalAFNet constructor
+
+In order to use the custom CUDA kernels you will need to build them:
+
+for AMD gpus using torch ROCM:
+```bash
+chmod +x build_amd.sh
+./build_amd.sh
+```
+for NVIDIA gpus using torch CUDA:
+```bash
+chmod +x build_cuda.sh
+./build_cuda.sh
+```
