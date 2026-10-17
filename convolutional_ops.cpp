@@ -18,28 +18,15 @@ static torch::Tensor apply_kernel_maps_to_irradiance_maps_wrapper
     const auto width = input_irradiance.size(3);
     const auto type = input_irradiance.scalar_type();
 
-    // const auto batch_size = input_irradiance.size(0);
-    // const auto channels = input_irradiance.size(1);
-    // const auto channels_km = kernel_maps.size(1);
-    // const auto height = input_irradiance.size(2);
-    // const auto width = input_irradiance.size(3);
-    // const auto type = input_irradiance.scalar_type();
-
     torch::Device device = input_irradiance.device();
-    torch::Tensor output = torch::empty({batch_size, channels, height, width}, torch::kHalf);
+    torch::Tensor output = torch::empty({batch_size, channels, height, width}, type);
     output = output.to(device);
 
     apply_kernel_maps_to_irradiance_maps_launcher
     (
-        input_irradiance.const_data_ptr<at::Half>(),
-        kernel_maps.const_data_ptr<at::Half>(),
-        output.data_ptr<at::Half>(),
-        batch_size,
-        channels,
-        channels_km,
-        height,
-        width,
-        type
+        input_irradiance,
+        kernel_maps,
+        output
     );
 
     return output;

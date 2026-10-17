@@ -21,7 +21,7 @@ def test(model, device, dataloader, save_dir=''):
             inputs = inputs.to(device, non_blocking=True)
             references = references.to(device, non_blocking = True)
 
-            with torch.autocast(device_type="cuda"):
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
                 outputs = model(inputs).detach()
 
             output = outputs.cpu().numpy()[0]
@@ -67,7 +67,7 @@ def time_inference(model, device, dataloader, steps=60):
 
             start_events[test_img_idx].record()
 
-            with torch.autocast(device_type="cuda"):
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
                 _ = model(inputs)
 
             end_events[test_img_idx].record()
@@ -122,7 +122,7 @@ if __name__ == '__main__':
     
     checkpoint = torch.load(os.path.join(model_saving_dir, 'model.pt'), device)
 
-    deployed_model = network.AttentionalAFNet(device).to(device)
+    deployed_model = network.AttentionalAFNet(device, deployed=True).to(device)
     deployed_model.load_state_dict(checkpoint['model_state_dict'])
     with torch.no_grad():
         deployed_model.deploy()

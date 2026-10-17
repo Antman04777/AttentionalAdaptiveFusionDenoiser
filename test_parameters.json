@@ -1,4 +1,4 @@
 {
-    "experiment": "Fixed+Rep+AFF+Aux",
+    "experiment": "Attentional-AD-cuda",
     "test_scene": "classroom"
 }

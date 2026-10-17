@@ -10,13 +10,7 @@
 
 void apply_kernel_maps_to_irradiance_maps_launcher
 (
-    const at::Half *input_irradiance,
-	const at::Half *kernel_maps,
-	at::Half *output,
-    const int batch_size,
-    const int channels,
-    const int channels_km,
-    const int height,
-    const int width,
-    const torch::Dtype type
+    torch::Tensor input_irradiance,
+	torch::Tensor kernel_maps,
+	torch::Tensor output
 );
