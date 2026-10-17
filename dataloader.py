@@ -8,8 +8,6 @@ import torchvision.transforms.functional as tf
 
 # from memory_profiler import profile
 
-import psutil
-
 class RawDataReader:
 
     def __init__(self, is_training=True, hold_out_scene=None):
@@ -64,9 +62,6 @@ class RawDataReader:
         self.test_inputs = []
         self.test_references = []
 
-        process = psutil.Process()
-        initial_memory = process.memory_info().rss
-
         for i in tqdm(range(len(reference_file_names))):
             
             irradiance_TA_image = pyexr.read(irradiance_TA_file_names[i])[:,:,:3]
@@ -101,12 +96,6 @@ class RawDataReader:
             else:
                 self.test_inputs.append(inputs)
                 self.test_references.append(reference_image)
-
-        final_memory = process.memory_info().rss
-
-        total_memory = (final_memory - initial_memory) / (1024 * 1024)
-
-        print("total data memory: ", total_memory)
 
 class BMFRFinalDataset(Dataset):
     def __init__(self, raw_data=None, use_train=False, use_val = False, use_test=False, crops_per_training_frame=80, crops_per_validation_frame=20, crop_size=128):
