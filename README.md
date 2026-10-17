@@ -18,7 +18,7 @@ We utilise the BMFR dataset in this paper which can be found at: https://etsin.f
 
 ## Instructions
 
-(These instructions are for linux)
+(These instructions are for Linux and all instructions should be executed in an environment containing the aforementioned prerequisites)
 
 Extract both parts of the BMFR dataset into the 'dataset' directory within the project root directory
 
@@ -54,7 +54,7 @@ An example of this would look like:
 
 ---
 
-Next, simply enable your virtual environment with the necessary installed pip packages and run:
+run:
 ```bash
 python test.py --parameters test_parameters.json
 ```
@@ -81,7 +81,7 @@ And example of this would look like:
 }
 ```
 
-Next, enable your virtual environment with the necessary installed pip packages and run:
+run:
 ```bash
 python train.py --parameters train_parameters.json
 ```
